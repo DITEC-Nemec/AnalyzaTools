@@ -65,9 +65,11 @@ steps:
     text: |
       Systém zistí, či existuje spracovanie prihlášok pre zadané vstupné parametre.
     operation:
-      kind: sqd
-      sqdRef:
-        namespaceAlias: local
+      kind: entityFunction
+      entityFunctionRef:
+        namespaceAlias: ''
+        entity: ''
+        function: ''
   - id: '2.2'
     legacyId: '*2.2*'
     type: decision
@@ -117,6 +119,12 @@ steps:
                     text: Výpočet ešte beží.
                     event:
                       code: sosm-12
+                      eventRef:
+                        kind: entityFunction
+                        entityFunctionRef:
+                          namespaceAlias: ''
+                          entity: ''
+                          function: ''
                   - id: 2.2.3.2
                     type: return
                     text: NAVRAT
@@ -191,11 +199,13 @@ steps:
                                             type: decision
                                             text: Ak Reset je FALSE.
                                             condition:
-                                              kind: variableRef
+                                              kind: simple
                                               description: Kontrola vstupnej premennej Reset.
                                               variableRef: Reset
                                               check: equals
                                               value: false
+                                              operationRef:
+                                                kind: entityFunction
                                             branches:
                                               - when: 'true'
                                                 then:

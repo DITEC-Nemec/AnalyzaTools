@@ -58,17 +58,18 @@
         "version": {
           "type": "string"
         },
-        "inputs": {
+        "parameters": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/variable"
+            "$ref": "#/$defs/parameter"
           }
         },
-        "outputs": {
+        "parameter": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/variable"
-          }
+            "$ref": "#/$defs/parameter"
+          },
+          "description": "Deprecated alias, use algorithm.parameters"
         }
       }
     },
@@ -259,7 +260,6 @@
           "description": "Referencia na entityFunction alebo sqd, ktorého návratovú hodnotu podmienka vyhodnocuje. Použiť keď podmienka závisí od výsledku volania, nie od priameho stavu atribútu."
         },
         "description": {
-          "type": "string",
           "minLength": 0,
           "description": "Slovný biznesový popis toho, čo podmienka rieši — pre čitateľnosť a AI interpretáciu."
         },
@@ -626,6 +626,24 @@
         }
       }
     },
+    "parameter": {
+      "type": "object",
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": [
+            "in",
+            "out",
+            "inout"
+          ],
+          "description": "Směr parametru (vstupní, výstupní nebo obojí)"
+        },
+        "namedType": {
+          "$ref": "#/$defs/namedType",
+          "description": "Odkaz na pomenovaný typ proměnné (obsahuje aj názov, ale primárne slúži pro definici typu a dalších vlastností proměnné)"
+        }
+      }
+    },
     "variable": {
       "type": "object",
       "properties": {
@@ -635,7 +653,7 @@
         }
       }
     },
-      "annotation": {
+    "annotation": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -653,7 +671,10 @@
     "simpleType": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "definition"],
+      "required": [
+        "name",
+        "definition"
+      ],
       "properties": {
         "name": {
           "type": "string"
@@ -666,7 +687,7 @@
         }
       }
     },
-       "simpleTypeDefinition": {
+    "simpleTypeDefinition": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -681,15 +702,30 @@
         }
       },
       "oneOf": [
-        { "required": ["restriction"] },
-        { "required": ["list"] },
-        { "required": ["union"] }
+        {
+          "required": [
+            "restriction"
+          ]
+        },
+        {
+          "required": [
+            "list"
+          ]
+        },
+        {
+          "required": [
+            "union"
+          ]
+        }
       ]
     },
     "simpleTypeRef": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["namespaceAlias", "simpleType"],
+      "required": [
+        "namespaceAlias",
+        "simpleType"
+      ],
       "properties": {
         "namespaceAlias": {
           "type": "string",
@@ -704,7 +740,9 @@
     "restriction": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["base"],
+      "required": [
+        "base"
+      ],
       "properties": {
         "base": {
           "oneOf": [
@@ -745,7 +783,11 @@
         "enumeration": {
           "type": "array",
           "items": {
-            "type": ["string", "number", "boolean"]
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
           },
           "uniqueItems": true
         },
@@ -765,16 +807,28 @@
           "minimum": 0
         },
         "minInclusive": {
-          "type": ["number", "string"]
+          "type": [
+            "number",
+            "string"
+          ]
         },
         "maxInclusive": {
-          "type": ["number", "string"]
+          "type": [
+            "number",
+            "string"
+          ]
         },
         "minExclusive": {
-          "type": ["number", "string"]
+          "type": [
+            "number",
+            "string"
+          ]
         },
         "maxExclusive": {
-          "type": ["number", "string"]
+          "type": [
+            "number",
+            "string"
+          ]
         },
         "totalDigits": {
           "type": "integer",
@@ -786,15 +840,20 @@
         },
         "whiteSpace": {
           "type": "string",
-          "enum": ["preserve", "replace", "collapse"]
+          "enum": [
+            "preserve",
+            "replace",
+            "collapse"
+          ]
         }
       }
     },
-
     "list": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["itemType"],
+      "required": [
+        "itemType"
+      ],
       "properties": {
         "itemType": {
           "oneOf": [
@@ -834,11 +893,12 @@
         }
       }
     },
-
     "union": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["memberTypes"],
+      "required": [
+        "memberTypes"
+      ],
       "properties": {
         "memberTypes": {
           "type": "array",
@@ -882,7 +942,7 @@
         }
       }
     },
-     "namedType": {
+    "namedType": {
       "type": "object",
       "required": [
         "name"
@@ -898,12 +958,12 @@
         "type": {
           "type": "string",
           "enum": [
-            "definition",          
+            "definition",
             "entityRef",
             "typeRef"
           ]
-        },        
-         "definition": {
+        },
+        "definition": {
           "$ref": "#/$defs/simpleTypeDefinition"
         },
         "entityRef": {
@@ -954,7 +1014,7 @@
               "typeRef"
             ]
           }
-        },         
+        },
         {
           "if": {
             "properties": {
@@ -1021,11 +1081,9 @@
         ],
         "properties": {
           "when": {
-            "type": "string",
-            "enum": [
-              "true",
-              "false",
-              "otherwise"
+            "oneOf": [
+              { "type": "boolean" },
+              { "type": "string", "const": "otherwise" }
             ]
           },
           "then": {

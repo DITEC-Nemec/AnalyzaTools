@@ -19,7 +19,7 @@ entities:
         namedType:
           name: DatumUkonceniaVypoctu
           nullable: true
-          type: entityRef
+          type: typeRef
           definition:
             list:
               itemType:
@@ -30,7 +30,7 @@ entities:
             entity: Spracovanie žiaka
             attribute: DatumZaciatkuVypoctu
           typeRef:
-            namespaceAlias: local
+            namespaceAlias: ziak
             simpleType: simpleType_1
         states: []
       - name: NavratovyKod
@@ -55,7 +55,13 @@ entities:
             - writes: NavratovyKod
             - writes: NavratovyText
         preconditions: []
-        inputs:
+        effects:
+          - type: reads
+            entityRef:
+              namespaceAlias: local
+              entity: ''
+              attribute: ''
+        parameters:
           - namedType:
               name: aaa
               type: definition
@@ -66,18 +72,12 @@ entities:
               definition:
                 restriction:
                   base:
-                    namespaceAlias: ''
-                    simpleType: ''
+                    namespaceAlias: ziak
+                    simpleType: simpleType_1
               nullable: true
               readOnly: false
               multiplicity: ''
-        outputs: []
-        effects:
-          - type: reads
-            entityRef:
-              namespaceAlias: local
-              entity: ''
-              attribute: ''
+            direction: in
       - name: OznacZaciatokPrenosu
         detail:
           description: Nastaví dátum začiatku prenosu výsledkov.
@@ -127,5 +127,7 @@ namespaceRef:
 simpleTypes:
   - name: simpleType_1
     definition:
-      restriction:
-        base: string
+      list:
+        itemType:
+          namespaceAlias: ''
+          simpleType: ''

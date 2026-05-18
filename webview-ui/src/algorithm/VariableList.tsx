@@ -1,14 +1,17 @@
 import React from 'react';
-import type { NamedType, RestrictionDefinition, SimpleTypeDefinition, SimpleTypeRef, Variable } from '../types/sqd';
+import type { NamedType, ParameterDirection, RestrictionDefinition, SimpleTypeDefinition, SimpleTypeRef, Variable } from '../types/sqd';
+
+type VariableItem = Variable & { direction?: ParameterDirection };
 
 interface Props {
-  value: Variable[];
-  onChange: (value: Variable[]) => void;
+  value: VariableItem[];
+  onChange: (value: VariableItem[]) => void;
   useSelectsForRefs?: boolean;
   namespaceAliases?: string[];
   getAvailableEntities?: (namespaceAlias?: string) => string[];
   getAvailableAttributes?: (entityName: string, namespaceAlias?: string) => string[];
   getAvailableSimpleTypes?: (namespaceAlias?: string) => string[];
+  showDirection?: boolean;
 }
 
 const PRIMITIVE_TYPES = [
@@ -25,7 +28,8 @@ export const VariableList: React.FC<Props> = ({
   namespaceAliases = [],
   getAvailableEntities = () => [],
   getAvailableAttributes = () => [],
-  getAvailableSimpleTypes = () => []
+  getAvailableSimpleTypes = () => [],
+  showDirection = false
 }) => {
   const [selectedIndex, setSelectedIndex] = React.useState<number | null>(value.length > 0 ? 0 : null);
 
@@ -144,7 +148,8 @@ export const VariableList: React.FC<Props> = ({
   });
 
   const handleAdd = () => {
-    const nextItem: Variable = {
+    const nextItem: VariableItem = {
+      direction: showDirection ? 'in' : undefined,
       namedType: {
         name: '',
         type: 'typeRef',
@@ -156,7 +161,7 @@ export const VariableList: React.FC<Props> = ({
       }
     };
 
-    const next: Variable[] = [
+    const next: VariableItem[] = [
       ...value,
       nextItem
     ];
@@ -177,7 +182,7 @@ export const VariableList: React.FC<Props> = ({
   };
 
   const handleNamedTypeChange = (idx: number, patch: Partial<NonNullable<Variable['namedType']>>) => {
-    const next: Variable[] = value.map((item, i) => {
+    const next: VariableItem[] = value.map((item, i) => {
       if (i !== idx) {
         return item;
       }
@@ -189,6 +194,19 @@ export const VariableList: React.FC<Props> = ({
       return {
         ...item,
         namedType: updatedNamedType
+      };
+    });
+    onChange(next);
+  };
+
+  const handleDirectionChange = (idx: number, direction: ParameterDirection) => {
+    const next: VariableItem[] = value.map((item, i) => {
+      if (i !== idx) {
+        return item;
+      }
+      return {
+        ...item,
+        direction
       };
     });
     onChange(next);
@@ -221,6 +239,7 @@ export const VariableList: React.FC<Props> = ({
           <tr>
             <th>Meno</th>
             <th>Typ</th>
+            {showDirection && <th>Smer</th>}
             <th>Multiplicita</th>
             <th>Akcie</th>
           </tr>
@@ -234,6 +253,7 @@ export const VariableList: React.FC<Props> = ({
             >
               <td>{item.namedType?.name ?? ''}</td>
               <td>{item.namedType?.type ?? ''}</td>
+              {showDirection && <td>{item.direction ?? 'in'}</td>}
               <td>{item.namedType?.multiplicity ?? ''}</td>
               <td>
                 <button type="button" className="icon-btn" onClick={(e) => { e.stopPropagation(); handleMove(idx, -1); }} disabled={idx === 0}>↑</button>
@@ -244,7 +264,7 @@ export const VariableList: React.FC<Props> = ({
           ))}
           {value.length === 0 && (
             <tr>
-              <td colSpan={4} className="muted">Ziadne parametre</td>
+              <td colSpan={showDirection ? 5 : 4} className="muted">Ziadne parametre</td>
             </tr>
           )}
         </tbody>
@@ -261,6 +281,21 @@ export const VariableList: React.FC<Props> = ({
             value={selectedVariable.namedType?.name ?? ''}
             onChange={e => handleNamedTypeChange(selectedIndex, { name: e.target.value })}
           />
+
+          {showDirection && (
+            <>
+              <label className="field-label">direction</label>
+              <select
+                className="field-input"
+                value={selectedVariable.direction ?? 'in'}
+                onChange={e => handleDirectionChange(selectedIndex, e.target.value as ParameterDirection)}
+              >
+                <option value="in">in</option>
+                <option value="out">out</option>
+                <option value="inout">inout</option>
+              </select>
+            </>
+          )}
 
           <label className="field-label">type</label>
           <select

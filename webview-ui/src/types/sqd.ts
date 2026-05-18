@@ -35,6 +35,12 @@ export interface Variable {
   namedType?: NamedType;
 }
 
+export type ParameterDirection = 'in' | 'out' | 'inout';
+
+export interface Parameter extends Variable {
+  direction?: ParameterDirection;
+}
+
 export type StepType =
   | 'step'
   | 'operation'
@@ -264,6 +270,8 @@ export interface DomainFunction {
   name: string;
   description?: string;
   preconditions?: string[];
+  parameters?: Parameter[];
+  // Spatna kompatibilita so starsim formatom funkcie
   inputs?: Variable[];
   outputs?: Variable[];
   effects?: FunctionEffect[];

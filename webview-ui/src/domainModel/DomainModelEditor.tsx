@@ -15,6 +15,7 @@ import type {
   RelationshipRole,
   FunctionEffect,
   StateEntry,
+  Parameter,
   Variable,
   EventGlossaryEntry
 } from '../types/sqd';
@@ -109,6 +110,31 @@ const normalizeVariable = (variable: Variable | string): Variable => {
 
 const normalizeVariableArray = (vars: Array<Variable | string> | undefined): Variable[] => {
   return (vars ?? []).map(normalizeVariable);
+};
+
+const normalizeFunctionParameters = (fn: DomainFunction | null | undefined): Parameter[] => {
+  if (!fn) {
+    return [];
+  }
+
+  if (fn.parameters && fn.parameters.length > 0) {
+    return fn.parameters.map((param) => ({
+      ...normalizeVariable(param as Variable),
+      direction: param.direction ?? 'in'
+    }));
+  }
+
+  const legacyInputs = normalizeVariableArray(fn.inputs as Array<Variable | string> | undefined).map((item) => ({
+    ...item,
+    direction: 'in' as const
+  }));
+
+  const legacyOutputs = normalizeVariableArray(fn.outputs as Array<Variable | string> | undefined).map((item) => ({
+    ...item,
+    direction: 'out' as const
+  }));
+
+  return [...legacyInputs, ...legacyOutputs];
 };
 
 const simpleTypeRefToText = (ref: SimpleTypeRef): string => `${ref.namespaceAlias}:${ref.simpleType}`;
@@ -453,8 +479,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         name: `funkcia_${(selectedEntity.functions ?? []).length + 1}`,
         description: '',
         preconditions: [],
-        inputs: [],
-        outputs: [],
+        parameters: [],
         effects: []
       }
     ];
@@ -2068,8 +2093,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                         <tr>
                           <th>{L('functions.columns.name', 'Nazov')}</th>
                           <th>{L('functions.columns.description', 'Popis')}</th>
-                          <th>{L('functions.columns.inputs', 'Inputs')}</th>
-                          <th>{L('functions.columns.outputs', 'Outputs')}</th>
+                          <th>{L('functions.columns.parameters', 'Parameters')}</th>
                           <th>{L('functions.columns.actions', 'Akcie')}</th>
                         </tr>
                       </thead>
@@ -2078,8 +2102,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                           <tr key={fn.name + i} className={selectedFunctionIndex === i ? 'selected' : ''} onClick={() => setSelectedFunctionIndex(i)}>
                             <td>{fn.name}</td>
                             <td>{fn.description ?? '-'}</td>
-                            <td>{fn.inputs?.length ?? 0}</td>
-                            <td>{fn.outputs?.length ?? 0}</td>
+                            <td>{normalizeFunctionParameters(fn).length}</td>
                             <td>
                               <div className="inline-actions">
                                 <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveFunction(i, -1); }}>↑</button>
@@ -2100,11 +2123,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                           <button className={functionTab === 'detail' ? 'tab active' : 'tab'} onClick={() => setFunctionTab('detail')}>
                             {L('functions.tabs.detail', 'Detail')}
                           </button>
-                          <button className={functionTab === 'inputs' ? 'tab active' : 'tab'} onClick={() => setFunctionTab('inputs')}>
-                            {L('functions.tabs.inputs', 'Vstupne parametre')}
-                          </button>
-                          <button className={functionTab === 'outputs' ? 'tab active' : 'tab'} onClick={() => setFunctionTab('outputs')}>
-                            {L('functions.tabs.outputs', 'Vystupne parametre')}
+                          <button className={functionTab === 'parameters' ? 'tab active' : 'tab'} onClick={() => setFunctionTab('parameters')}>
+                            {L('functions.tabs.parameters', 'Parametre')}
                           </button>
                         </div>
 
@@ -2158,30 +2178,21 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                           </div>
                         )}
 
-                        {functionTab === 'inputs' && (
+                        {functionTab === 'parameters' && (
                           <div style={{ marginTop: 12 }}>
                             <VariableList
-                              value={normalizeVariableArray(selectedFunction.inputs as Array<Variable | string> | undefined)}
-                              onChange={(inputs) => updateFunction(selectedFunctionIndex, { inputs })}
+                              value={normalizeFunctionParameters(selectedFunction)}
+                              onChange={(parameters) => updateFunction(selectedFunctionIndex, {
+                                parameters,
+                                inputs: undefined,
+                                outputs: undefined
+                              })}
                               useSelectsForRefs
                               namespaceAliases={getNamespaceAliases()}
                               getAvailableEntities={getAvailableEntities}
                               getAvailableAttributes={getAvailableAttributes}
                               getAvailableSimpleTypes={getAvailableSimpleTypes}
-                            />
-                          </div>
-                        )}
-
-                        {functionTab === 'outputs' && (
-                          <div style={{ marginTop: 12 }}>
-                            <VariableList
-                              value={normalizeVariableArray(selectedFunction.outputs as Array<Variable | string> | undefined)}
-                              onChange={(outputs) => updateFunction(selectedFunctionIndex, { outputs })}
-                              useSelectsForRefs
-                              namespaceAliases={getNamespaceAliases()}
-                              getAvailableEntities={getAvailableEntities}
-                              getAvailableAttributes={getAvailableAttributes}
-                              getAvailableSimpleTypes={getAvailableSimpleTypes}
+                              showDirection
                             />
                           </div>
                         )}

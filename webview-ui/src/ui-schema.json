@@ -159,13 +159,19 @@
       "columns": {
         "name": "Názov",
         "description": "Popis",
+        "parameters": "Parametre",
         "inputs": "Vstupy",
         "outputs": "Výstupy",
         "actions": "Akcie"
       },
+      "tabs": {
+        "detail": "Detail",
+        "parameters": "Parametre"
+      },
       "name": "Názov",
       "description": "Popis",
       "preconditions": "Predpoklady (oddelene čiarkou)",
+      "direction": "Smer",
       "inputs": "Vstupy (oddelene čiarkou)",
       "outputs": "ýstupy (oddelene čiarkou)",
       "effectsTitle": "Efekty",

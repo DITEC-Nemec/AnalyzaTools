@@ -39,9 +39,9 @@
       "items": {
         "$ref": "#/$defs/entity"
       },
-       "uniqueItems": true
+      "uniqueItems": true
     },
-     "simpleTypes": {
+    "simpleTypes": {
       "type": "array",
       "items": {
         "$ref": "#/$defs/simpleType"
@@ -67,7 +67,7 @@
         "$ref": "#/$defs/eventGlossaryEntry"
       }
     },
-     "namespaceRef": {
+    "namespaceRef": {
       "type": "array",
       "description": "Katalóg namespacov pre definiciu referencii na entityty/funkcie, sqd, eventy definované v iných modeloch  ",
       "items": {
@@ -227,10 +227,10 @@
           },
           "description": "Podmienky, ktoré musia platiť pred volaním funkcie"
         },
-        "inputs": {
+        "parameters": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/variable"
+            "$ref": "#/$defs/parameter"
           },
           "description": "Logické vstupy funkcie"
         },
@@ -238,19 +238,30 @@
           "type": "string",
           "description": "Význam funkcie v prirodzenom jazyku"
         },
-        "outputs": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/variable"
-          },
-          "description": "Čo funkcia vracia / aký je výsledok volania (používa sa v condition.outputRef)"
-        },
         "effects": {
           "type": "array",
           "description": "Deklarované účinky funkcie",
           "items": {
             "$ref": "#/$defs/effect"
           }
+        }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": [
+            "in",
+            "out",
+            "inout"
+          ],
+          "description": "Směr parametru (vstupní, výstupní nebo obojí)"
+        },
+        "namedType": {
+          "$ref": "#/$defs/namedType",
+          "description": "Odkaz na pomenovaný typ proměnné (obsahuje aj názov, ale primárne slúži pro definici typu a dalších vlastností proměnné)"
         }
       }
     },
@@ -263,7 +274,7 @@
         }
       }
     },
-     "annotation": {
+    "annotation": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -278,11 +289,13 @@
         }
       }
     },
-
     "simpleType": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "definition"],
+      "required": [
+        "name",
+        "definition"
+      ],
       "properties": {
         "name": {
           "type": "string"
@@ -310,15 +323,30 @@
         }
       },
       "oneOf": [
-        { "required": ["restriction"] },
-        { "required": ["list"] },
-        { "required": ["union"] }
+        {
+          "required": [
+            "restriction"
+          ]
+        },
+        {
+          "required": [
+            "list"
+          ]
+        },
+        {
+          "required": [
+            "union"
+          ]
+        }
       ]
     },
     "simpleTypeRef": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["namespaceAlias", "simpleType"],
+      "required": [
+        "namespaceAlias",
+        "simpleType"
+      ],
       "properties": {
         "namespaceAlias": {
           "type": "string",
@@ -332,7 +360,9 @@
     "restriction": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["base"],
+      "required": [
+        "base"
+      ],
       "properties": {
         "base": {
           "oneOf": [
@@ -373,7 +403,11 @@
         "enumeration": {
           "type": "array",
           "items": {
-            "type": ["string", "number", "boolean"]
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ]
           },
           "uniqueItems": true
         },
@@ -393,16 +427,28 @@
           "minimum": 0
         },
         "minInclusive": {
-          "type": ["number", "string"]
+          "type": [
+            "number",
+            "string"
+          ]
         },
         "maxInclusive": {
-          "type": ["number", "string"]
+          "type": [
+            "number",
+            "string"
+          ]
         },
         "minExclusive": {
-          "type": ["number", "string"]
+          "type": [
+            "number",
+            "string"
+          ]
         },
         "maxExclusive": {
-          "type": ["number", "string"]
+          "type": [
+            "number",
+            "string"
+          ]
         },
         "totalDigits": {
           "type": "integer",
@@ -414,15 +460,20 @@
         },
         "whiteSpace": {
           "type": "string",
-          "enum": ["preserve", "replace", "collapse"]
+          "enum": [
+            "preserve",
+            "replace",
+            "collapse"
+          ]
         }
       }
     },
-
     "list": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["itemType"],
+      "required": [
+        "itemType"
+      ],
       "properties": {
         "itemType": {
           "oneOf": [
@@ -462,11 +513,12 @@
         }
       }
     },
-
     "union": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["memberTypes"],
+      "required": [
+        "memberTypes"
+      ],
       "properties": {
         "memberTypes": {
           "type": "array",
@@ -526,12 +578,12 @@
         "type": {
           "type": "string",
           "enum": [
-            "definition",          
+            "definition",
             "entityRef",
             "typeRef"
           ]
-        },        
-         "definition": {
+        },
+        "definition": {
           "$ref": "#/$defs/simpleTypeDefinition"
         },
         "entityRef": {
@@ -582,7 +634,7 @@
               "typeRef"
             ]
           }
-        },         
+        },
         {
           "if": {
             "properties": {
@@ -611,7 +663,7 @@
             "reads",
             "writes"
           ]
-        },     
+        },
         "entityRef": {
           "$ref": "#/$defs/referenceEntity",
           "description": "Atribút entity"
@@ -730,7 +782,7 @@
         }
       }
     },
-     "namespaceEntity": {
+    "namespaceEntity": {
       "type": "object",
       "required": [
         "alias",

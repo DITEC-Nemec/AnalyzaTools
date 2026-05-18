@@ -17,6 +17,11 @@ interface Props {
   step: SqdStep;
   depth?: number;
   actions?: React.ReactNode;
+  modelAliases?: string[];
+  sqdAliases?: string[];
+  getEntitiesForAlias?: (alias: string) => string[];
+  getFunctionsForEntity?: (alias: string, entity: string) => string[];
+  getEventsForAlias?: (alias: string) => string[];
   onChange: (updated: SqdStep) => void;
 }
 
@@ -107,7 +112,17 @@ const normalizeParameterMap = (
   }));
 };
 
-export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }) => {
+export const StepCard: React.FC<Props> = ({
+  step,
+  depth = 0,
+  actions,
+  modelAliases = [],
+  sqdAliases = [],
+  getEntitiesForAlias = () => [],
+  getFunctionsForEntity = () => [],
+  getEventsForAlias = () => [],
+  onChange
+}) => {
   const L = (path: string, fallback: string) => label(`algorithm.${path}`, fallback);
 
   const [expanded, setExpanded] = useState(true);
@@ -533,7 +548,7 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                 {(condition.operationRef?.kind ?? 'step') === 'entityFunction' && (
                   <>
                     <label className="field-label">EntityFunction namespaceAlias</label>
-                    <input
+                    <select
                       className="field-input"
                       value={condition.operationRef?.entityFunctionRef?.namespaceAlias ?? ''}
                       onChange={(e) => {
@@ -545,14 +560,19 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                             operationRef: {
                               ...(condition.operationRef ?? { kind: 'entityFunction' }),
                               kind: 'entityFunction',
-                              entityFunctionRef: { ...currentRef, namespaceAlias: e.target.value }
+                              entityFunctionRef: { ...currentRef, namespaceAlias: e.target.value, entity: '', function: '' }
                             }
                           }
                         });
                       }}
-                    />
+                    >
+                      <option value="">—</option>
+                      {modelAliases.map(alias => (
+                        <option key={alias} value={alias}>{alias}</option>
+                      ))}
+                    </select>
                     <label className="field-label">Entity</label>
-                    <input
+                    <select
                       className="field-input"
                       value={condition.operationRef?.entityFunctionRef?.entity ?? ''}
                       onChange={(e) => {
@@ -564,14 +584,19 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                             operationRef: {
                               ...(condition.operationRef ?? { kind: 'entityFunction' }),
                               kind: 'entityFunction',
-                              entityFunctionRef: { ...currentRef, entity: e.target.value }
+                              entityFunctionRef: { ...currentRef, entity: e.target.value, function: '' }
                             }
                           }
                         });
                       }}
-                    />
+                    >
+                      <option value="">—</option>
+                      {getEntitiesForAlias(condition.operationRef?.entityFunctionRef?.namespaceAlias ?? '').map(entity => (
+                        <option key={entity} value={entity}>{entity}</option>
+                      ))}
+                    </select>
                     <label className="field-label">Function</label>
-                    <input
+                    <select
                       className="field-input"
                       value={condition.operationRef?.entityFunctionRef?.function ?? ''}
                       onChange={(e) => {
@@ -588,7 +613,15 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                           }
                         });
                       }}
-                    />
+                    >
+                      <option value="">—</option>
+                      {getFunctionsForEntity(
+                        condition.operationRef?.entityFunctionRef?.namespaceAlias ?? '',
+                        condition.operationRef?.entityFunctionRef?.entity ?? ''
+                      ).map(fn => (
+                        <option key={fn} value={fn}>{fn}</option>
+                      ))}
+                    </select>
                     <label className="field-label">parameterMap</label>
                     <VariableAssignList
                       value={normalizeParameterMap(condition.operationRef?.entityFunctionRef)}
@@ -612,7 +645,7 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                 {(condition.operationRef?.kind ?? 'step') === 'sqd' && (
                   <>
                     <label className="field-label">SQD namespaceAlias</label>
-                    <input
+                    <select
                       className="field-input"
                       value={condition.operationRef?.sqdRef?.namespaceAlias ?? ''}
                       onChange={(e) => {
@@ -629,7 +662,12 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                           }
                         });
                       }}
-                    />
+                    >
+                      <option value="">—</option>
+                      {sqdAliases.map(alias => (
+                        <option key={alias} value={alias}>{alias}</option>
+                      ))}
+                    </select>
                     <label className="field-label">parameterMap</label>
                     <VariableAssignList
                       value={normalizeParameterMap(condition.operationRef?.sqdRef)}
@@ -653,7 +691,7 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                 {(condition.operationRef?.kind ?? 'step') === 'event' && (
                   <>
                     <label className="field-label">Event namespaceAlias</label>
-                    <input
+                    <select
                       className="field-input"
                       value={condition.operationRef?.eventRef?.namespaceAlias ?? ''}
                       onChange={(e) => {
@@ -665,14 +703,19 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                             operationRef: {
                               ...(condition.operationRef ?? { kind: 'event' }),
                               kind: 'event',
-                              eventRef: { ...currentRef, namespaceAlias: e.target.value }
+                              eventRef: { ...currentRef, namespaceAlias: e.target.value, event: '' }
                             }
                           }
                         });
                       }}
-                    />
+                    >
+                      <option value="">—</option>
+                      {modelAliases.map(alias => (
+                        <option key={alias} value={alias}>{alias}</option>
+                      ))}
+                    </select>
                     <label className="field-label">Event</label>
-                    <input
+                    <select
                       className="field-input"
                       value={condition.operationRef?.eventRef?.event ?? ''}
                       onChange={(e) => {
@@ -689,7 +732,12 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                           }
                         });
                       }}
-                    />
+                    >
+                      <option value="">—</option>
+                      {getEventsForAlias(condition.operationRef?.eventRef?.namespaceAlias ?? '').map(event => (
+                        <option key={event} value={event}>{event}</option>
+                      ))}
+                    </select>
                     <label className="field-label">parameterMap</label>
                     <VariableAssignList
                       value={normalizeParameterMap(condition.operationRef?.eventRef)}
@@ -741,32 +789,50 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
             {operation.kind === 'entityFunction' && (
               <>
                 <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
-                <input
+                <select
                   className="field-input"
                   value={operation.entityFunctionRef?.namespaceAlias ?? ''}
                   onChange={(e) => upsertOperationObject({
                     kind: 'entityFunction',
-                    entityFunctionRef: { ...(operation.entityFunctionRef ?? {}), namespaceAlias: e.target.value }
+                    entityFunctionRef: { ...(operation.entityFunctionRef ?? {}), namespaceAlias: e.target.value, entity: '', function: '' }
                   })}
-                />
+                >
+                  <option value="">—</option>
+                  {modelAliases.map(alias => (
+                    <option key={alias} value={alias}>{alias}</option>
+                  ))}
+                </select>
                 <label className="field-label">{L('dialogs.entity', 'Entity')}</label>
-                <input
+                <select
                   className="field-input"
                   value={operation.entityFunctionRef?.entity ?? ''}
                   onChange={(e) => upsertOperationObject({
                     kind: 'entityFunction',
-                    entityFunctionRef: { ...(operation.entityFunctionRef ?? {}), entity: e.target.value }
+                    entityFunctionRef: { ...(operation.entityFunctionRef ?? {}), entity: e.target.value, function: '' }
                   })}
-                />
+                >
+                  <option value="">—</option>
+                  {getEntitiesForAlias(operation.entityFunctionRef?.namespaceAlias ?? '').map(entity => (
+                    <option key={entity} value={entity}>{entity}</option>
+                  ))}
+                </select>
                 <label className="field-label">{L('dialogs.function', 'Function')}</label>
-                <input
+                <select
                   className="field-input"
                   value={operation.entityFunctionRef?.function ?? ''}
                   onChange={(e) => upsertOperationObject({
                     kind: 'entityFunction',
                     entityFunctionRef: { ...(operation.entityFunctionRef ?? {}), function: e.target.value }
                   })}
-                />
+                >
+                  <option value="">—</option>
+                  {getFunctionsForEntity(
+                    operation.entityFunctionRef?.namespaceAlias ?? '',
+                    operation.entityFunctionRef?.entity ?? ''
+                  ).map(fn => (
+                    <option key={fn} value={fn}>{fn}</option>
+                  ))}
+                </select>
                 <label className="field-label">parameterMap</label>
                 <VariableAssignList
                   value={normalizeParameterMap(operation.entityFunctionRef)}
@@ -786,14 +852,19 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
             {operation.kind === 'sqd' && (
               <>
                 <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
-                <input
+                <select
                   className="field-input"
                   value={operation.sqdRef?.namespaceAlias ?? ''}
                   onChange={(e) => upsertOperationObject({
                     kind: 'sqd',
                     sqdRef: { ...(operation.sqdRef ?? {}), namespaceAlias: e.target.value }
                   })}
-                />
+                >
+                  <option value="">—</option>
+                  {sqdAliases.map(alias => (
+                    <option key={alias} value={alias}>{alias}</option>
+                  ))}
+                </select>
                 <label className="field-label">parameterMap</label>
                 <VariableAssignList
                   value={normalizeParameterMap(operation.sqdRef)}
@@ -813,23 +884,33 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
             {operation.kind === 'event' && (
               <>
                 <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
-                <input
+                <select
                   className="field-input"
                   value={operation.eventRef?.namespaceAlias ?? ''}
                   onChange={(e) => upsertOperationObject({
                     kind: 'event',
-                    eventRef: { ...(operation.eventRef ?? {}), namespaceAlias: e.target.value }
+                    eventRef: { ...(operation.eventRef ?? {}), namespaceAlias: e.target.value, event: '' }
                   })}
-                />
+                >
+                  <option value="">—</option>
+                  {modelAliases.map(alias => (
+                    <option key={alias} value={alias}>{alias}</option>
+                  ))}
+                </select>
                 <label className="field-label">{L('dialogs.event', 'Event')}</label>
-                <input
+                <select
                   className="field-input"
                   value={operation.eventRef?.event ?? ''}
                   onChange={(e) => upsertOperationObject({
                     kind: 'event',
                     eventRef: { ...(operation.eventRef ?? {}), event: e.target.value }
                   })}
-                />
+                >
+                  <option value="">—</option>
+                  {getEventsForAlias(operation.eventRef?.namespaceAlias ?? '').map(event => (
+                    <option key={event} value={event}>{event}</option>
+                  ))}
+                </select>
                 <label className="field-label">parameterMap</label>
                 <VariableAssignList
                   value={normalizeParameterMap(operation.eventRef)}
@@ -885,32 +966,50 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
             {(eventRef?.kind ?? 'step') === 'entityFunction' && (
               <>
                 <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
-                <input
+                <select
                   className="field-input"
                   value={eventRef?.entityFunctionRef?.namespaceAlias ?? ''}
                   onChange={(e) => upsertEventRef({
                     kind: 'entityFunction',
-                    entityFunctionRef: { ...(eventRef?.entityFunctionRef ?? {}), namespaceAlias: e.target.value }
+                    entityFunctionRef: { ...(eventRef?.entityFunctionRef ?? {}), namespaceAlias: e.target.value, entity: '', function: '' }
                   })}
-                />
+                >
+                  <option value="">—</option>
+                  {modelAliases.map(alias => (
+                    <option key={alias} value={alias}>{alias}</option>
+                  ))}
+                </select>
                 <label className="field-label">{L('dialogs.entity', 'Entity')}</label>
-                <input
+                <select
                   className="field-input"
                   value={eventRef?.entityFunctionRef?.entity ?? ''}
                   onChange={(e) => upsertEventRef({
                     kind: 'entityFunction',
-                    entityFunctionRef: { ...(eventRef?.entityFunctionRef ?? {}), entity: e.target.value }
+                    entityFunctionRef: { ...(eventRef?.entityFunctionRef ?? {}), entity: e.target.value, function: '' }
                   })}
-                />
+                >
+                  <option value="">—</option>
+                  {getEntitiesForAlias(eventRef?.entityFunctionRef?.namespaceAlias ?? '').map(entity => (
+                    <option key={entity} value={entity}>{entity}</option>
+                  ))}
+                </select>
                 <label className="field-label">{L('dialogs.function', 'Function')}</label>
-                <input
+                <select
                   className="field-input"
                   value={eventRef?.entityFunctionRef?.function ?? ''}
                   onChange={(e) => upsertEventRef({
                     kind: 'entityFunction',
                     entityFunctionRef: { ...(eventRef?.entityFunctionRef ?? {}), function: e.target.value }
                   })}
-                />
+                >
+                  <option value="">—</option>
+                  {getFunctionsForEntity(
+                    eventRef?.entityFunctionRef?.namespaceAlias ?? '',
+                    eventRef?.entityFunctionRef?.entity ?? ''
+                  ).map(fn => (
+                    <option key={fn} value={fn}>{fn}</option>
+                  ))}
+                </select>
                 <label className="field-label">parameterMap</label>
                 <VariableAssignList
                   value={normalizeParameterMap(eventRef?.entityFunctionRef)}
@@ -930,14 +1029,19 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
             {(eventRef?.kind ?? 'step') === 'sqd' && (
               <>
                 <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
-                <input
+                <select
                   className="field-input"
                   value={eventRef?.sqdRef?.namespaceAlias ?? ''}
                   onChange={(e) => upsertEventRef({
                     kind: 'sqd',
                     sqdRef: { ...(eventRef?.sqdRef ?? {}), namespaceAlias: e.target.value }
                   })}
-                />
+                >
+                  <option value="">—</option>
+                  {sqdAliases.map(alias => (
+                    <option key={alias} value={alias}>{alias}</option>
+                  ))}
+                </select>
                 <label className="field-label">parameterMap</label>
                 <VariableAssignList
                   value={normalizeParameterMap(eventRef?.sqdRef)}
@@ -957,23 +1061,33 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
             {(eventRef?.kind ?? 'step') === 'event' && (
               <>
                 <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
-                <input
+                <select
                   className="field-input"
                   value={eventRef?.eventRef?.namespaceAlias ?? ''}
                   onChange={(e) => upsertEventRef({
                     kind: 'event',
-                    eventRef: { ...(eventRef?.eventRef ?? {}), namespaceAlias: e.target.value }
+                    eventRef: { ...(eventRef?.eventRef ?? {}), namespaceAlias: e.target.value, event: '' }
                   })}
-                />
+                >
+                  <option value="">—</option>
+                  {modelAliases.map(alias => (
+                    <option key={alias} value={alias}>{alias}</option>
+                  ))}
+                </select>
                 <label className="field-label">{L('dialogs.event', 'Event')}</label>
-                <input
+                <select
                   className="field-input"
                   value={eventRef?.eventRef?.event ?? ''}
                   onChange={(e) => upsertEventRef({
                     kind: 'event',
                     eventRef: { ...(eventRef?.eventRef ?? {}), event: e.target.value }
                   })}
-                />
+                >
+                  <option value="">—</option>
+                  {getEventsForAlias(eventRef?.eventRef?.namespaceAlias ?? '').map(event => (
+                    <option key={event} value={event}>{event}</option>
+                  ))}
+                </select>
                 <label className="field-label">parameterMap</label>
                 <VariableAssignList
                   value={normalizeParameterMap(eventRef?.eventRef)}

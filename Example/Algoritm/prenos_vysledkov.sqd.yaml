@@ -61,14 +61,11 @@ steps:
     text: |
       Systém zistí, či existuje spracovanie prihlášok pre zadané vstupné parametre.
     operation:
-      kind: sqd
-      sqdRef:
-        namespaceAlias: ''
-        mapParameters:
-          - parameter: ''
-            value: ''
-          - parameter: ''
-            value: ''
+      kind: entityFunction
+      entityFunctionRef:
+        namespaceAlias: ziak
+        entity: Spracovanie žiaka
+        function: UkonciSpracovanie
   - id: '2.2'
     legacyId: '*2.2*'
     type: decision
@@ -81,13 +78,11 @@ steps:
         namespaceAlias: local
         entity: Spracovanie
       operationRef:
-        kind: sqd
-        sqdRef:
-          mapParameters:
-            - parameter: ''
-              value: ''
-            - parameter: ''
-              value: ''
+        kind: entityFunction
+        entityFunctionRef:
+          namespaceAlias: ziak
+          entity: Spracovanie žiaka
+          function: UkonciSpracovanie
     branches:
       - when: 'false'
         then:

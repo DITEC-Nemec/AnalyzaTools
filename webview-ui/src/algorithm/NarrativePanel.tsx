@@ -1,4 +1,5 @@
 import React from 'react';
+import * as yaml from 'js-yaml';
 import { ParametersEditor } from '../components/ParametersEditor';
 import type { AlgorithmMeta, NamespaceEntity, Parameter, SqdAlgorithm, SqdStep, StepCondition, Variable } from '../types/sqd';
 import { StepCard } from './StepCard';
@@ -23,6 +24,11 @@ interface OwnerContext {
 interface AddMenuProps {
   onAdd: (type: StepType) => void;
 }
+
+type NamespaceReferencedModel = {
+  entities?: Array<{ name?: string; functions?: Array<{ name?: string }> }>;
+  eventGlossary?: Array<{ code?: string; title?: string }>;
+};
 
 const AddMenu: React.FC<AddMenuProps> = ({ onAdd }) => {
   const [open, setOpen] = React.useState(false);
@@ -125,6 +131,8 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
   const [tab, setTab] = React.useState<TopTab>('steps');
   const [algorithmTab, setAlgorithmTab] = React.useState<AlgorithmSubTab>('detail');
   const [selectedNamespaceIndex, setSelectedNamespaceIndex] = React.useState<number | null>(null);
+  const [namespaceModels, setNamespaceModels] = React.useState<Record<string, NamespaceReferencedModel>>({});
+  const pendingNamespaceByRequestKey = React.useRef<Map<string, string>>(new Map());
 
   const nextStepId = (): string => {
     let maxId = 0;
@@ -229,26 +237,108 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
   React.useEffect(() => {
     const handler = (event: MessageEvent) => {
       const msg = event.data;
-      if (msg.type !== 'filePicked') {
+      if (msg.type === 'filePicked') {
+        const next = [
+          ...namespaceItems,
+          {
+            alias: msg.alias ?? '',
+            filePath: msg.filePath ?? '',
+            sourceType: (msg.sourceType ?? 'model') as NamespaceEntity['sourceType']
+          }
+        ];
+        onChange({ ...model, namespaceRef: next });
+        setSelectedNamespaceIndex(next.length - 1);
+        setTab('namespaceRef');
         return;
       }
 
-      const next = [
-        ...namespaceItems,
-        {
-          alias: msg.alias ?? '',
-          filePath: msg.filePath ?? '',
-          sourceType: (msg.sourceType ?? 'model') as NamespaceEntity['sourceType']
+      if (msg.type === 'modelContent' && typeof msg.content === 'string' && typeof msg.requestKey === 'string') {
+        const alias = pendingNamespaceByRequestKey.current.get(msg.requestKey);
+        pendingNamespaceByRequestKey.current.delete(msg.requestKey);
+        if (!alias) {
+          return;
         }
-      ];
-      onChange({ ...model, namespaceRef: next });
-      setSelectedNamespaceIndex(next.length - 1);
-      setTab('namespaceRef');
+
+        try {
+          const parsed = yaml.load(msg.content) as NamespaceReferencedModel;
+          if (!parsed || typeof parsed !== 'object') {
+            return;
+          }
+
+          setNamespaceModels(prev => ({ ...prev, [alias]: parsed }));
+        } catch {
+          setNamespaceModels(prev => {
+            const next = { ...prev };
+            delete next[alias];
+            return next;
+          });
+        }
+      }
     };
 
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
   }, [model, namespaceItems, onChange]);
+
+  React.useEffect(() => {
+    const aliasesInUse = new Set(
+      namespaceItems
+        .filter(ns => !!ns.alias)
+        .map(ns => ns.alias)
+    );
+
+    setNamespaceModels(prev => {
+      const next: Record<string, NamespaceReferencedModel> = {};
+      Object.entries(prev).forEach(([alias, nsModel]) => {
+        if (aliasesInUse.has(alias)) {
+          next[alias] = nsModel;
+        }
+      });
+      return next;
+    });
+
+    namespaceItems.forEach(ns => {
+      if (!ns.alias || !ns.filePath || (ns.sourceType !== 'model' && ns.sourceType !== 'sqd')) {
+        return;
+      }
+
+      pendingNamespaceByRequestKey.current.set(ns.filePath, ns.alias);
+      vscodeApi.postMessage({ type: 'loadModel', path: ns.filePath });
+    });
+  }, [namespaceItems]);
+
+  const sqdAliases = React.useMemo(
+    () => namespaceItems
+      .filter(ns => ns.sourceType === 'sqd' && !!ns.alias)
+      .map(ns => ns.alias),
+    [namespaceItems]
+  );
+
+  const modelAliases = React.useMemo(
+    () => namespaceItems
+      .filter(ns => ns.sourceType === 'model' && !!ns.alias)
+      .map(ns => ns.alias),
+    [namespaceItems]
+  );
+
+  const getEntitiesForAlias = React.useCallback((alias: string): string[] => {
+    return (namespaceModels[alias]?.entities ?? [])
+      .map(entity => entity.name)
+      .filter((name): name is string => Boolean(name));
+  }, [namespaceModels]);
+
+  const getFunctionsForEntity = React.useCallback((alias: string, entityName: string): string[] => {
+    const entity = (namespaceModels[alias]?.entities ?? []).find(item => item.name === entityName);
+    return (entity?.functions ?? [])
+      .map(fn => fn.name)
+      .filter((name): name is string => Boolean(name));
+  }, [namespaceModels]);
+
+  const getEventsForAlias = React.useCallback((alias: string): string[] => {
+    return (namespaceModels[alias]?.eventGlossary ?? [])
+      .map(event => event.code ?? event.title)
+      .filter((event): event is string => Boolean(event));
+  }, [namespaceModels]);
 
   const renderStepList = (
     items: SqdStep[],
@@ -316,6 +406,11 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
               <StepCard
                 step={step}
                 depth={depth}
+                modelAliases={modelAliases}
+                sqdAliases={sqdAliases}
+                getEntitiesForAlias={getEntitiesForAlias}
+                getFunctionsForEntity={getFunctionsForEntity}
+                getEventsForAlias={getEventsForAlias}
                 onChange={updateCurrent}
                 actions={(
                   <>

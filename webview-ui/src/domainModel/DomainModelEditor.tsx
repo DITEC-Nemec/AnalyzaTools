@@ -21,6 +21,7 @@ import type {
 } from '../types/sqd';
 import { label as L } from '../ui-labels';
 import { ParametersEditor } from '../components/ParametersEditor';
+import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
 
 const PRIMITIVE_TYPES = ['string', 'integer', 'decimal', 'double', 'boolean', 'date', 'time', 'dateTime'];
 const ATTRIBUTE_TYPES = ['entityRef', 'definition', 'typeRef'];
@@ -534,47 +535,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const effects = [...(selectedFunction.effects ?? [])];
-    effects[effectIndex] = {
-      type: effects[effectIndex]?.type ?? 'reads',
-      entityRef: effects[effectIndex]?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' },
-      ...patch
-    };
-
-    updateFunction(selectedFunctionIndex, { effects });
-  };
-
-  const addFunctionEffect = () => {
-    if (!selectedFunction || selectedFunctionIndex === null) {
-      return;
-    }
-
-    updateFunction(selectedFunctionIndex, {
-      effects: [
-        ...(selectedFunction.effects ?? []),
-        { type: 'reads', entityRef: { namespaceAlias: '', entity: '', attribute: '' } }
-      ]
-    });
-  };
-
-  const removeFunctionEffect = (effectIndex: number) => {
-    if (!selectedFunction || selectedFunctionIndex === null) {
-      return;
-    }
-
-    updateFunction(selectedFunctionIndex, {
-      effects: (selectedFunction.effects ?? []).filter((_, i) => i !== effectIndex)
-    });
-  };
-
-  const moveFunctionEffect = (effectIndex: number, direction: -1 | 1) => {
-    if (!selectedFunction || selectedFunctionIndex === null) {
-      return;
-    }
-
-    updateFunction(selectedFunctionIndex, {
-      effects: moveItem(selectedFunction.effects ?? [], effectIndex, effectIndex + direction)
-    });
+    updateFunction(selectedFunctionIndex, { name });
   };
 
   const updateEntityState = (stateIndex: number, patch: Partial<StateEntry>) => {
@@ -2139,42 +2100,14 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                             <label>{L('functions.preconditions', 'Preconditions (oddelene ciarkou)')}</label>
                             <input value={(selectedFunction.preconditions ?? []).join(', ')} onChange={(e) => updateFunction(selectedFunctionIndex, { preconditions: parseCsv(e.target.value) })} />
 
-                            <div className="panel-head compact" style={{ marginTop: 12 }}>
-                              <strong>{L('functions.effectsTitle', 'Effects')}</strong>
-                              <button onClick={addFunctionEffect}>{L('functions.effectsAdd', '+ Effect')}</button>
+                            <div style={{ marginTop: 16 }}>
+                              <AffectedEntitiesEditor
+                                affectedEntities={selectedFunction.affectedEntities ?? []}
+                                modelAliases={getNamespaceAliases()}
+                                getEntitiesForAlias={getAvailableEntities}
+                                onChange={(affectedEntities) => updateFunction(selectedFunctionIndex, { affectedEntities })}
+                              />
                             </div>
-
-                            {(selectedFunction.effects ?? []).map((effect, effectIndex) => (
-                              <div key={`${effect.type}-${effectIndex}`} className="sub-item-row">
-                                <select value={effect.type} onChange={(e) => updateFunctionEffect(effectIndex, { type: e.target.value as FunctionEffect['type'] })}>
-                                  <option value="reads">reads</option>
-                                  <option value="writes">writes</option>
-                                </select>
-                                <select value={effect.entityRef?.namespaceAlias ?? ''} onChange={(e) => updateFunctionEffect(effectIndex, { entityRef: { ...(effect.entityRef ?? { namespaceAlias: '' }), namespaceAlias: e.target.value } })}>
-                                  <option value="">—</option>
-                                  {getNamespaceAliases().map(alias => (
-                                    <option key={alias} value={alias}>{alias}</option>
-                                  ))}
-                                </select>
-                                <select value={effect.entityRef?.entity ?? ''} onChange={(e) => updateFunctionEffect(effectIndex, { entityRef: { ...(effect.entityRef ?? { namespaceAlias: '' }), entity: e.target.value } })}>
-                                  <option value="">—</option>
-                                  {getAvailableEntities(effect.entityRef?.namespaceAlias).map(entity => (
-                                    <option key={entity} value={entity}>{entity}</option>
-                                  ))}
-                                </select>
-                                <select value={effect.entityRef?.attribute ?? ''} onChange={(e) => updateFunctionEffect(effectIndex, { entityRef: { ...(effect.entityRef ?? { namespaceAlias: '' }), attribute: e.target.value } })}>
-                                  <option value="">—</option>
-                                  {getAvailableAttributes(effect.entityRef?.entity ?? '', effect.entityRef?.namespaceAlias).map(attr => (
-                                    <option key={attr} value={attr}>{attr}</option>
-                                  ))}
-                                </select>
-                                <div className="inline-actions right">
-                                  <button disabled={effectIndex === 0} onClick={() => moveFunctionEffect(effectIndex, -1)}>↑</button>
-                                  <button disabled={effectIndex === (selectedFunction.effects ?? []).length - 1} onClick={() => moveFunctionEffect(effectIndex, 1)}>↓</button>
-                                  <button onClick={() => removeFunctionEffect(effectIndex)}>✕</button>
-                                </div>
-                              </div>
-                            ))}
                           </div>
                         )}
 

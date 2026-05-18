@@ -98,7 +98,7 @@
     "configurationDefaults": {
       "yaml.schemas": {
         "./sqd.schema.json": "*.sqd.yaml",
-        "./domain.schema.json": "*.model.yaml"
+        "./model.schema.json": "*.model.yaml"
       }
     },
     "configuration": {

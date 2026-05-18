@@ -126,10 +126,7 @@
           "$ref": "#/$defs/event"
         },
         "affectedEntities": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/entityImpact"
-          }
+          "$ref": "#/$defs/affectedEntities"
         }
       },
       "allOf": [
@@ -1029,15 +1026,45 @@
         }
       }
     },
+    "affectedEntities": {
+      "type": "array",
+      "description": "Entity a atribúty ktoré funkcia/krok čítá alebo mení, plus výstupné premenné - zjednotené s SQD algoritmi",
+      "items": {
+        "oneOf": [
+          {"$ref": "#/$defs/entityImpact"},
+          {"$ref": "#/$defs/output"}
+        ]
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "variable": {
+          "type": "string",
+          "description": "Názov výstupnej premennej"
+        },
+        "description": {
+          "type": "string",
+          "description": "Voľný popis čo táta premenná reprezentuje"
+        }
+      },
+      "required": [
+        "variable"
+      ]
+    },
     "entityImpact": {
       "type": "object",
       "required": [
-        "entity",
         "impact"
       ],
       "properties": {
         "entityRef": {
-          "$ref": "#/$defs/referenceEntity"
+          "$ref": "#/$defs/referenceEntity",
+          "description": "Referencovana entita a jej atribút - použiť ak ide o zmenu v entite domény"
+        },
+        "variableName": {
+          "type": "string",
+          "description": "Názov premennej - použiť ak ide o premennu z predchádzajúceho kroku"
         },
         "impact": {
           "type": "string",
@@ -1045,12 +1072,28 @@
             "read",
             "write",
             "affect"
-          ]
+          ],
+          "description": "Typ vplyvu: read (čítanie), write (zapis), affect (iný vplyv)"
         },
         "note": {
-          "type": "string"
+          "type": "string",
+          "description": "Detailný popis - podrobný text čo sa čita/zmení, prečo, a ďalší kontext (multiline podporované)"
         }
-      }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "entityRef",
+            "impact"
+          ]
+        },
+        {
+          "required": [
+            "variableName",
+            "impact"
+          ]
+        }
+      ]
     },
     "branches": {
       "type": "array",

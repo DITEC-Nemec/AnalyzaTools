@@ -1,0 +1,6 @@
+{
+  "yaml.schemas": {
+    "${workspaceFolder}/sqd.schema.json": "*.sqd.yaml",
+    "${workspaceFolder}/model.schema.json": "*.model.yaml"
+  }
+}

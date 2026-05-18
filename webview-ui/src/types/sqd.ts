@@ -75,11 +75,17 @@ export interface SqdStep {
   branches?: Branch[];
   body?: SqdStep[];
   event?: StepEvent;
-  affectedEntities?: EntityImpact[];
+  affectedEntities?: AffectedEntity[];
 
   // Spatna kompatibilita so starsimi datami/editorom
   steps?: SqdStep[];
   call?: string;
+  outputs?: StepOutput[];
+}
+
+export interface StepOutput {
+  variable: string;
+  description?: string;
 }
 
 export interface ReferenceEntity {
@@ -154,13 +160,21 @@ export interface StepEvent {
 }
 
 export interface EntityImpact {
-  entityRef: ReferenceEntity;
+  entityRef?: ReferenceEntity;
+  variableName?: string;
   impact: 'read' | 'write' | 'affect';
   note?: string;
 
   // Spatna kompatibilita so starsimi datami
   entity?: string;
 }
+
+export interface Output {
+  variable: string;
+  description?: string;
+}
+
+export type AffectedEntity = EntityImpact | Output;
 
 // ----- Domain Model -----
 
@@ -287,9 +301,10 @@ export interface DomainFunction {
   description?: string;
   preconditions?: string[];
   parameters?: Parameter[];
+  affectedEntities?: AffectedEntity[];
+  
   // Spatna kompatibilita so starsim formatom funkcie
   inputs?: Variable[];
-  outputs?: Variable[];
   effects?: FunctionEffect[];
 }
 

@@ -76,6 +76,9 @@ entities:
               readOnly: false
               multiplicity: ''
             direction: in
+        outputs:
+          - variable: ''
+            description: ''
       - name: OznacZaciatokPrenosu
         detail:
           description: Nastaví dátum začiatku prenosu výsledkov.

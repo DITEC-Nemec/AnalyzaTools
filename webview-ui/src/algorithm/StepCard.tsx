@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { VariableAssignList } from './VariableAssignList';
+import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
 import type {
   EntityImpact,
   ParameterMap,
@@ -129,17 +130,10 @@ export const StepCard: React.FC<Props> = ({
   const [showConditionDialog, setShowConditionDialog] = useState(false);
   const [showOperationDialog, setShowOperationDialog] = useState(false);
   const [showEventRefDialog, setShowEventRefDialog] = useState(false);
-  const [showImpactDialog, setShowImpactDialog] = useState(false);
 
   const condition = useMemo(() => step.condition ?? defaultCondition(), [step.condition]);
   const operation = useMemo(() => normalizeOperation(step), [step]);
   const eventRef = useMemo(() => step.event?.eventRef ?? null, [step.event]);
-
-  const [impactDraft, setImpactDraft] = useState<EntityImpact>({
-    entityRef: { namespaceAlias: '', entity: '', attribute: '' },
-    impact: 'read',
-    note: ''
-  });
 
   const upsertOperationObject = (patch: Partial<ReferenceOperation>) => {
     const next: ReferenceOperation = {
@@ -169,29 +163,6 @@ export const StepCard: React.FC<Props> = ({
     onChange({ ...step, operation: next });
   };
 
-  const addAffectedEntity = () => {
-    if (!(impactDraft.entityRef?.entity ?? '').trim()) {
-      return;
-    }
-    const next = [
-      ...(step.affectedEntities ?? []),
-      {
-        ...impactDraft,
-        entityRef: {
-          namespaceAlias: impactDraft.entityRef?.namespaceAlias ?? '',
-          entity: impactDraft.entityRef?.entity?.trim() ?? '',
-          attribute: impactDraft.entityRef?.attribute ?? ''
-        }
-      }
-    ];
-    onChange({ ...step, affectedEntities: next });
-    setImpactDraft({
-      entityRef: { namespaceAlias: '', entity: '', attribute: '' },
-      impact: 'read',
-      note: ''
-    });
-    setShowImpactDialog(false);
-  };
 
   const upsertEventRef = (patch: Partial<ReferenceOperation>) => {
     const next: ReferenceOperation = {
@@ -407,29 +378,15 @@ export const StepCard: React.FC<Props> = ({
             </div>
           )}
 
+
           <div className="step-meta">
-            <div className="panel-head compact">
-              <label className="field-label">{L('steps.affectedEntities', 'Affected entities:')}</label>
-              <button className="icon-btn" onClick={() => setShowImpactDialog(true)}>+ {L('actions.add', 'Add')}</button>
-            </div>
-            {(step.affectedEntities ?? []).length === 0 && <span className="muted">{L('steps.affectedNone', 'Ziadne polozky')}</span>}
-            {(step.affectedEntities ?? []).map((impact, idx) => (
-              <div key={`${impact.entityRef?.namespaceAlias ?? ''}:${impact.entityRef?.entity ?? impact.entity ?? ''}:${impact.entityRef?.attribute ?? ''}-${idx}`} className="condition-summary">
-                {(impact.entityRef?.entity ?? impact.entity ?? '-')}
-                {impact.entityRef?.attribute ? `.${impact.entityRef.attribute}` : ''}
-                {impact.entityRef?.namespaceAlias ? ` @${impact.entityRef.namespaceAlias}` : ''}
-                {' | '}{impact.impact}{impact.note ? ` | ${impact.note}` : ''}
-                <button
-                  className="btn-link"
-                  onClick={() => onChange({
-                    ...step,
-                    affectedEntities: (step.affectedEntities ?? []).filter((_, i) => i !== idx)
-                  })}
-                >
-                  [ {L('actions.delete', 'Zmazat')} ]
-                </button>
-              </div>
-            ))}
+            <AffectedEntitiesEditor
+              affectedEntities={step.affectedEntities ?? []}
+              modelAliases={modelAliases}
+              sqdAliases={sqdAliases}
+              getEntitiesForAlias={getEntitiesForAlias}
+              onChange={entities => onChange({ ...step, affectedEntities: entities })}
+            />
           </div>
 
           {step.type === 'foreach' && (
@@ -1111,77 +1068,7 @@ export const StepCard: React.FC<Props> = ({
         </div>
       )}
 
-      {showImpactDialog && (
-        <div className="dialog-overlay" onClick={() => setShowImpactDialog(false)}>
-          <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
-            <h4>{L('dialogs.addAffected', 'Add affected entity')}</h4>
-            <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
-            <input
-              className="field-input"
-              value={impactDraft.entityRef?.namespaceAlias ?? ''}
-              onChange={(e) =>
-                setImpactDraft((prev) => ({
-                  ...prev,
-                  entityRef: {
-                    ...(prev.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
-                    namespaceAlias: e.target.value
-                  }
-                }))
-              }
-            />
-            <label className="field-label">{L('dialogs.entity', 'Entity')}</label>
-            <input
-              className="field-input"
-              value={impactDraft.entityRef?.entity ?? ''}
-              onChange={(e) =>
-                setImpactDraft((prev) => ({
-                  ...prev,
-                  entityRef: {
-                    ...(prev.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
-                    entity: e.target.value
-                  }
-                }))
-              }
-            />
-            <label className="field-label">{L('dialogs.attribute', 'Attribute')}</label>
-            <input
-              className="field-input"
-              value={impactDraft.entityRef?.attribute ?? ''}
-              onChange={(e) =>
-                setImpactDraft((prev) => ({
-                  ...prev,
-                  entityRef: {
-                    ...(prev.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
-                    attribute: e.target.value
-                  }
-                }))
-              }
-            />
-            <label className="field-label">{L('dialogs.impact', 'Impact')}</label>
-            <select
-              className="field-input"
-              value={impactDraft.impact}
-              onChange={(e) => setImpactDraft((prev) => ({ ...prev, impact: e.target.value as EntityImpact['impact'] }))}
-            >
-              {IMPACT_TYPES.map(type => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
-            <label className="field-label">{L('dialogs.note', 'Poznamka')}</label>
-            <input
-              className="field-input"
-              value={impactDraft.note ?? ''}
-              onChange={(e) => setImpactDraft((prev) => ({ ...prev, note: e.target.value }))}
-            />
-            <div className="dialog-actions">
-              <button className="icon-btn" onClick={() => setShowImpactDialog(false)}>{L('actions.cancel', 'Zrusit')}</button>
-              <button className="icon-btn" onClick={addAffectedEntity}>{L('actions.add', 'Add')}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* affectedEntities dialog replaced by shared component */}
     </div>
   );
 };

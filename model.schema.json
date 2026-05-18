@@ -238,12 +238,8 @@
           "type": "string",
           "description": "Význam funkcie v prirodzenom jazyku"
         },
-        "effects": {
-          "type": "array",
-          "description": "Deklarované účinky funkcie",
-          "items": {
-            "$ref": "#/$defs/effect"
-          }
+        "affectedEntities": {
+          "$ref": "#/$defs/affectedEntities"
         }
       }
     },
@@ -781,6 +777,75 @@
           "description": "atribút pre  referencovanu entitu"
         }
       }
+    },
+    "affectedEntities": {
+      "type": "array",
+      "description": "Entity a atribúty ktoré funkcia/krok čítá alebo mení, plus výstupné premenné - zjednotené s SQD algoritmi",
+      "items": {
+        "oneOf": [
+          {"$ref": "#/$defs/entityImpact"},
+          {"$ref": "#/$defs/output"}
+        ]
+      }
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "variable": {
+          "type": "string",
+          "description": "Názov výstupnej premennej"
+        },
+        "description": {
+          "type": "string",
+          "description": "Voľný popis čo táta premenná reprezentuje"
+        }
+      },
+      "required": [
+        "variable"
+      ]
+    },
+    "entityImpact": {
+      "type": "object",
+      "required": [
+        "impact"
+      ],
+      "properties": {
+        "entityRef": {
+          "$ref": "#/$defs/referenceEntity",
+          "description": "Referencovana entita a jej atribút - použi ak ide o zmenu v entite domény"
+        },
+        "variableName": {
+          "type": "string",
+          "description": "Názov premennej - použi ak ide o premennú z predchádzajúceho kroku"
+        },
+        "impact": {
+          "type": "string",
+          "enum": [
+            "read",
+            "write",
+            "affect"
+          ],
+          "description": "Typ vplyvu: read (čítanie), write (zapis), affect (iný vplyv)"
+        },
+        "note": {
+          "type": "string",
+          "description": "Detailný popis - podrobný text čo sa číta/zmení, prečo, a ďalší kontext (multiline podporované)"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "entityRef",
+            "impact"
+          ]
+        },
+        {
+          "required": [
+            "variableName",
+            "impact"
+          ]
+        }
+      ]
     },
     "namespaceEntity": {
       "type": "object",

@@ -2,23 +2,6 @@ algorithm:
   name: Prenos výsledkov SOSM
   detail:
     description: Prenos výsledkov spracovania prihlášok do systému
-  input:
-    parameters:
-      - name: Kolo
-        type: int
-      - name: SkolskyRok
-        type: CČ RegDŽP.Školský rok
-      - name: TypPrihlasky
-        type: Číselníky pre UI.Typ prihlášky
-      - name: Reset
-        type: boolean
-        description: Realizuj ešte raz prenos dát bez ohľadu, či už bol realizovaný v minulosti
-  output:
-    parameters:
-      - name: NavratovyKod
-        type: Reťazec2
-      - name: NavratovyText
-        type: Reťazec2047
   parameters:
     - namedType:
         name: ''

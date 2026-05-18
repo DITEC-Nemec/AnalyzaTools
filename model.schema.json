@@ -1,0 +1,736 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/model.schema.json",
+  "title": "SQD Domain Model",
+  "type": "object",
+  "required": [
+    "domain"
+  ],
+  "properties": {
+    "domain": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string",
+          "description": "Verzia modelu (napr. 1.0.0)"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "active",
+            "deprecated"
+          ],
+          "description": "Stav modelu"
+        }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entity"
+      },
+       "uniqueItems": true
+    },
+     "simpleTypes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/simpleType"
+      },
+      "uniqueItems": true
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relationship"
+      }
+    },
+    "glossary": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/glossaryEntry"
+      }
+    },
+    "eventGlossary": {
+      "type": "array",
+      "description": "Katalóg doménových udalostí — primárne miesto definície eventov",
+      "items": {
+        "$ref": "#/$defs/eventGlossaryEntry"
+      }
+    },
+    "namespaceRef": {
+      "type": "array",
+      "description": "Katalóg namespacov pre definiciu referencii na entityty/funkcie, sqd, eventy definované v iných modeloch  ",
+      "items": {
+        "$ref": "#/$defs/namespaceEntity"
+      }
+    }
+  },
+  "$defs": {
+    "glossaryEntry": {
+      "type": "object",
+      "required": [
+        "term",
+        "meaning"
+      ],
+      "properties": {
+        "term": {
+          "type": "string"
+        },
+        "meaning": {
+          "type": "string"
+        },
+        "relatedEntity": {
+          "type": "string"
+        }
+      }
+    },
+    "role": {
+      "type": "object",
+      "required": [
+        "entityRef"
+      ],
+      "properties": {
+        "nazov": {
+          "type": "string",
+          "description": "Názov roly v tomto konci vzťahu"
+        },
+        "multiplicity": {
+          "type": "string",
+          "description": "Násobnosť napr. 1, 0..1, 1..*, *"
+        },
+        "entityRef": {
+          "$ref": "#/$defs/referenceEntity",
+          "description": "Entita, ktorej sa rola týka"
+        },
+        "description": {
+          "type": "string",
+          "description": "Voľný popis roly"
+        }
+      }
+    },
+    "relationship": {
+      "type": "object",
+      "required": [
+        "type",
+        "start_role",
+        "end_role"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "contains",
+            "references",
+            "belongs_to",
+            "aggregates"
+          ]
+        },
+        "start_role": {
+          "$ref": "#/$defs/role",
+          "description": "Zdrojová rola vzťahu"
+        },
+        "end_role": {
+          "$ref": "#/$defs/role",
+          "description": "Cieľová rola vzťahu"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+    "entity": {
+      "type": "object",
+      "required": [
+        "name",
+        "attributes"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Jednoznačný názov entity (používaný v algoritmoch)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Voľný popis významu entity"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "deprecated"
+          ],
+          "description": "Stav entity v modeli"
+        },
+        "stateModel": {
+          "type": "array",
+          "description": "Stavy životného cyklu entity ako celku",
+          "items": {
+            "$ref": "#/$defs/stateEntry"
+          }
+        },
+        "attributes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/attribute"
+          },
+          "minItems": 1
+        },
+        "functions": {
+          "type": "array",
+          "description": "Doménové funkcie entity",
+          "items": {
+            "$ref": "#/$defs/function"
+          }
+        }
+      }
+    },
+    "function": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Doménový názov funkcie"
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Podmienky, ktoré musia platiť pred volaním funkcie"
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/variable"
+          },
+          "description": "Logické vstupy funkcie"
+        },
+        "description": {
+          "type": "string",
+          "description": "Význam funkcie v prirodzenom jazyku"
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/variable"
+          },
+          "description": "Čo funkcia vracia / aký je výsledok volania (používa sa v condition.outputRef)"
+        },
+        "effects": {
+          "type": "array",
+          "description": "Deklarované účinky funkcie",
+          "items": {
+            "$ref": "#/$defs/effect"
+          }
+        }
+      }
+    },
+    "variable": {
+      "type": "object",
+      "properties": {
+        "namedType": {
+          "$ref": "#/$defs/namedType",
+          "description": "Odkaz na pomenovaný typ proměnné (obsahuje aj názov, ale primárne slúži pro definici typu a dalších vlastností proměnné)"
+        }
+      }
+    },
+     "annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "documentation": {
+          "type": "string"
+        }
+      }
+    },
+
+    "simpleType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "definition"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "annotation": {
+          "$ref": "#/$defs/annotation"
+        },
+        "definition": {
+          "$ref": "#/$defs/simpleTypeDefinition"
+        }
+      }
+    },
+    "simpleTypeDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "restriction": {
+          "$ref": "#/$defs/restriction"
+        },
+        "list": {
+          "$ref": "#/$defs/list"
+        },
+        "union": {
+          "$ref": "#/$defs/union"
+        }
+      },
+      "oneOf": [
+        { "required": ["restriction"] },
+        { "required": ["list"] },
+        { "required": ["union"] }
+      ]
+    },
+    "simpleTypeRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespaceAlias", "simpleType"],
+      "properties": {
+        "namespaceAlias": {
+          "type": "string"
+        },
+        "simpleType": {
+          "type": "string"
+        }
+      }
+    },
+    "restriction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base"],
+      "properties": {
+        "base": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "string",
+                "boolean",
+                "decimal",
+                "integer",
+                "long",
+                "int",
+                "short",
+                "byte",
+                "nonNegativeInteger",
+                "positiveInteger",
+                "nonPositiveInteger",
+                "negativeInteger",
+                "float",
+                "double",
+                "date",
+                "dateTime",
+                "time",
+                "duration",
+                "anyURI",
+                "QName",
+                "ID",
+                "IDREF",
+                "token",
+                "normalizedString"
+              ]
+            },
+            {
+              "$ref": "#/$defs/simpleTypeRef"
+            }
+          ]
+        },
+        "enumeration": {
+          "type": "array",
+          "items": {
+            "type": ["string", "number", "boolean"]
+          },
+          "uniqueItems": true
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minInclusive": {
+          "type": ["number", "string"]
+        },
+        "maxInclusive": {
+          "type": ["number", "string"]
+        },
+        "minExclusive": {
+          "type": ["number", "string"]
+        },
+        "maxExclusive": {
+          "type": ["number", "string"]
+        },
+        "totalDigits": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fractionDigits": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "whiteSpace": {
+          "type": "string",
+          "enum": ["preserve", "replace", "collapse"]
+        }
+      }
+    },
+
+    "list": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["itemType"],
+      "properties": {
+        "itemType": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "string",
+                "boolean",
+                "decimal",
+                "integer",
+                "long",
+                "int",
+                "short",
+                "byte",
+                "nonNegativeInteger",
+                "positiveInteger",
+                "nonPositiveInteger",
+                "negativeInteger",
+                "float",
+                "double",
+                "date",
+                "dateTime",
+                "time",
+                "duration",
+                "anyURI",
+                "QName",
+                "ID",
+                "IDREF",
+                "token",
+                "normalizedString"
+              ]
+            },
+            {
+              "$ref": "#/$defs/simpleTypeRef"
+            }
+          ]
+        }
+      }
+    },
+
+    "union": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["memberTypes"],
+      "properties": {
+        "memberTypes": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "string",
+                  "boolean",
+                  "decimal",
+                  "integer",
+                  "long",
+                  "int",
+                  "short",
+                  "byte",
+                  "nonNegativeInteger",
+                  "positiveInteger",
+                  "nonPositiveInteger",
+                  "negativeInteger",
+                  "float",
+                  "double",
+                  "date",
+                  "dateTime",
+                  "time",
+                  "duration",
+                  "anyURI",
+                  "QName",
+                  "ID",
+                  "IDREF",
+                  "token",
+                  "normalizedString"
+                ]
+              },
+              {
+                "$ref": "#/$defs/simpleTypeRef"
+              }
+            ]
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "namedType": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Názov premennej"
+        },
+        "annotation": {
+          "$ref": "#/$defs/annotation"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "definition",          
+            "entityRef",
+            "typeRef"
+          ]
+        },        
+         "definition": {
+          "$ref": "#/$defs/simpleTypeDefinition"
+        },
+        "entityRef": {
+          "$ref": "#/$defs/referenceEntity",
+          "description": " entita, na ktorú atribút odkazuje (pre type: reference)"
+        },
+        "typeRef": {
+          "$ref": "#/$defs/simpleTypeRef"
+        },
+        "nullable": {
+          "type": "boolean",
+          "default": true
+        },
+        "readOnly": {
+          "type": "boolean",
+          "description": "Atribút je len na čítanie / vypočítaný"
+        },
+        "multiplicity": {
+          "type": "string",
+          "description": "Určuje, zda proměnná reprezentuje jeden objekt nebo kolekci objektů (používá se pro rozlišení mezi jednotlivými hodnotami a kolekcemi, například pro rozlišení mezi jednoduchou proměnnou a kolekcí v rámci foreach)"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "entityRef"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "entityRef"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "typeRef"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "typeRef"
+            ]
+          }
+        },         
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "definition"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "definition"
+            ]
+          }
+        }
+      ]
+    },
+    "effect": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "reads",
+            "writes"
+          ]
+        },     
+        "entityRef": {
+          "$ref": "#/$defs/referenceEntity",
+          "description": "Atribút entity"
+        }
+      }
+    },
+    "attribute": {
+      "type": "object",
+      "required": [
+        "namedType"
+      ],
+      "properties": {
+        "namedType": {
+          "$ref": "#/$defs/namedType",
+          "description": "Odkaz na pomenovaný typ atributu (obsahuje aj názov, ale primárne slúži pro definici typu a dalších vlastností atributu)"
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/codeLabel"
+          },
+          "description": "Povolené kódy/stavy atribútu s ich popisom"
+        }
+      }
+    },
+    "stateEntry": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Technický názov stavu"
+        },
+        "label": {
+          "type": "string",
+          "description": "Zobrazovaný názov stavu"
+        },
+        "description": {
+          "type": "string"
+        },
+        "isFinal": {
+          "type": "boolean",
+          "description": "Či je toto koncový stav životného cyklu"
+        }
+      }
+    },
+    "codeLabel": {
+      "type": "object",
+      "required": [
+        "code"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Technická hodnota kódu"
+        },
+        "label": {
+          "type": "string",
+          "description": "Zobrazovaný popis kódu"
+        }
+      }
+    },
+    "eventGlossaryEntry": {
+      "type": "object",
+      "required": [
+        "code",
+        "meaning"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Unikátny kód udalosti (napr. sosm-00)"
+        },
+        "title": {
+          "type": "string"
+        },
+        "meaning": {
+          "type": "string",
+          "description": "Biznesový význam udalosti"
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        "recommendedAction": {
+          "type": "string",
+          "description": "Odporúčaný postup po výskyte udalosti"
+        }
+      }
+    },
+    "referenceEntity": {
+      "type": "object",
+      "required": [
+        "namespaceAlias"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "namespaceAlias": {
+          "type": "string",
+          "minLength": 0,
+          "description": "zdroj model entity ak prazdne aktualny model"
+        },
+        "entity": {
+          "type": "string",
+          "description": " referencovana entita"
+        },
+        "attribute": {
+          "type": "string",
+          "description": "atribút pre  referencovanu entitu"
+        }
+      }
+    },
+    "namespaceEntity": {
+      "type": "object",
+      "required": [
+        "alias",
+        "filePath"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "alias": {
+          "type": "string",
+          "minLength": 0,
+          "description": "Alias pre referencovaný namspace (používá se pre rozlíšenie viacero referencií na rovnaký namespace)"
+        },
+        "filePath": {
+          "type": "string",
+          "description": " referencovana subor v ktorom je definovaný daný namespace"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "name": "analiza-tools",
+  "displayName": "AnalyzaTools – SQD Editor",
+  "description": "Analytická pracovná plocha pre SQD algoritmy a doménový model",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:yaml"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sqd-explorer",
+          "title": "SQD",
+          "icon": "$(symbol-class)"
+        }
+      ]
+    },
+    "views": {
+      "sqd-explorer": [
+        {
+          "id": "sqd.explorer",
+          "name": "SQD Workspace",
+          "icon": "$(symbol-class)"
+        }
+      ]
+    },
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "sqd.newAlgorithm",
+          "when": "view == sqd.explorer && viewItem == algorithms",
+          "group": "inline"
+        },
+        {
+          "command": "sqd.newEntity",
+          "when": "view == sqd.explorer && viewItem == domainModel",
+          "group": "inline"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "sqd.newAlgorithm",
+        "title": "New Algorithm",
+        "category": "SQD"
+      },
+      {
+        "command": "sqd.newEntity",
+        "title": "New Entity",
+        "category": "SQD"
+      },
+      {
+        "command": "sqd.importXml",
+        "title": "Import from XML…",
+        "category": "SQD"
+      },
+      {
+        "command": "sqd.exportXml",
+        "title": "Export to XML",
+        "category": "SQD"
+      },
+      {
+        "command": "sqd.refreshExplorer",
+        "title": "Refresh",
+        "category": "SQD"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "sqd.algorithmEditor",
+        "displayName": "SQD Algorithm Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.sqd.yaml"
+          }
+        ],
+        "priority": "default"
+      },
+      {
+        "viewType": "sqd.domainModelEditor",
+        "displayName": "SQD Domain Model Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.model.yaml"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "yaml.schemas": {
+      "./sqd.schema.json": "*.sqd.yaml",
+      "./domain.schema.json": "*.model.yaml"
+    },
+    "configuration": {
+      "title": "AnalyzaTools",
+      "properties": {
+        "analyzaTools.showFlowOnOpen": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automaticky zobraziť Flow panel pri otvorení algoritmu"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "webpack --mode production",
+    "build:webview": "npm --prefix webview-ui run build",
+    "watch": "webpack --mode development --watch",
+    "watch:webview": "npm --prefix webview-ui run dev",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.39",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.56.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.3",
+    "webpack": "^5.90.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "@xyflow/react": "^12.10.2",
+    "js-yaml": "^4.1.0"
+  }
+}

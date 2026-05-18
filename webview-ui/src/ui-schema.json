@@ -1,0 +1,269 @@
+{
+  "algorithm": {
+    "editorTitle": "SQD Algorithm Editor",
+    "panelTitle": "SQD Editor",
+    "tabs": {
+      "algorithm": "Algoritmus",
+      "steps": "Kroky",
+      "namespaceRef": "Menné priestory"
+    },
+    "stepTypeLabels": {
+      "step": "Krok",
+      "operation": "Operácia",
+      "decision": "Rozhodnutie",
+      "loop": "Cyklus",
+      "foreach": "Pre každé",
+      "event": "Udalosť",
+      "return": "Návrat",
+      "stop": "Zastavenie",
+      "block": "Blok"
+    },
+    "actions": {
+      "addStep": "Pridať krok",
+      "deleteBranch": "Vymazať vetvu",
+      "moveUpLevel": "Posun o úroveň vyššie",
+      "moveDownLevel": "Posun o úroveň nižšie",
+      "add": "Pridať",
+      "delete": "Zmazať",
+      "editDetail": "Upraviť detail...",
+      "close": "Zavrieť",
+      "cancel": "Zrušiť"
+    },
+    "algorithmForm": {
+      "title": "Algoritmus",
+      "name": "Názov",
+      "description": "Popis",
+      "version": "Verzia",
+      "inputs": "Vstupy (oddelene čiarkou)",
+      "outputs": "Výstupy (oddelene čiarkou)"
+    },
+    "steps": {
+      "text": "Text:",
+      "branch": "Vetva",
+      "body": "Telo",
+      "collection": "Zbierka:",
+      "item": "Polozka:",
+      "operationText": "Text operácie:",
+      "operationKind": "Druh operácie:",
+      "simpleText": "jednoduchý text",
+      "eventCode": "Kód udalosti:",
+      "eventTitle": "Názov udalosti:",
+      "eventSeverity": "Závažnosť:",
+      "eventDescription": "Popis udalosti:",
+      "eventRef": "eventRef",
+      "eventRefNone": "nepridaný",
+      "addEventRef": "Pridať eventRef...",
+      "editEventRef": "Upraviť eventRef...",
+      "conditionKind": "Druh podmienky:",
+      "conditionDescription": "Popis podmienky:",
+      "conditionCheck": "Kontrola podmienky:",
+      "conditionNone": "bez podmienky",
+      "affectedEntities": "Ovlplyvnené entity:",
+      "affectedNone": "Žiadne položky"
+    },
+    "dialogs": {
+      "condition": "Detail podmienky",
+      "operation": "Detail operácie",
+      "eventRef": "Detail udalosti",
+      "addAffected": "Pridať ovplyvnenú entitu",
+      "namespaceAlias": "Alias menného priestoru",
+      "entity": "Entita",
+      "attribute": "Atribút",
+      "variable": "Premenná",
+      "value": "Hodnota",
+      "kind": "Druh",
+      "event": "Udalosť",
+      "stepRef": "Odkaz na krok",
+      "function": "Funkcia",
+      "note": "Poznámka",
+      "impact": "Dopad"
+    },
+    "namespaceRef": {
+      "title": "Menný priestor",
+      "alias": "Alias",
+      "filePath": "Cesta k súboru",
+      "actions": "Akcie",
+      "detailTitle": "Detail menného priestoru"
+    },
+    "footer": {
+      "status": "Status: Validný/Nevalidný",
+      "warningPrefix": "Varovanie",
+      "warnings": "Varovania",
+      "aiInsight": "AI insight dostupný"
+    },
+    "loading": "Načítavam...",
+    "yamlError": "YAML chyba"
+  },
+  "domain": {
+    "editorTitle": "SQD Domain Model Editor",
+    "topTabs": {
+      "entities": "Entity",
+      "relationships": "Vzťahy",
+      "glossary": "Glosár",
+      "eventGlossary": "Glosár udalostí",
+      "namespaceRef": "Menný priestor"
+    },
+    "header": {
+      "model": "Model"
+    },
+    "entities": {
+      "title": "Entity",
+      "add": "+ Entita",
+      "detail": "Detail entity",
+      "name": "Názov entity",
+      "description": "Popis",
+      "status": "Status",
+      "columns": {
+        "name": "Názov",
+        "description": "Popis",
+        "attributes": "Atribúty",
+        "functions": "Funkcie",
+        "stateModel": "StateModel",
+        "actions": "Akcie"
+      },
+      "empty": "Vyber entitu na editaciu.",
+      "subTabs": {
+        "attributes": "Atribúty",
+        "functions": "Funkcie",
+        "stateModel": "Stavový model"
+      }
+    },
+    "attributes": {
+      "title": "Atribúty",
+      "add": "+ Atribút",
+      "detail": "Detail atribútu",
+      "columns": {
+        "name": "Názov",
+        "type": "Typ",
+        "nullable": "Nullable",
+        "states": "Stavy",
+        "actions": "Akcie"
+      },
+      "name": "Názov",
+      "type": "Typ",
+      "nullable": "Nullable",
+      "description": "Popis",
+      "entityRefNamespaceAlias": "EntityRef namespaceAlias",
+      "entityRefEntity": "EntityRef entity",
+      "entityRefAttribute": "EntityRef attribute",
+      "statesTitle": "Stavy",
+      "statesAdd": "+ Stav",
+      "stateDetail": "Detail stavu",
+      "stateCode": "Kód",
+      "stateLabel": "Label"
+    },
+    "functions": {
+      "title": "Funkcie",
+      "add": "+ Funkcia",
+      "detail": "Detail funkcie",
+      "columns": {
+        "name": "Názov",
+        "description": "Popis",
+        "inputs": "Vstupy",
+        "outputs": "Výstupy",
+        "actions": "Akcie"
+      },
+      "name": "Názov",
+      "description": "Popis",
+      "preconditions": "Predpoklady (oddelene čiarkou)",
+      "inputs": "Vstupy (oddelene čiarkou)",
+      "outputs": "ýstupy (oddelene čiarkou)",
+      "effectsTitle": "Efekty",
+      "effectsAdd": "+ Efekt",
+      "effectNamespaceAlias": "Alias menného priestoru",
+      "effectEntity": "Entita",
+      "effectAttribute": "Atribút"
+    },
+    "stateModel": {
+      "title": "Stavový model",
+      "add": "+ Stav",
+      "detail": "Detail stavového modelu",
+      "columns": {
+        "name": "Názov",
+        "label": "Label",
+        "final": "Konečný",
+        "actions": "Akcie"
+      },
+      "name": "Názov",
+      "label": "Label",
+      "description": "Popis",
+      "isFinal": "Konečný"
+    },
+    "relationships": {
+      "title": "Vzťahy",
+      "add": "+ Vzťah",
+      "detail": "Detail vzťahu",
+      "type": "Typ",
+      "description": "Popis",
+      "columns": {
+        "startEntity": "Začiatok relácie",
+        "startRole": "Počiatočná rola",
+        "endEntity": "Koniec relácie",
+        "endRole": "Koncová rola",
+        "type": "Typ",
+        "actions": "Akcie"
+      },
+      "role": {
+        "start": "Počiatočná rola",
+        "end": "Koncová rola",
+        "name": "Názov roly",
+        "multiplicity": "Multiplicita",
+        "entityRefNamespaceAlias": "EntityRef alias menného priestoru",
+        "entityRefEntity": "Entita",
+        "entityRefAttribute": "Atribút entity",
+        "description": "Popis roly"
+      }
+    },
+    "glossary": {
+      "title": "Glosár",
+      "add": "+ Pojem",
+      "detail": "Detail pojmu",
+      "columns": {
+        "term": "Pojem",
+        "meaning": "Význam",
+        "relatedEntity": "Súvisiaca entita",
+        "actions": "Akcie"
+      },
+      "term": "Pojem",
+      "meaning": "Význam",
+      "relatedEntity": "Súvisiaca entita"
+    },
+    "eventGlossary": {
+      "title": "Glosár udalostí",
+      "add": "+ Udalosť",
+      "detail": "Detail glosára udalostí",
+      "columns": {
+        "code": "Kód",
+        "title": "Názov",
+        "severity": "Závažnosť",
+        "meaning": "Význam",
+        "actions": "Akcie"
+      },
+      "code": "Kód",
+      "title": "Názov",
+      "severity": "Závažnosť",
+      "meaning": "Význam",
+      "recommendedAction": "Odporúčaná akcia"
+    },
+    "namespaceRef": {
+      "title": "Odkaz na menný priestor",
+      "add": "+ Namespace",
+      "detail": "Detail namespace",
+      "columns": {
+        "alias": "Alias",
+        "filePath": "Cesta k súboru",
+        "actions": "Akcie"
+      },
+      "alias": "Alias",
+      "filePath": "Cesta k súboru"
+    },
+    "common": {
+      "up": "↑",
+      "down": "↓",
+      "delete": "✕",
+      "none": "-",
+      "loading": "Nacitavam domain model...",
+      "yamlError": "YAML chyba"
+    }
+  }
+}

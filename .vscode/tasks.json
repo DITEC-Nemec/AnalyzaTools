@@ -1,0 +1,29 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build Extension + Webview",
+      "dependsOn": ["Build Extension", "Build Webview"],
+      "group": { "kind": "build", "isDefault": true }
+    },
+    {
+      "label": "Build Extension",
+      "type": "npm",
+      "script": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build Webview",
+      "type": "npm",
+      "script": "build:webview",
+      "problemMatcher": []
+    },
+    {
+      "label": "Watch Extension",
+      "type": "npm",
+      "script": "watch",
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}

@@ -66,6 +66,18 @@ class DomainModelEditorProvider {
             return null;
         }
     }
+    resolveRequestedPath(documentUri, requestedPath) {
+        if (path.isAbsolute(requestedPath)) {
+            return requestedPath;
+        }
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(documentUri);
+        const workspaceRoot = workspaceFolder?.uri.fsPath;
+        if (workspaceRoot) {
+            return path.resolve(workspaceRoot, requestedPath);
+        }
+        // Fallback for single-file/no-folder context.
+        return path.resolve(path.dirname(documentUri.fsPath), requestedPath);
+    }
     async resolveCustomTextEditor(document, webviewPanel) {
         webviewPanel.webview.options = {
             enableScripts: true,
@@ -96,11 +108,13 @@ class DomainModelEditorProvider {
                 await vscode.workspace.applyEdit(edit);
             }
             else if (msg.type === 'loadModel') {
-                const content = await this.loadModelFile(msg.path);
+                const resolvedPath = this.resolveRequestedPath(document.uri, msg.path);
+                const content = await this.loadModelFile(resolvedPath);
                 if (content) {
                     webviewPanel.webview.postMessage({
                         type: 'modelContent',
-                        path: msg.path,
+                        path: resolvedPath,
+                        requestKey: msg.path,
                         content: content
                     });
                 }

@@ -4,165 +4,44 @@ import type {
   Attribute,
   CodeLabel,
   DomainFunction,
-  DomainModel,
   Entity,
-  EventGlossaryEntry,
-  FunctionEffect,
-  NamedType,
+  SimpleType,
+  SimpleTypeRef,
+  SimpleTypeDefinition,
+  Annotation,
   NamespaceEntity,
+  DomainModel,
   Relationship,
   RelationshipRole,
-  RestrictionDefinition,
-  SimpleType,
-  SimpleTypeDefinition,
-  SimpleTypeRef,
+  FunctionEffect,
   StateEntry,
-  Variable
+  Variable,
+  EventGlossaryEntry
 } from '../types/sqd';
-import { vscodeApi } from './main';
-import { label } from '../ui-labels';
+import { label as L } from '../ui-labels';
 import { VariableList } from '../algorithm/VariableList';
 
-type TopTab = 'entities' | 'simpleTypes' | 'relationships' | 'glossary' | 'eventGlossary' | 'namespaceRef';
-type EntityTab = 'attributes' | 'functions' | 'stateModel';
-type FunctionTab = 'detail' | 'inputs' | 'outputs';
+const PRIMITIVE_TYPES = ['string', 'integer', 'decimal', 'double', 'boolean', 'date', 'time', 'dateTime'];
+const ATTRIBUTE_TYPES = ['entityRef', 'definition', 'typeRef'];
+const RELATIONSHIP_TYPES = ['references', 'depends', 'inherits'];
 
-interface ModelFile {
-  path: string;
-  label: string;
+interface EditorProps {
+  value: DomainModel;
+  onChange: (value: DomainModel) => void;
+  availableModels: Array<{ name: string; path: string }>;
+  onModelSwitch: (path: string) => void;
+  currentPath: string;
+  vscodeApi: { postMessage(msg: unknown): void };
 }
 
-const RELATIONSHIP_TYPES: Array<Relationship['type']> = ['contains', 'references', 'belongs_to', 'aggregates'];
-const ATTRIBUTE_TYPES: Array<NonNullable<NamedType['type']>> = ['definition', 'entityRef', 'typeRef'];
-const PRIMITIVE_TYPES = [
-  'string', 'boolean', 'decimal', 'integer', 'long', 'int', 'short', 'byte',
-  'nonNegativeInteger', 'positiveInteger', 'nonPositiveInteger', 'negativeInteger',
-  'float', 'double', 'date', 'dateTime', 'time', 'duration',
-  'anyURI', 'QName', 'ID', 'IDREF', 'token', 'normalizedString'
-];
-
-const moveItem = <T,>(items: T[], from: number, to: number): T[] => {
-  if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) {
-    return items;
-  }
-  const next = [...items];
-  const [moved] = next.splice(from, 1);
-  next.splice(to, 0, moved);
-  return next;
-};
-
-const parseCsv = (value: string): string[] =>
-  value
-    .split(',')
-    .map(item => item.trim())
-    .filter(Boolean);
-
-const parseScalarValue = (value: string): string | number | boolean => {
-  const lowered = value.trim().toLowerCase();
-  if (lowered === 'true') {
-    return true;
-  }
-  if (lowered === 'false') {
-    return false;
-  }
-  const asNumber = Number(value.trim());
-  if (!Number.isNaN(asNumber) && value.trim() !== '') {
-    return asNumber;
-  }
-  return value.trim();
-};
-
-const parseEnumerationCsv = (value: string): Array<string | number | boolean> =>
-  parseCsv(value).map(item => parseScalarValue(item));
-
-const simpleTypeRefToText = (ref: SimpleTypeRef): string => `${ref.namespaceAlias}:${ref.simpleType}`;
-
-const parseSimpleTypeRefsMultiline = (value: string): SimpleTypeRef[] =>
-  value
-    .split('\n')
-    .map(line => line.trim())
-    .filter(Boolean)
-    .map(line => {
-      const separatorIndex = line.indexOf(':');
-      if (separatorIndex < 0) {
-        return { namespaceAlias: '', simpleType: line };
-      }
-      return {
-        namespaceAlias: line.slice(0, separatorIndex).trim(),
-        simpleType: line.slice(separatorIndex + 1).trim()
-      };
-    });
-
-const csvToVariables = (value: string): Variable[] =>
-  parseCsv(value).map(name => ({ namedType: { name } }));
-
-const variablesToCsv = (items?: Array<Variable | string>): string =>
-  (items ?? [])
-    .map(item => {
-      if (typeof item === 'string') {
-        return item;
-      }
-      return item.namedType?.name ?? '';
-    })
-    .filter(Boolean)
-    .join(', ');
-
-const normalizeSimpleTypeRef = (typeRef: SimpleTypeRef | undefined): SimpleTypeRef => ({
-  namespaceAlias: typeRef?.namespaceAlias ?? '',
-  simpleType: typeRef?.simpleType ?? ''
-});
-
-const normalizeBaseType = (base: string | SimpleTypeRef | undefined): string | SimpleTypeRef => {
-  if (!base) return 'string';
-  if (typeof base === 'string') return base;
-  return normalizeSimpleTypeRef(base);
-};
-
-const normalizeBaseTypeArrayItem = (item: string | SimpleTypeRef | undefined): string | SimpleTypeRef => {
-  if (!item) return 'string';
-  if (typeof item === 'string') return item;
-  return normalizeSimpleTypeRef(item);
-};
-
-const normalizeRestriction = (restriction: RestrictionDefinition | undefined): RestrictionDefinition => ({
-  base: restriction?.base ? normalizeBaseType(restriction.base) : 'string',
-  enumeration: restriction?.enumeration,
-  pattern: restriction?.pattern,
-  length: restriction?.length,
-  minLength: restriction?.minLength,
-  maxLength: restriction?.maxLength,
-  minInclusive: restriction?.minInclusive,
-  maxInclusive: restriction?.maxInclusive,
-  minExclusive: restriction?.minExclusive,
-  maxExclusive: restriction?.maxExclusive,
-  totalDigits: restriction?.totalDigits,
-  fractionDigits: restriction?.fractionDigits,
-  whiteSpace: restriction?.whiteSpace
-});
-
-const normalizeSimpleTypeDefinition = (definition: SimpleTypeDefinition | undefined): SimpleTypeDefinition => ({
-  restriction: definition?.restriction ? normalizeRestriction(definition.restriction) : undefined,
-  list: definition?.list
-    ? {
-      itemType: definition.list.itemType ? normalizeBaseTypeArrayItem(definition.list.itemType) : 'string'
-    }
-    : undefined,
-  union: definition?.union
-    ? {
-      memberTypes: (definition.union.memberTypes ?? []).map(item => normalizeBaseTypeArrayItem(item))
-    }
-    : undefined
-});
-
-const normalizeNamedType = (namedType: NamedType | undefined, fallbackName = ''): NamedType => ({
-  name: namedType?.name ?? fallbackName,
-  type: namedType?.type,
-  entityRef: namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' },
-  typeRef: namedType?.typeRef ? normalizeSimpleTypeRef(namedType.typeRef) : undefined,
-  definition: namedType?.definition ? normalizeSimpleTypeDefinition(namedType.definition) : undefined,
+const normalizeNamedType = (namedType: any, attrName?: string) => ({
+  name: attrName || namedType?.name || '',
   nullable: namedType?.nullable ?? true,
-  readOnly: namedType?.readOnly,
-  multiplicity: namedType?.multiplicity
+  type: namedType?.type,
+  definition: namedType?.definition,
+  entityRef: namedType?.entityRef,
+  typeRef: namedType?.typeRef,
+  simpleType: namedType?.simpleType
 });
 
 const normalizeSimpleType = (simpleType: SimpleType): SimpleType => ({
@@ -178,6 +57,45 @@ const normalizeSimpleType = (simpleType: SimpleType): SimpleType => ({
   definition: normalizeSimpleTypeDefinition(simpleType.definition)
 });
 
+const normalizeSimpleTypeDefinition = (def: any): SimpleTypeDefinition => ({
+  restriction: def?.restriction,
+  list: def?.list,
+  union: def?.union
+});
+
+const normalizeRestriction = (restriction: any) => ({
+  base: restriction?.base,
+  length: restriction?.length,
+  minLength: restriction?.minLength,
+  maxLength: restriction?.maxLength,
+  pattern: restriction?.pattern,
+  enumeration: restriction?.enumeration,
+  minInclusive: restriction?.minInclusive,
+  maxInclusive: restriction?.maxInclusive,
+  minExclusive: restriction?.minExclusive,
+  maxExclusive: restriction?.maxExclusive,
+  totalDigits: restriction?.totalDigits,
+  fractionDigits: restriction?.fractionDigits,
+  whiteSpace: restriction?.whiteSpace
+});
+
+const normalizeSimpleTypeRef = (ref: any): SimpleTypeRef => ({
+  namespaceAlias: ref?.namespaceAlias ?? '',
+  simpleType: ref?.simpleType ?? ''
+});
+
+const normalizeRole = (role: any): RelationshipRole => ({
+  entity: role?.entity ?? role?.entityRef?.entity ?? '',
+  nazov: role?.nazov ?? '',
+  multiplicity: role?.multiplicity ?? '',
+  description: role?.description ?? '',
+  entityRef: {
+    namespaceAlias: role?.entityRef?.namespaceAlias ?? '',
+    entity: role?.entityRef?.entity ?? '',
+    attribute: role?.entityRef?.attribute ?? ''
+  }
+});
+
 const normalizeVariable = (variable: Variable | string): Variable => {
   if (typeof variable === 'string') {
     return { namedType: normalizeNamedType(undefined, variable) };
@@ -189,475 +107,227 @@ const normalizeVariable = (variable: Variable | string): Variable => {
   };
 };
 
-const normalizeVariableArray = (items?: Array<Variable | string>): Variable[] =>
-  (items ?? []).map(normalizeVariable);
-
-const normalizeRole = (role: RelationshipRole | undefined): RelationshipRole => {
-  const entityRef = role?.entityRef ?? {
-    namespaceAlias: '',
-    entity: role?.entity ?? '',
-    attribute: ''
-  };
-
-  return {
-    ...role,
-    entityRef,
-    entity: entityRef.entity ?? role?.entity
-  };
+const normalizeVariableArray = (vars: Array<Variable | string> | undefined): Variable[] => {
+  return (vars ?? []).map(normalizeVariable);
 };
 
-const normalizeAttribute = (attribute: Attribute): Attribute => ({
-  ...attribute,
-  namedType: normalizeNamedType(attribute.namedType, attribute.name ?? ''),
-  states: (attribute.states ?? []).map(state => ({ code: state.code ?? '', label: state.label ?? '' }))
-});
+const simpleTypeRefToText = (ref: SimpleTypeRef): string => `${ref.namespaceAlias}:${ref.simpleType}`;
 
-const normalizeFunction = (fn: DomainFunction): DomainFunction => ({
-  ...fn,
-  preconditions: fn.preconditions ?? [],
-  inputs: (fn.inputs ?? []).map(normalizeVariable),
-  outputs: (fn.outputs ?? []).map(normalizeVariable),
-  effects: (fn.effects ?? []).map(effect => ({
-    type: effect.type ?? 'reads',
-    entityRef: effect.entityRef ?? {
-      namespaceAlias: '',
-      entity: effect.target ?? '',
-      attribute: ''
-    },
-    target: effect.target
-  }))
-});
+const parseEnumerationCsv = (text: string): (string | number)[] => {
+  return text.split(',').map(item => {
+    const trimmed = item.trim();
+    const num = Number(trimmed);
+    return isNaN(num) ? trimmed : num;
+  });
+};
 
-const normalizeModel = (input: DomainModel): DomainModel => ({
-  ...input,
-  domain: input.domain ?? { name: 'Domain Model' },
-  entities: (input.entities ?? []).map(entity => ({
-    ...entity,
-    stateModel: (entity.stateModel ?? []).map(state => ({
-      name: state.name ?? '',
-      label: state.label ?? '',
-      description: state.description ?? '',
-      isFinal: state.isFinal ?? false
-    })),
-    attributes: (entity.attributes ?? []).map(normalizeAttribute),
-    functions: (entity.functions ?? []).map(normalizeFunction)
-  })),
-  relationships: (input.relationships ?? []).map(rel => ({
-    ...rel,
-    start_role: normalizeRole(rel.start_role),
-    end_role: normalizeRole(rel.end_role)
-  })),
-  glossary: input.glossary ?? [],
-  simpleTypes: (input.simpleTypes ?? []).map(normalizeSimpleType),
-  eventGlossary: input.eventGlossary ?? [],
-  namespaceRef: (input.namespaceRef ?? []).map(item => ({
-    alias: item.alias ?? '',
-    filePath: item.filePath ?? '',
-    sourceType: item.sourceType ?? (item.alias === 'local' ? 'current' : 'model')
-  }))
-});
+const parseCsv = (text: string): string[] => text.split(',').map(item => item.trim()).filter(Boolean);
 
-export const DomainModelEditor: React.FC = () => {
-  const L = (path: string, fallback: string) => label(`domain.${path}`, fallback);
+const moveItem = <T,>(arr: T[], from: number, to: number): T[] => {
+  const result = [...arr];
+  const [moved] = result.splice(from, 1);
+  result.splice(to, 0, moved);
+  return result;
+};
 
+const DomainModelEditor: React.FC<EditorProps> = ({
+  value: initialModel,
+  onChange,
+  availableModels,
+  onModelSwitch,
+  currentPath,
+  vscodeApi
+}) => {
   const [model, setModel] = useState<DomainModel | null>(null);
-  const modelRef = useRef<DomainModel | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const [topTab, setTopTab] = useState<TopTab>('entities');
-  const [entityTab, setEntityTab] = useState<EntityTab>('attributes');
-  const [functionTab, setFunctionTab] = useState<FunctionTab>('detail');
-
-  const [availableModels, setAvailableModels] = useState<ModelFile[]>([]);
   const [currentModelPath, setCurrentModelPath] = useState<string>('');
+  const [namespaceModels, setNamespaceModels] = useState<Record<string, DomainModel>>({});
+  const pendingNamespaceByRequestKey = useRef<Map<string, string>>(new Map());
 
-  const [selectedEntityIndex, setSelectedEntityIndex] = useState<number | null>(0);
+  // Entity selection
+  const [selectedEntityIndex, setSelectedEntityIndex] = useState<number | null>(null);
+  
+  // Attribute selection
   const [selectedAttributeIndex, setSelectedAttributeIndex] = useState<number | null>(null);
+  const [selectedAttributeStateIndex, setSelectedAttributeStateIndex] = useState<number | null>(null);
+  
+  // Function selection
   const [selectedFunctionIndex, setSelectedFunctionIndex] = useState<number | null>(null);
   const [selectedStateModelIndex, setSelectedStateModelIndex] = useState<number | null>(null);
-  const [selectedAttributeStateIndex, setSelectedAttributeStateIndex] = useState<number | null>(null);
-
-  const [selectedRelationshipIndex, setSelectedRelationshipIndex] = useState<number | null>(null);
+  
+  // SimpleType selection
   const [selectedSimpleTypeIndex, setSelectedSimpleTypeIndex] = useState<number | null>(null);
+  
+  // Relationship selection
+  const [selectedRelationshipIndex, setSelectedRelationshipIndex] = useState<number | null>(null);
+  
+  // Glossary selection
   const [selectedGlossaryIndex, setSelectedGlossaryIndex] = useState<number | null>(null);
   const [selectedEventGlossaryIndex, setSelectedEventGlossaryIndex] = useState<number | null>(null);
+  
+  // Namespace selection
   const [selectedNamespaceIndex, setSelectedNamespaceIndex] = useState<number | null>(null);
 
-  useEffect(() => {
-    modelRef.current = model;
-  }, [model]);
+  // Tab states
+  const [topTab, setTopTab] = useState<string>('entities');
+  const [entityTab, setEntityTab] = useState<string>('attributes');
+  const [functionTab, setFunctionTab] = useState<string>('detail');
 
+  // Initialize model
   useEffect(() => {
-    const handler = (event: MessageEvent) => {
-      const msg = event.data;
+    setCurrentModelPath(currentPath ?? '');
+    setModel(initialModel);
+  }, [initialModel, currentPath]);
 
-      if (msg.type === 'filePicked') {
-        const current = modelRef.current;
-        if (!current) {
+  // Message handler for file picker
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      const { type, filePath, content, requestKey } = event.data;
+      if (type === 'filePicked' && filePath && selectedNamespaceIndex !== null) {
+        updateNamespace(selectedNamespaceIndex, { filePath });
+        return;
+      }
+
+      if (type === 'modelContent' && typeof content === 'string' && typeof requestKey === 'string') {
+        const alias = pendingNamespaceByRequestKey.current.get(requestKey);
+        pendingNamespaceByRequestKey.current.delete(requestKey);
+
+        if (!alias) {
           return;
         }
 
-        const nextNamespace = [
-          ...(current.namespaceRef ?? []),
-          {
-            alias: msg.alias ?? '',
-            filePath: msg.filePath ?? '',
-            sourceType: (msg.sourceType ?? 'model') as NamespaceEntity['sourceType']
+        try {
+          const parsed = yaml.load(content) as DomainModel;
+          if (!parsed || typeof parsed !== 'object') {
+            return;
           }
-        ];
-        const nextModel = { ...current, namespaceRef: nextNamespace };
-        const content = yaml.dump(nextModel, { lineWidth: 120 });
 
-        setModel(nextModel);
-        modelRef.current = nextModel;
-        setTopTab('namespaceRef');
-        setSelectedNamespaceIndex(nextNamespace.length - 1);
-        vscodeApi.postMessage({ type: 'edit', content });
-        return;
-      }
-
-      if (msg.type !== 'update' && msg.type !== 'modelContent') {
-        return;
-      }
-
-      const load = msg.type === 'update'
-        ? { content: msg.content, currentPath: msg.currentPath, availableModels: msg.availableModels }
-        : { content: msg.content, currentPath: msg.path, availableModels: undefined };
-
-      try {
-        const parsed = yaml.load(load.content) as DomainModel;
-        const normalized = normalizeModel(parsed);
-        setModel(normalized);
-        setCurrentModelPath(load.currentPath || '');
-
-        if (load.availableModels) {
-          setAvailableModels(load.availableModels);
+          setNamespaceModels(prev => ({ ...prev, [alias]: parsed }));
+        } catch {
+          setNamespaceModels(prev => {
+            const next = { ...prev };
+            delete next[alias];
+            return next;
+          });
         }
-
-        setSelectedEntityIndex(prev => {
-          if (normalized.entities.length === 0) {
-            return null;
-          }
-          if (prev === null) {
-            return 0;
-          }
-          return Math.min(prev, normalized.entities.length - 1);
-        });
-
-        setSelectedRelationshipIndex(prev => {
-          const list = normalized.relationships ?? [];
-          if (list.length === 0) {
-            return null;
-          }
-          if (prev === null) {
-            return 0;
-          }
-          return Math.min(prev, list.length - 1);
-        });
-
-        setSelectedGlossaryIndex(prev => {
-          const list = normalized.glossary ?? [];
-          if (list.length === 0) {
-            return null;
-          }
-          if (prev === null) {
-            return 0;
-          }
-          return Math.min(prev, list.length - 1);
-        });
-
-        setSelectedSimpleTypeIndex(prev => {
-          const list = normalized.simpleTypes ?? [];
-          if (list.length === 0) {
-            return null;
-          }
-          if (prev === null) {
-            return 0;
-          }
-          return Math.min(prev, list.length - 1);
-        });
-
-        setSelectedEventGlossaryIndex(prev => {
-          const list = normalized.eventGlossary ?? [];
-          if (list.length === 0) {
-            return null;
-          }
-          if (prev === null) {
-            return 0;
-          }
-          return Math.min(prev, list.length - 1);
-        });
-
-        setSelectedNamespaceIndex(prev => {
-          const list = normalized.namespaceRef ?? [];
-          if (list.length === 0) {
-            return null;
-          }
-          if (prev === null) {
-            return 0;
-          }
-          return Math.min(prev, list.length - 1);
-        });
-
-        if (msg.type === 'modelContent') {
-          setSelectedAttributeIndex(null);
-          setSelectedFunctionIndex(null);
-          setSelectedStateModelIndex(null);
-          setSelectedAttributeStateIndex(null);
-        }
-
-        setError(null);
-      } catch (e) {
-        setError(String(e));
       }
     };
 
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, []);
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [selectedNamespaceIndex]);
 
   useEffect(() => {
-    if (selectedFunctionIndex === null) {
-      setFunctionTab('detail');
+    if (!vscodeApi || !model) {
+      return;
     }
-  }, [selectedFunctionIndex]);
 
-  const save = (updated: DomainModel) => {
-    setModel(updated);
-    const content = yaml.dump(updated, { lineWidth: 120 });
-    vscodeApi.postMessage({ type: 'edit', content });
-  };
+    const aliasesInUse = new Set(
+      (model.namespaceRef ?? [])
+        .filter(ns => ns.sourceType === 'model' && !!ns.alias)
+        .map(ns => ns.alias)
+    );
+
+    setNamespaceModels(prev => {
+      const next: Record<string, DomainModel> = {};
+      Object.entries(prev).forEach(([alias, nsModel]) => {
+        if (aliasesInUse.has(alias)) {
+          next[alias] = nsModel;
+        }
+      });
+      return next;
+    });
+
+    (model.namespaceRef ?? []).forEach(ns => {
+      if (ns.sourceType !== 'model' || !ns.alias || !ns.filePath) {
+        return;
+      }
+
+      pendingNamespaceByRequestKey.current.set(ns.filePath, ns.alias);
+      vscodeApi.postMessage({ type: 'loadModel', path: ns.filePath });
+    });
+  }, [model, vscodeApi]);
+
+  const entities = useMemo(() => model?.entities ?? [], [model]);
+  const simpleTypes = useMemo(() => model?.simpleTypes ?? [], [model]);
+  const relationships = useMemo(() => model?.relationships ?? [], [model]);
+  const glossary = useMemo(() => model?.glossary ?? [], [model]);
+  const eventGlossary = useMemo(() => model?.eventGlossary ?? [], [model]);
+  const namespaceRef = useMemo(() => model?.namespaceRef ?? [], [model]);
+
+  const selectedEntity = selectedEntityIndex !== null ? entities[selectedEntityIndex] : null;
+  const selectedAttribute = selectedAttributeIndex !== null && selectedEntity ? selectedEntity.attributes?.[selectedAttributeIndex] : null;
+  const selectedAttributeState = selectedAttributeStateIndex !== null && selectedAttribute ? selectedAttribute.states?.[selectedAttributeStateIndex] : null;
+  const selectedFunction = selectedFunctionIndex !== null && selectedEntity ? selectedEntity.functions?.[selectedFunctionIndex] : null;
+  const selectedStateModel = selectedStateModelIndex !== null && selectedEntity ? selectedEntity.stateModel?.[selectedStateModelIndex] : null;
+  const selectedSimpleType = selectedSimpleTypeIndex !== null ? simpleTypes[selectedSimpleTypeIndex] : null;
+  const selectedRelationship = selectedRelationshipIndex !== null ? relationships[selectedRelationshipIndex] : null;
+  const selectedGlossary = selectedGlossaryIndex !== null ? glossary[selectedGlossaryIndex] : null;
+  const selectedEventGlossary = selectedEventGlossaryIndex !== null ? eventGlossary[selectedEventGlossaryIndex] : null;
+  const selectedNamespace = selectedNamespaceIndex !== null ? namespaceRef[selectedNamespaceIndex] : null;
+
+  const simpleTypeCount = simpleTypes.length;
+  const relationshipCount = relationships.length;
+  const glossaryCount = glossary.length;
+  const eventGlossaryCount = eventGlossary.length;
+  const namespaceCount = namespaceRef.length;
 
   const updateModel = (updater: (current: DomainModel) => DomainModel) => {
-    if (!model) {
-      return;
-    }
-    save(updater(model));
+    setModel(current => {
+      if (!current) return current;
+      const next = updater(current);
+      onChange(next);
+      return next;
+    });
   };
-
-  const handleModelSwitch = (modelPath: string) => {
-    if (modelPath === currentModelPath || !modelPath) {
-      return;
-    }
-    vscodeApi.postMessage({ type: 'loadModel', path: modelPath });
-  };
-
-  const entities = model?.entities ?? [];
-  const relationships = model?.relationships ?? [];
-  const simpleTypes = model?.simpleTypes ?? [];
-  const glossary = model?.glossary ?? [];
-  const eventGlossary = model?.eventGlossary ?? [];
-  const namespaceRef = model?.namespaceRef ?? [];
-
-  const selectedEntity = selectedEntityIndex === null ? null : entities[selectedEntityIndex] ?? null;
-  const selectedAttribute =
-    selectedEntity && selectedAttributeIndex !== null
-      ? (selectedEntity.attributes ?? [])[selectedAttributeIndex] ?? null
-      : null;
-  const selectedFunction =
-    selectedEntity && selectedFunctionIndex !== null
-      ? (selectedEntity.functions ?? [])[selectedFunctionIndex] ?? null
-      : null;
-  const selectedStateModel =
-    selectedEntity && selectedStateModelIndex !== null
-      ? (selectedEntity.stateModel ?? [])[selectedStateModelIndex] ?? null
-      : null;
-  const selectedAttributeState =
-    selectedAttribute && selectedAttributeStateIndex !== null
-      ? (selectedAttribute.states ?? [])[selectedAttributeStateIndex] ?? null
-      : null;
-
-  const selectedRelationship =
-    selectedRelationshipIndex === null ? null : relationships[selectedRelationshipIndex] ?? null;
-  const selectedSimpleType = selectedSimpleTypeIndex === null ? null : simpleTypes[selectedSimpleTypeIndex] ?? null;
-  const selectedGlossary = selectedGlossaryIndex === null ? null : glossary[selectedGlossaryIndex] ?? null;
-  const selectedEventGlossary =
-    selectedEventGlossaryIndex === null ? null : eventGlossary[selectedEventGlossaryIndex] ?? null;
-  const selectedNamespace = selectedNamespaceIndex === null ? null : namespaceRef[selectedNamespaceIndex] ?? null;
-
-  const relationshipCount = useMemo(() => relationships.length, [relationships]);
-  const simpleTypeCount = useMemo(() => simpleTypes.length, [simpleTypes]);
-  const glossaryCount = useMemo(() => glossary.length, [glossary]);
-  const eventGlossaryCount = useMemo(() => eventGlossary.length, [eventGlossary]);
-  const namespaceCount = useMemo(() => namespaceRef.length, [namespaceRef]);
 
   const updateEntity = (index: number, patch: Partial<Entity>) => {
     updateModel(current => {
-      const next = [...current.entities];
-      const previousName = next[index]?.name;
-      const nextName = patch.name;
-
-      next[index] = {
-        ...next[index],
-        ...patch
-      };
-
-      const relationshipsNext = (current.relationships ?? []).map(rel => {
-        if (!previousName || !nextName || nextName === previousName) {
-          return rel;
-        }
-
-        const fixRole = (role: RelationshipRole | undefined): RelationshipRole | undefined => {
-          if (!role) {
-            return role;
-          }
-
-          if (role.entityRef?.entity === previousName) {
-            return {
-              ...role,
-              entityRef: { ...role.entityRef, entity: nextName },
-              entity: nextName
-            };
-          }
-
-          if (role.entity === previousName) {
-            return {
-              ...role,
-              entity: nextName,
-              entityRef: { ...(role.entityRef ?? { namespaceAlias: '' }), entity: nextName }
-            };
-          }
-
-          return role;
-        };
-
-        return {
-          ...rel,
-          start_role: fixRole(rel.start_role),
-          end_role: fixRole(rel.end_role)
-        };
-      });
-
-      const glossaryNext = (current.glossary ?? []).map(entry => {
-        if (!previousName || !nextName || nextName === previousName) {
-          return entry;
-        }
-        return {
-          ...entry,
-          relatedEntity: entry.relatedEntity === previousName ? nextName : entry.relatedEntity
-        };
-      });
-
-      return {
-        ...current,
-        entities: next,
-        relationships: relationshipsNext,
-        glossary: glossaryNext
-      };
+      const entities = [...(current.entities ?? [])];
+      entities[index] = { ...entities[index], ...patch };
+      return { ...current, entities };
     });
   };
 
-  const addEntity = () => {
-    if (!model) {
-      return;
-    }
-
-    const nextEntity: Entity = {
-      name: `NovaEntita${model.entities.length + 1}`,
-      description: '',
-      status: 'active',
-      stateModel: [],
-      attributes: [],
-      functions: []
-    };
-
-    const updated = {
-      ...model,
-      entities: [...model.entities, nextEntity]
-    };
-
-    save(updated);
-    setSelectedEntityIndex(updated.entities.length - 1);
-    setTopTab('entities');
-    setEntityTab('attributes');
-    setSelectedAttributeIndex(null);
-    setSelectedFunctionIndex(null);
-    setSelectedStateModelIndex(null);
-    setSelectedAttributeStateIndex(null);
-  };
-
-  const removeEntity = (index: number) => {
-    if (!model) {
-      return;
-    }
-
-    const removed = model.entities[index];
-    const entitiesNext = model.entities.filter((_, i) => i !== index);
-    const relationshipsNext = (model.relationships ?? []).filter(rel => {
-      const startEntity = rel.start_role?.entityRef?.entity ?? rel.start_role?.entity;
-      const endEntity = rel.end_role?.entityRef?.entity ?? rel.end_role?.entity;
-      return startEntity !== removed.name && endEntity !== removed.name;
+  const updateAttribute = (index: number, patch: Partial<Attribute>) => {
+    if (selectedEntityIndex === null) return;
+    updateEntity(selectedEntityIndex, {
+      attributes: (selectedEntity?.attributes ?? []).map((attr, i) =>
+        i === index ? { ...attr, ...patch } : attr
+      )
     });
-    const glossaryNext = (model.glossary ?? []).map(entry =>
-      entry.relatedEntity === removed.name ? { ...entry, relatedEntity: '' } : entry
-    );
+  };
 
-    save({
-      ...model,
-      entities: entitiesNext,
-      relationships: relationshipsNext,
-      glossary: glossaryNext
-    });
+  // Helper: Get available namespace aliases
+  const getNamespaceAliases = (): string[] => {
+    return (model?.namespaceRef ?? []).map(ns => ns.alias).filter((alias): alias is string => Boolean(alias));
+  };
 
-    if (entitiesNext.length === 0) {
-      setSelectedEntityIndex(null);
-      setSelectedAttributeIndex(null);
-      setSelectedFunctionIndex(null);
-      setSelectedStateModelIndex(null);
-      setSelectedAttributeStateIndex(null);
-      return;
+  const getModelByAlias = (namespaceAlias?: string): DomainModel | null => {
+    if (!namespaceAlias || namespaceAlias === 'local') {
+      return model;
     }
 
-    const nextSelected = Math.min(index, entitiesNext.length - 1);
-    setSelectedEntityIndex(nextSelected);
-    setSelectedAttributeIndex(null);
-    setSelectedFunctionIndex(null);
-    setSelectedStateModelIndex(null);
-    setSelectedAttributeStateIndex(null);
+    return namespaceModels[namespaceAlias] ?? null;
   };
 
-  const moveEntity = (index: number, direction: -1 | 1) => {
-    updateModel(current => ({
-      ...current,
-      entities: moveItem(current.entities, index, index + direction)
-    }));
-    setSelectedEntityIndex(index + direction);
+  // Helper: Get available entities (all, or from specific namespace)
+  const getAvailableEntities = (namespaceAlias?: string): string[] => {
+    const sourceModel = getModelByAlias(namespaceAlias);
+    return (sourceModel?.entities ?? []).map(e => e.name).filter((name): name is string => Boolean(name));
   };
 
-  const selectEntity = (index: number) => {
-    setSelectedEntityIndex(index);
-    setSelectedAttributeIndex(null);
-    setSelectedFunctionIndex(null);
-    setSelectedStateModelIndex(null);
-    setSelectedAttributeStateIndex(null);
+  // Helper: Get available attributes for an entity
+  const getAvailableAttributes = (entityName: string, namespaceAlias?: string): string[] => {
+    const sourceModel = getModelByAlias(namespaceAlias);
+    const entity = (sourceModel?.entities ?? []).find(e => e.name === entityName);
+    return (entity?.attributes ?? []).map(a => a.name).filter((name): name is string => Boolean(name));
   };
 
-  const updateAttribute = (attrIndex: number, patch: Partial<Attribute>) => {
-    if (!selectedEntity || selectedEntityIndex === null) {
-      return;
-    }
-    const attrs = [...(selectedEntity.attributes ?? [])];
-    attrs[attrIndex] = { ...attrs[attrIndex], ...patch };
-    updateEntity(selectedEntityIndex, { attributes: attrs });
-  };
-
-  const addAttribute = () => {
-    if (!selectedEntity || selectedEntityIndex === null) {
-      return;
-    }
-
-    const attrs = [
-      ...(selectedEntity.attributes ?? []),
-      {
-        namedType: normalizeNamedType(undefined, `atribut_${(selectedEntity.attributes ?? []).length + 1}`),
-        states: []
-      }
-    ];
-
-    updateEntity(selectedEntityIndex, { attributes: attrs });
-    setSelectedAttributeIndex(attrs.length - 1);
-    setEntityTab('attributes');
-    setSelectedAttributeStateIndex(null);
+  // Helper: Get available simpleTypes (all, or from specific namespace)
+  const getAvailableSimpleTypes = (namespaceAlias?: string): string[] => {
+    const sourceModel = getModelByAlias(namespaceAlias);
+    return (sourceModel?.simpleTypes ?? []).map(st => st.name).filter((name): name is string => Boolean(name));
   };
 
   const removeAttribute = (attrIndex: number) => {
@@ -1296,6 +966,88 @@ export const DomainModelEditor: React.FC = () => {
     });
   };
 
+  // Entity management functions
+  const addEntity = () => {
+    updateModel(current => ({
+      ...current,
+      entities: [
+        ...(current.entities ?? []),
+        {
+          name: `entita_${(current.entities ?? []).length + 1}`,
+          label: '',
+          attributes: [],
+          functions: [],
+          stateModel: []
+        }
+      ]
+    }));
+
+    setTopTab('entities');
+    setSelectedEntityIndex(entities.length);
+  };
+
+  const removeEntity = (index: number) => {
+    updateModel(current => ({
+      ...current,
+      entities: (current.entities ?? []).filter((_, i) => i !== index)
+    }));
+
+    const nextLen = entities.length - 1;
+    if (nextLen <= 0) {
+      setSelectedEntityIndex(null);
+      return;
+    }
+
+    setSelectedEntityIndex(prev => {
+      if (prev === null) {
+        return null;
+      }
+      return Math.min(prev, nextLen - 1);
+    });
+  };
+
+  const moveEntity = (index: number, direction: -1 | 1) => {
+    updateModel(current => ({
+      ...current,
+      entities: moveItem(current.entities ?? [], index, index + direction)
+    }));
+
+    setSelectedEntityIndex(prev => {
+      if (prev === null) {
+        return null;
+      }
+      if (prev === index) {
+        return index + direction;
+      }
+      return prev;
+    });
+  };
+
+  const selectEntity = (index: number) => {
+    setSelectedEntityIndex(index);
+    setEntityTab('attributes');
+  };
+
+  const addAttribute = () => {
+    if (!selectedEntity || selectedEntityIndex === null) {
+      return;
+    }
+
+    const attributes = [
+      ...(selectedEntity.attributes ?? []),
+      {
+        name: `atribut_${(selectedEntity.attributes ?? []).length + 1}`,
+        label: '',
+        type: 'element',
+        nullable: true,
+        states: []
+      }
+    ];
+
+    updateEntity(selectedEntityIndex, { attributes });
+    setSelectedAttributeIndex(attributes.length - 1);
+  };
+
   if (error) {
     return <div className="error-banner">{L('common.yamlError', 'YAML chyba')}: {error}</div>;
   }
@@ -1303,6 +1055,10 @@ export const DomainModelEditor: React.FC = () => {
   if (!model) {
     return <div className="loading">{L('common.loading', 'Nacitavam domain model...')}</div>;
   }
+
+  const handleModelSwitch = (path: string) => {
+    onModelSwitch(path);
+  };
 
   const renderRoleEditor = (label: string, side: 'start_role' | 'end_role') => {
     if (selectedRelationshipIndex === null || !selectedRelationship) {
@@ -1327,34 +1083,49 @@ export const DomainModelEditor: React.FC = () => {
         />
 
         <label>{L('relationships.role.entityRefNamespaceAlias', 'EntityRef namespaceAlias')}</label>
-        <input
+        <select
           value={role.entityRef?.namespaceAlias ?? ''}
           onChange={(e) =>
             updateRole(selectedRelationshipIndex, side, {
               entityRef: { ...(role.entityRef ?? { namespaceAlias: '' }), namespaceAlias: e.target.value }
             })
           }
-        />
+        >
+          <option value="">—</option>
+          {getNamespaceAliases().map(alias => (
+            <option key={alias} value={alias}>{alias}</option>
+          ))}
+        </select>
 
         <label>{L('relationships.role.entityRefEntity', 'EntityRef entity')}</label>
-        <input
+        <select
           value={role.entityRef?.entity ?? ''}
           onChange={(e) =>
             updateRole(selectedRelationshipIndex, side, {
               entityRef: { ...(role.entityRef ?? { namespaceAlias: '' }), entity: e.target.value }
             })
           }
-        />
+        >
+          <option value="">—</option>
+          {getAvailableEntities(role.entityRef?.namespaceAlias).map(entity => (
+            <option key={entity} value={entity}>{entity}</option>
+          ))}
+        </select>
 
         <label>{L('relationships.role.entityRefAttribute', 'EntityRef attribute')}</label>
-        <input
+        <select
           value={role.entityRef?.attribute ?? ''}
           onChange={(e) =>
             updateRole(selectedRelationshipIndex, side, {
               entityRef: { ...(role.entityRef ?? { namespaceAlias: '' }), attribute: e.target.value }
             })
           }
-        />
+        >
+          <option value="">—</option>
+          {getAvailableAttributes(role.entityRef?.entity ?? '', role.entityRef?.namespaceAlias).map(attr => (
+            <option key={attr} value={attr}>{attr}</option>
+          ))}
+        </select>
 
         <label>{L('relationships.role.description', 'Popis roly')}</label>
         <input
@@ -1380,7 +1151,7 @@ export const DomainModelEditor: React.FC = () => {
             <select value={currentModelPath} onChange={(e) => handleModelSwitch(e.target.value)}>
               {availableModels.map(item => (
                 <option key={item.path} value={item.path}>
-                  {item.label}
+                  {item.name}
                 </option>
               ))}
             </select>
@@ -1536,7 +1307,7 @@ export const DomainModelEditor: React.FC = () => {
                           onChange={(e) => updateAttribute(selectedAttributeIndex, {
                             namedType: {
                               ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
-                              type: (e.target.value || undefined) as NamedType['type']
+                              type: (e.target.value || undefined) as 'entityRef' | 'definition' | 'typeRef' | undefined
                             }
                           })}
                         >
@@ -1549,7 +1320,7 @@ export const DomainModelEditor: React.FC = () => {
                         {(selectedAttribute.namedType?.type ?? selectedAttribute.type ?? '') === 'entityRef' && (
                           <>
                             <label>{L('attributes.entityRefNamespaceAlias', 'EntityRef namespaceAlias')}</label>
-                            <input
+                            <select
                               value={selectedAttribute.namedType?.entityRef?.namespaceAlias ?? selectedAttribute.entityRef?.namespaceAlias ?? ''}
                               onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                 namedType: {
@@ -1560,10 +1331,15 @@ export const DomainModelEditor: React.FC = () => {
                                   }
                                 }
                               })}
-                            />
+                            >
+                              <option value="">—</option>
+                              {getNamespaceAliases().map(alias => (
+                                <option key={alias} value={alias}>{alias}</option>
+                              ))}
+                            </select>
 
                             <label>{L('attributes.entityRefEntity', 'EntityRef entity')}</label>
-                            <input
+                            <select
                               value={selectedAttribute.namedType?.entityRef?.entity ?? selectedAttribute.entityRef?.entity ?? ''}
                               onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                 namedType: {
@@ -1574,10 +1350,15 @@ export const DomainModelEditor: React.FC = () => {
                                   }
                                 }
                               })}
-                            />
+                            >
+                              <option value="">—</option>
+                              {getAvailableEntities(selectedAttribute.namedType?.entityRef?.namespaceAlias ?? selectedAttribute.entityRef?.namespaceAlias).map(entity => (
+                                <option key={entity} value={entity}>{entity}</option>
+                              ))}
+                            </select>
 
                             <label>{L('attributes.entityRefAttribute', 'EntityRef attribute')}</label>
-                            <input
+                            <select
                               value={selectedAttribute.namedType?.entityRef?.attribute ?? selectedAttribute.entityRef?.attribute ?? ''}
                               onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                 namedType: {
@@ -1588,14 +1369,22 @@ export const DomainModelEditor: React.FC = () => {
                                   }
                                 }
                               })}
-                            />
+                            >
+                              <option value="">—</option>
+                              {getAvailableAttributes(
+                                selectedAttribute.namedType?.entityRef?.entity ?? selectedAttribute.entityRef?.entity ?? '',
+                                selectedAttribute.namedType?.entityRef?.namespaceAlias ?? selectedAttribute.entityRef?.namespaceAlias
+                              ).map(attr => (
+                                <option key={attr} value={attr}>{attr}</option>
+                              ))}
+                            </select>
                           </>
                         )}
 
                         {(selectedAttribute.namedType?.type ?? selectedAttribute.type ?? '') === 'typeRef' && (
                           <>
                             <label>{L('attributes.typeRefNamespaceAlias', 'TypeRef namespaceAlias')}</label>
-                            <input
+                            <select
                               value={selectedAttribute.namedType?.typeRef?.namespaceAlias ?? ''}
                               onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                 namedType: {
@@ -1606,10 +1395,15 @@ export const DomainModelEditor: React.FC = () => {
                                   }
                                 }
                               })}
-                            />
+                            >
+                              <option value="">—</option>
+                              {getNamespaceAliases().map(alias => (
+                                <option key={alias} value={alias}>{alias}</option>
+                              ))}
+                            </select>
 
                             <label>{L('attributes.typeRefSimpleType', 'TypeRef simpleType')}</label>
-                            <input
+                            <select
                               value={selectedAttribute.namedType?.typeRef?.simpleType ?? ''}
                               onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                 namedType: {
@@ -1620,7 +1414,12 @@ export const DomainModelEditor: React.FC = () => {
                                   }
                                 }
                               })}
-                            />
+                            >
+                              <option value="">—</option>
+                              {getAvailableSimpleTypes(selectedAttribute.namedType?.typeRef?.namespaceAlias).map(st => (
+                                <option key={st} value={st}>{st}</option>
+                              ))}
+                            </select>
                           </>
                         )}
 
@@ -1701,7 +1500,7 @@ export const DomainModelEditor: React.FC = () => {
                                 ) : (
                                   <>
                                     <label>{L('attributes.definition.restriction.baseNamespaceAlias', 'restriction.base namespaceAlias')}</label>
-                                    <input
+                                    <select
                                       value={(selectedAttribute.namedType?.definition?.restriction?.base as SimpleTypeRef)?.namespaceAlias ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
@@ -1717,10 +1516,15 @@ export const DomainModelEditor: React.FC = () => {
                                           }
                                         }
                                       })}
-                                    />
+                                    >
+                                      <option value="">—</option>
+                                      {getNamespaceAliases().map(alias => (
+                                        <option key={alias} value={alias}>{alias}</option>
+                                      ))}
+                                    </select>
 
                                     <label>{L('attributes.definition.restriction.baseSimpleType', 'restriction.base simpleType')}</label>
-                                    <input
+                                    <select
                                       value={(selectedAttribute.namedType?.definition?.restriction?.base as SimpleTypeRef)?.simpleType ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
@@ -1736,7 +1540,12 @@ export const DomainModelEditor: React.FC = () => {
                                           }
                                         }
                                       })}
-                                    />
+                                    >
+                                      <option value="">—</option>
+                                      {getAvailableSimpleTypes((selectedAttribute.namedType?.definition?.restriction?.base as SimpleTypeRef)?.namespaceAlias).map(st => (
+                                        <option key={st} value={st}>{st}</option>
+                                      ))}
+                                    </select>
                                   </>
                                 )}
 
@@ -1844,7 +1653,103 @@ export const DomainModelEditor: React.FC = () => {
                                         }
                                       })}
                                     />
-                                    {/* ...add all other facet fields here as before... */}
+                                    <label>{L('attributes.definition.restriction.maxInclusive', 'restriction.maxInclusive')}</label>
+                                    <input
+                                      value={selectedAttribute.namedType?.definition?.restriction?.maxInclusive ?? ''}
+                                      onChange={(e) => updateAttribute(selectedAttributeIndex, {
+                                        namedType: {
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          definition: {
+                                            restriction: {
+                                              ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
+                                              maxInclusive: e.target.value ? (isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value)) : undefined
+                                            }
+                                          }
+                                        }
+                                      })}
+                                    />
+                                    <label>{L('attributes.definition.restriction.minExclusive', 'restriction.minExclusive')}</label>
+                                    <input
+                                      value={selectedAttribute.namedType?.definition?.restriction?.minExclusive ?? ''}
+                                      onChange={(e) => updateAttribute(selectedAttributeIndex, {
+                                        namedType: {
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          definition: {
+                                            restriction: {
+                                              ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
+                                              minExclusive: e.target.value ? (isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value)) : undefined
+                                            }
+                                          }
+                                        }
+                                      })}
+                                    />
+                                    <label>{L('attributes.definition.restriction.maxExclusive', 'restriction.maxExclusive')}</label>
+                                    <input
+                                      value={selectedAttribute.namedType?.definition?.restriction?.maxExclusive ?? ''}
+                                      onChange={(e) => updateAttribute(selectedAttributeIndex, {
+                                        namedType: {
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          definition: {
+                                            restriction: {
+                                              ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
+                                              maxExclusive: e.target.value ? (isNaN(Number(e.target.value)) ? e.target.value : Number(e.target.value)) : undefined
+                                            }
+                                          }
+                                        }
+                                      })}
+                                    />
+                                    <label>{L('attributes.definition.restriction.totalDigits', 'restriction.totalDigits')}</label>
+                                    <input
+                                      type="number"
+                                      value={selectedAttribute.namedType?.definition?.restriction?.totalDigits ?? ''}
+                                      onChange={(e) => updateAttribute(selectedAttributeIndex, {
+                                        namedType: {
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          definition: {
+                                            restriction: {
+                                              ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
+                                              totalDigits: e.target.value ? parseInt(e.target.value, 10) : undefined
+                                            }
+                                          }
+                                        }
+                                      })}
+                                    />
+                                    <label>{L('attributes.definition.restriction.fractionDigits', 'restriction.fractionDigits')}</label>
+                                    <input
+                                      type="number"
+                                      value={selectedAttribute.namedType?.definition?.restriction?.fractionDigits ?? ''}
+                                      onChange={(e) => updateAttribute(selectedAttributeIndex, {
+                                        namedType: {
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          definition: {
+                                            restriction: {
+                                              ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
+                                              fractionDigits: e.target.value ? parseInt(e.target.value, 10) : undefined
+                                            }
+                                          }
+                                        }
+                                      })}
+                                    />
+                                    <label>{L('attributes.definition.restriction.whiteSpace', 'restriction.whiteSpace')}</label>
+                                    <select
+                                      value={selectedAttribute.namedType?.definition?.restriction?.whiteSpace ?? ''}
+                                      onChange={(e) => updateAttribute(selectedAttributeIndex, {
+                                        namedType: {
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          definition: {
+                                            restriction: {
+                                              ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
+                                              whiteSpace: e.target.value as 'preserve' | 'replace' | 'collapse' | undefined
+                                            }
+                                          }
+                                        }
+                                      })}
+                                    >
+                                      <option value="">— (default)</option>
+                                      <option value="preserve">preserve</option>
+                                      <option value="replace">replace</option>
+                                      <option value="collapse">collapse</option>
+                                    </select>
                                   </>
                                 )}
 
@@ -2000,7 +1905,7 @@ export const DomainModelEditor: React.FC = () => {
                                 ) : (
                                   <>
                                     <label>{L('attributes.definition.list.namespaceAlias', 'list.itemType namespaceAlias')}</label>
-                                    <input
+                                    <select
                                       value={(selectedAttribute.namedType?.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
@@ -2015,10 +1920,15 @@ export const DomainModelEditor: React.FC = () => {
                                           }
                                         }
                                       })}
-                                    />
+                                    >
+                                      <option value="">—</option>
+                                      {getNamespaceAliases().map(alias => (
+                                        <option key={alias} value={alias}>{alias}</option>
+                                      ))}
+                                    </select>
 
                                     <label>{L('attributes.definition.list.simpleType', 'list.itemType simpleType')}</label>
-                                    <input
+                                    <select
                                       value={(selectedAttribute.namedType?.definition?.list?.itemType as SimpleTypeRef)?.simpleType ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
@@ -2033,7 +1943,12 @@ export const DomainModelEditor: React.FC = () => {
                                           }
                                         }
                                       })}
-                                    />
+                                    >
+                                      <option value="">—</option>
+                                      {getAvailableSimpleTypes((selectedAttribute.namedType?.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias).map(st => (
+                                        <option key={st} value={st}>{st}</option>
+                                      ))}
+                                    </select>
                                   </>
                                 )}
                               </>
@@ -2215,9 +2130,24 @@ export const DomainModelEditor: React.FC = () => {
                                   <option value="reads">reads</option>
                                   <option value="writes">writes</option>
                                 </select>
-                                <input value={effect.entityRef?.namespaceAlias ?? ''} placeholder={L('functions.effectNamespaceAlias', 'namespaceAlias')} onChange={(e) => updateFunctionEffect(effectIndex, { entityRef: { ...(effect.entityRef ?? { namespaceAlias: '' }), namespaceAlias: e.target.value } })} />
-                                <input value={effect.entityRef?.entity ?? ''} placeholder={L('functions.effectEntity', 'entity')} onChange={(e) => updateFunctionEffect(effectIndex, { entityRef: { ...(effect.entityRef ?? { namespaceAlias: '' }), entity: e.target.value } })} />
-                                <input value={effect.entityRef?.attribute ?? ''} placeholder={L('functions.effectAttribute', 'attribute')} onChange={(e) => updateFunctionEffect(effectIndex, { entityRef: { ...(effect.entityRef ?? { namespaceAlias: '' }), attribute: e.target.value } })} />
+                                <select value={effect.entityRef?.namespaceAlias ?? ''} onChange={(e) => updateFunctionEffect(effectIndex, { entityRef: { ...(effect.entityRef ?? { namespaceAlias: '' }), namespaceAlias: e.target.value } })}>
+                                  <option value="">—</option>
+                                  {getNamespaceAliases().map(alias => (
+                                    <option key={alias} value={alias}>{alias}</option>
+                                  ))}
+                                </select>
+                                <select value={effect.entityRef?.entity ?? ''} onChange={(e) => updateFunctionEffect(effectIndex, { entityRef: { ...(effect.entityRef ?? { namespaceAlias: '' }), entity: e.target.value } })}>
+                                  <option value="">—</option>
+                                  {getAvailableEntities(effect.entityRef?.namespaceAlias).map(entity => (
+                                    <option key={entity} value={entity}>{entity}</option>
+                                  ))}
+                                </select>
+                                <select value={effect.entityRef?.attribute ?? ''} onChange={(e) => updateFunctionEffect(effectIndex, { entityRef: { ...(effect.entityRef ?? { namespaceAlias: '' }), attribute: e.target.value } })}>
+                                  <option value="">—</option>
+                                  {getAvailableAttributes(effect.entityRef?.entity ?? '', effect.entityRef?.namespaceAlias).map(attr => (
+                                    <option key={attr} value={attr}>{attr}</option>
+                                  ))}
+                                </select>
                                 <div className="inline-actions right">
                                   <button disabled={effectIndex === 0} onClick={() => moveFunctionEffect(effectIndex, -1)}>↑</button>
                                   <button disabled={effectIndex === (selectedFunction.effects ?? []).length - 1} onClick={() => moveFunctionEffect(effectIndex, 1)}>↓</button>
@@ -2233,6 +2163,11 @@ export const DomainModelEditor: React.FC = () => {
                             <VariableList
                               value={normalizeVariableArray(selectedFunction.inputs as Array<Variable | string> | undefined)}
                               onChange={(inputs) => updateFunction(selectedFunctionIndex, { inputs })}
+                              useSelectsForRefs
+                              namespaceAliases={getNamespaceAliases()}
+                              getAvailableEntities={getAvailableEntities}
+                              getAvailableAttributes={getAvailableAttributes}
+                              getAvailableSimpleTypes={getAvailableSimpleTypes}
                             />
                           </div>
                         )}
@@ -2242,6 +2177,11 @@ export const DomainModelEditor: React.FC = () => {
                             <VariableList
                               value={normalizeVariableArray(selectedFunction.outputs as Array<Variable | string> | undefined)}
                               onChange={(outputs) => updateFunction(selectedFunctionIndex, { outputs })}
+                              useSelectsForRefs
+                              namespaceAliases={getNamespaceAliases()}
+                              getAvailableEntities={getAvailableEntities}
+                              getAvailableAttributes={getAvailableAttributes}
+                              getAvailableSimpleTypes={getAvailableSimpleTypes}
                             />
                           </div>
                         )}
@@ -2415,7 +2355,7 @@ export const DomainModelEditor: React.FC = () => {
                     ) : (
                       <>
                         <label>{L('simpleTypes.definition.restriction.baseNamespaceAlias', 'restriction.base namespaceAlias')}</label>
-                        <input
+                        <select
                           value={(selectedSimpleType.definition?.restriction?.base as SimpleTypeRef)?.namespaceAlias ?? ''}
                           onChange={(e) => updateSimpleType(selectedSimpleTypeIndex, {
                             definition: {
@@ -2428,10 +2368,15 @@ export const DomainModelEditor: React.FC = () => {
                               }
                             }
                           })}
-                        />
+                        >
+                          <option value="">—</option>
+                          {getNamespaceAliases().map(alias => (
+                            <option key={alias} value={alias}>{alias}</option>
+                          ))}
+                        </select>
 
                         <label>{L('simpleTypes.definition.restriction.baseSimpleType', 'restriction.base simpleType')}</label>
-                        <input
+                        <select
                           value={(selectedSimpleType.definition?.restriction?.base as SimpleTypeRef)?.simpleType ?? ''}
                           onChange={(e) => updateSimpleType(selectedSimpleTypeIndex, {
                             definition: {
@@ -2444,7 +2389,12 @@ export const DomainModelEditor: React.FC = () => {
                               }
                             }
                           })}
-                        />
+                        >
+                          <option value="">—</option>
+                          {getAvailableSimpleTypes((selectedSimpleType.definition?.restriction?.base as SimpleTypeRef)?.namespaceAlias).map(st => (
+                            <option key={st} value={st}>{st}</option>
+                          ))}
+                        </select>
                       </>
                     )}
 
@@ -2668,7 +2618,7 @@ export const DomainModelEditor: React.FC = () => {
                     ) : (
                       <>
                         <label>{L('simpleTypes.definition.list.namespaceAlias', 'list.itemType namespaceAlias')}</label>
-                        <input
+                        <select
                           value={(selectedSimpleType.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias ?? ''}
                           onChange={(e) => updateSimpleType(selectedSimpleTypeIndex, {
                             definition: {
@@ -2680,10 +2630,15 @@ export const DomainModelEditor: React.FC = () => {
                               }
                             }
                           })}
-                        />
+                        >
+                          <option value="">—</option>
+                          {getNamespaceAliases().map(alias => (
+                            <option key={alias} value={alias}>{alias}</option>
+                          ))}
+                        </select>
 
                         <label>{L('simpleTypes.definition.list.simpleType', 'list.itemType simpleType')}</label>
-                        <input
+                        <select
                           value={(selectedSimpleType.definition?.list?.itemType as SimpleTypeRef)?.simpleType ?? ''}
                           onChange={(e) => updateSimpleType(selectedSimpleTypeIndex, {
                             definition: {
@@ -2695,7 +2650,12 @@ export const DomainModelEditor: React.FC = () => {
                               }
                             }
                           })}
-                        />
+                        >
+                          <option value="">—</option>
+                          {getAvailableSimpleTypes((selectedSimpleType.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias).map(st => (
+                            <option key={st} value={st}>{st}</option>
+                          ))}
+                        </select>
                       </>
                     )}
                   </>
@@ -2992,3 +2952,6 @@ export const DomainModelEditor: React.FC = () => {
     </div>
   );
 };
+
+export default DomainModelEditor;
+export { DomainModelEditor };

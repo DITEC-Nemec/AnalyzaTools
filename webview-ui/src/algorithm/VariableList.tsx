@@ -4,6 +4,11 @@ import type { NamedType, RestrictionDefinition, SimpleTypeDefinition, SimpleType
 interface Props {
   value: Variable[];
   onChange: (value: Variable[]) => void;
+  useSelectsForRefs?: boolean;
+  namespaceAliases?: string[];
+  getAvailableEntities?: (namespaceAlias?: string) => string[];
+  getAvailableAttributes?: (entityName: string, namespaceAlias?: string) => string[];
+  getAvailableSimpleTypes?: (namespaceAlias?: string) => string[];
 }
 
 const PRIMITIVE_TYPES = [
@@ -13,7 +18,15 @@ const PRIMITIVE_TYPES = [
   'anyURI', 'QName', 'ID', 'IDREF', 'token', 'normalizedString'
 ];
 
-export const VariableList: React.FC<Props> = ({ value, onChange }) => {
+export const VariableList: React.FC<Props> = ({
+  value,
+  onChange,
+  useSelectsForRefs = false,
+  namespaceAliases = [],
+  getAvailableEntities = () => [],
+  getAvailableAttributes = () => [],
+  getAvailableSimpleTypes = () => []
+}) => {
   const [selectedIndex, setSelectedIndex] = React.useState<number | null>(value.length > 0 ? 0 : null);
 
   React.useEffect(() => {
@@ -263,67 +276,164 @@ export const VariableList: React.FC<Props> = ({ value, onChange }) => {
           {(selectedVariable.namedType?.type ?? 'typeRef') === 'entityRef' && (
             <>
               <label className="field-label">entityRef.namespaceAlias</label>
-              <input
-                className="field-input"
-                value={selectedVariable.namedType?.entityRef?.namespaceAlias ?? ''}
-                onChange={e => handleNamedTypeChange(selectedIndex, {
-                  entityRef: {
-                    ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
-                    namespaceAlias: e.target.value
-                  }
-                })}
-              />
+              {useSelectsForRefs ? (
+                <select
+                  className="field-input"
+                  value={selectedVariable.namedType?.entityRef?.namespaceAlias ?? ''}
+                  onChange={e => handleNamedTypeChange(selectedIndex, {
+                    entityRef: {
+                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                      namespaceAlias: e.target.value,
+                      entity: '',
+                      attribute: ''
+                    }
+                  })}
+                >
+                  <option value="">—</option>
+                  {namespaceAliases.map(alias => (
+                    <option key={alias} value={alias}>{alias}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="field-input"
+                  value={selectedVariable.namedType?.entityRef?.namespaceAlias ?? ''}
+                  onChange={e => handleNamedTypeChange(selectedIndex, {
+                    entityRef: {
+                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                      namespaceAlias: e.target.value
+                    }
+                  })}
+                />
+              )}
 
               <label className="field-label">entityRef.entity</label>
-              <input
-                className="field-input"
-                value={selectedVariable.namedType?.entityRef?.entity ?? ''}
-                onChange={e => handleNamedTypeChange(selectedIndex, {
-                  entityRef: {
-                    ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
-                    entity: e.target.value
-                  }
-                })}
-              />
+              {useSelectsForRefs ? (
+                <select
+                  className="field-input"
+                  value={selectedVariable.namedType?.entityRef?.entity ?? ''}
+                  onChange={e => handleNamedTypeChange(selectedIndex, {
+                    entityRef: {
+                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                      entity: e.target.value,
+                      attribute: ''
+                    }
+                  })}
+                >
+                  <option value="">—</option>
+                  {getAvailableEntities(selectedVariable.namedType?.entityRef?.namespaceAlias).map(entity => (
+                    <option key={entity} value={entity}>{entity}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="field-input"
+                  value={selectedVariable.namedType?.entityRef?.entity ?? ''}
+                  onChange={e => handleNamedTypeChange(selectedIndex, {
+                    entityRef: {
+                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                      entity: e.target.value
+                    }
+                  })}
+                />
+              )}
 
               <label className="field-label">entityRef.attribute</label>
-              <input
-                className="field-input"
-                value={selectedVariable.namedType?.entityRef?.attribute ?? ''}
-                onChange={e => handleNamedTypeChange(selectedIndex, {
-                  entityRef: {
-                    ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
-                    attribute: e.target.value
-                  }
-                })}
-              />
+              {useSelectsForRefs ? (
+                <select
+                  className="field-input"
+                  value={selectedVariable.namedType?.entityRef?.attribute ?? ''}
+                  onChange={e => handleNamedTypeChange(selectedIndex, {
+                    entityRef: {
+                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                      attribute: e.target.value
+                    }
+                  })}
+                >
+                  <option value="">—</option>
+                  {getAvailableAttributes(
+                    selectedVariable.namedType?.entityRef?.entity ?? '',
+                    selectedVariable.namedType?.entityRef?.namespaceAlias
+                  ).map(attribute => (
+                    <option key={attribute} value={attribute}>{attribute}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="field-input"
+                  value={selectedVariable.namedType?.entityRef?.attribute ?? ''}
+                  onChange={e => handleNamedTypeChange(selectedIndex, {
+                    entityRef: {
+                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                      attribute: e.target.value
+                    }
+                  })}
+                />
+              )}
             </>
           )}
 
           {(selectedVariable.namedType?.type ?? 'typeRef') === 'typeRef' && (
             <>
               <label className="field-label">typeRef.namespaceAlias</label>
-              <input
-                className="field-input"
-                value={selectedVariable.namedType?.typeRef?.namespaceAlias ?? ''}
-                onChange={e => handleNamedTypeChange(selectedIndex, {
-                  typeRef: {
-                    ...(selectedVariable.namedType?.typeRef ?? { namespaceAlias: '', simpleType: '' }),
-                    namespaceAlias: e.target.value
-                  }
-                })}
-              />
+              {useSelectsForRefs ? (
+                <select
+                  className="field-input"
+                  value={selectedVariable.namedType?.typeRef?.namespaceAlias ?? ''}
+                  onChange={e => handleNamedTypeChange(selectedIndex, {
+                    typeRef: {
+                      ...(selectedVariable.namedType?.typeRef ?? { namespaceAlias: '', simpleType: '' }),
+                      namespaceAlias: e.target.value,
+                      simpleType: ''
+                    }
+                  })}
+                >
+                  <option value="">—</option>
+                  {namespaceAliases.map(alias => (
+                    <option key={alias} value={alias}>{alias}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="field-input"
+                  value={selectedVariable.namedType?.typeRef?.namespaceAlias ?? ''}
+                  onChange={e => handleNamedTypeChange(selectedIndex, {
+                    typeRef: {
+                      ...(selectedVariable.namedType?.typeRef ?? { namespaceAlias: '', simpleType: '' }),
+                      namespaceAlias: e.target.value
+                    }
+                  })}
+                />
+              )}
               <label className="field-label">typeRef.simpleType</label>
-              <input
-                className="field-input"
-                value={selectedVariable.namedType?.typeRef?.simpleType ?? ''}
-                onChange={e => handleNamedTypeChange(selectedIndex, {
-                  typeRef: {
-                    ...(selectedVariable.namedType?.typeRef ?? { namespaceAlias: '', simpleType: '' }),
-                    simpleType: e.target.value
-                  }
-                })}
-              />
+              {useSelectsForRefs ? (
+                <select
+                  className="field-input"
+                  value={selectedVariable.namedType?.typeRef?.simpleType ?? ''}
+                  onChange={e => handleNamedTypeChange(selectedIndex, {
+                    typeRef: {
+                      ...(selectedVariable.namedType?.typeRef ?? { namespaceAlias: '', simpleType: '' }),
+                      simpleType: e.target.value
+                    }
+                  })}
+                >
+                  <option value="">—</option>
+                  {getAvailableSimpleTypes(selectedVariable.namedType?.typeRef?.namespaceAlias).map(simpleType => (
+                    <option key={simpleType} value={simpleType}>{simpleType}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="field-input"
+                  value={selectedVariable.namedType?.typeRef?.simpleType ?? ''}
+                  onChange={e => handleNamedTypeChange(selectedIndex, {
+                    typeRef: {
+                      ...(selectedVariable.namedType?.typeRef ?? { namespaceAlias: '', simpleType: '' }),
+                      simpleType: e.target.value
+                    }
+                  })}
+                />
+              )}
             </>
           )}
 
@@ -395,38 +505,85 @@ export const VariableList: React.FC<Props> = ({ value, onChange }) => {
                   ) : (
                     <>
                       <label className="field-label">restriction.base namespaceAlias</label>
-                      <input
-                        className="field-input"
-                        value={(selectedVariable.namedType?.definition?.restriction?.base as SimpleTypeRef)?.namespaceAlias ?? ''}
-                        onChange={e => handleNamedTypeChange(selectedIndex, {
-                          definition: {
-                            restriction: {
-                              ...normalizeRestriction(selectedVariable.namedType?.definition?.restriction),
-                              base: {
-                                ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.restriction?.base as SimpleTypeRef),
-                                namespaceAlias: e.target.value
+                      {useSelectsForRefs ? (
+                        <select
+                          className="field-input"
+                          value={(selectedVariable.namedType?.definition?.restriction?.base as SimpleTypeRef)?.namespaceAlias ?? ''}
+                          onChange={e => handleNamedTypeChange(selectedIndex, {
+                            definition: {
+                              restriction: {
+                                ...normalizeRestriction(selectedVariable.namedType?.definition?.restriction),
+                                base: {
+                                  ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.restriction?.base as SimpleTypeRef),
+                                  namespaceAlias: e.target.value,
+                                  simpleType: ''
+                                }
                               }
                             }
-                          }
-                        })}
-                      />
+                          })}
+                        >
+                          <option value="">—</option>
+                          {namespaceAliases.map(alias => (
+                            <option key={alias} value={alias}>{alias}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          className="field-input"
+                          value={(selectedVariable.namedType?.definition?.restriction?.base as SimpleTypeRef)?.namespaceAlias ?? ''}
+                          onChange={e => handleNamedTypeChange(selectedIndex, {
+                            definition: {
+                              restriction: {
+                                ...normalizeRestriction(selectedVariable.namedType?.definition?.restriction),
+                                base: {
+                                  ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.restriction?.base as SimpleTypeRef),
+                                  namespaceAlias: e.target.value
+                                }
+                              }
+                            }
+                          })}
+                        />
+                      )}
 
                       <label className="field-label">restriction.base simpleType</label>
-                      <input
-                        className="field-input"
-                        value={(selectedVariable.namedType?.definition?.restriction?.base as SimpleTypeRef)?.simpleType ?? ''}
-                        onChange={e => handleNamedTypeChange(selectedIndex, {
-                          definition: {
-                            restriction: {
-                              ...normalizeRestriction(selectedVariable.namedType?.definition?.restriction),
-                              base: {
-                                ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.restriction?.base as SimpleTypeRef),
-                                simpleType: e.target.value
+                      {useSelectsForRefs ? (
+                        <select
+                          className="field-input"
+                          value={(selectedVariable.namedType?.definition?.restriction?.base as SimpleTypeRef)?.simpleType ?? ''}
+                          onChange={e => handleNamedTypeChange(selectedIndex, {
+                            definition: {
+                              restriction: {
+                                ...normalizeRestriction(selectedVariable.namedType?.definition?.restriction),
+                                base: {
+                                  ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.restriction?.base as SimpleTypeRef),
+                                  simpleType: e.target.value
+                                }
                               }
                             }
-                          }
-                        })}
-                      />
+                          })}
+                        >
+                          <option value="">—</option>
+                          {getAvailableSimpleTypes((selectedVariable.namedType?.definition?.restriction?.base as SimpleTypeRef)?.namespaceAlias).map(simpleType => (
+                            <option key={simpleType} value={simpleType}>{simpleType}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          className="field-input"
+                          value={(selectedVariable.namedType?.definition?.restriction?.base as SimpleTypeRef)?.simpleType ?? ''}
+                          onChange={e => handleNamedTypeChange(selectedIndex, {
+                            definition: {
+                              restriction: {
+                                ...normalizeRestriction(selectedVariable.namedType?.definition?.restriction),
+                                base: {
+                                  ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.restriction?.base as SimpleTypeRef),
+                                  simpleType: e.target.value
+                                }
+                              }
+                            }
+                          })}
+                        />
+                      )}
                     </>
                   )}
 
@@ -663,36 +820,81 @@ export const VariableList: React.FC<Props> = ({ value, onChange }) => {
                   ) : (
                     <>
                       <label className="field-label">list.itemType namespaceAlias</label>
-                      <input
-                        className="field-input"
-                        value={(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias ?? ''}
-                        onChange={e => handleNamedTypeChange(selectedIndex, {
-                          definition: {
-                            list: {
-                              itemType: {
-                                ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef),
-                                namespaceAlias: e.target.value
+                      {useSelectsForRefs ? (
+                        <select
+                          className="field-input"
+                          value={(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias ?? ''}
+                          onChange={e => handleNamedTypeChange(selectedIndex, {
+                            definition: {
+                              list: {
+                                itemType: {
+                                  ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef),
+                                  namespaceAlias: e.target.value,
+                                  simpleType: ''
+                                }
                               }
                             }
-                          }
-                        })}
-                      />
+                          })}
+                        >
+                          <option value="">—</option>
+                          {namespaceAliases.map(alias => (
+                            <option key={alias} value={alias}>{alias}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          className="field-input"
+                          value={(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias ?? ''}
+                          onChange={e => handleNamedTypeChange(selectedIndex, {
+                            definition: {
+                              list: {
+                                itemType: {
+                                  ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef),
+                                  namespaceAlias: e.target.value
+                                }
+                              }
+                            }
+                          })}
+                        />
+                      )}
 
                       <label className="field-label">list.itemType simpleType</label>
-                      <input
-                        className="field-input"
-                        value={(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef)?.simpleType ?? ''}
-                        onChange={e => handleNamedTypeChange(selectedIndex, {
-                          definition: {
-                            list: {
-                              itemType: {
-                                ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef),
-                                simpleType: e.target.value
+                      {useSelectsForRefs ? (
+                        <select
+                          className="field-input"
+                          value={(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef)?.simpleType ?? ''}
+                          onChange={e => handleNamedTypeChange(selectedIndex, {
+                            definition: {
+                              list: {
+                                itemType: {
+                                  ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef),
+                                  simpleType: e.target.value
+                                }
                               }
                             }
-                          }
-                        })}
-                      />
+                          })}
+                        >
+                          <option value="">—</option>
+                          {getAvailableSimpleTypes((selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias).map(simpleType => (
+                            <option key={simpleType} value={simpleType}>{simpleType}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          className="field-input"
+                          value={(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef)?.simpleType ?? ''}
+                          onChange={e => handleNamedTypeChange(selectedIndex, {
+                            definition: {
+                              list: {
+                                itemType: {
+                                  ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef),
+                                  simpleType: e.target.value
+                                }
+                              }
+                            }
+                          })}
+                        />
+                      )}
                     </>
                   )}
                 </>

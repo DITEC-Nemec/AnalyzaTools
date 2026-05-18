@@ -6,29 +6,32 @@ entities:
         type: date
         namedType:
           name: DatumZaciatkuVypoctu
-          type: definition
-          entityRef:
-            namespaceAlias: local
-            entity: ''
-            attribute: ''
-          definition:
-            restriction:
-              base: string
           nullable: true
+          definition:
+            list:
+              itemType:
+                namespaceAlias: rtrty
+                simpleType: ''
+          type: entityRef
         states: []
       - name: DatumUkonceniaVypoctu
         type: date
         namedType:
           name: DatumUkonceniaVypoctu
-          type: definition
-          entityRef:
-            namespaceAlias: local
-            entity: ''
-            attribute: ''
-          definition:
-            restriction:
-              base: string
           nullable: true
+          type: entityRef
+          definition:
+            list:
+              itemType:
+                namespaceAlias: ziak
+                simpleType: simpleType_1
+          entityRef:
+            namespaceAlias: ziak
+            entity: Spracovanie žiaka
+            attribute: DatumZaciatkuVypoctu
+          typeRef:
+            namespaceAlias: local
+            simpleType: simpleType_1
         states: []
       - name: NavratovyKod
         type: code
@@ -62,7 +65,9 @@ entities:
                 attribute: ''
               definition:
                 restriction:
-                  base: string
+                  base:
+                    namespaceAlias: ''
+                    simpleType: ''
               nullable: true
               readOnly: false
               multiplicity: ''

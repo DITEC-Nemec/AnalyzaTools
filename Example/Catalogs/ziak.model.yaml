@@ -1,5 +1,5 @@
 entities:
-  - name: Spracovanie
+  - name: Spracovanie žiaka
     description: Ucelené spracovanie prihlášok.
     attributes:
       - name: DatumZaciatkuVypoctu
@@ -22,15 +22,17 @@ entities:
         type: date
         namedType:
           name: DatumUkonceniaVypoctu
+          nullable: true
           type: definition
+          definition:
+            restriction:
+              base:
+                namespaceAlias: local
+                simpleType: simpleType_1
           entityRef:
             namespaceAlias: local
             entity: ''
             attribute: ''
-          definition:
-            restriction:
-              base: string
-          nullable: true
         states: []
       - name: NavratovyKod
         type: code

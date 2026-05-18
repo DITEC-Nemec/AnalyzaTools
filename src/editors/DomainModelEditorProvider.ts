@@ -43,6 +43,22 @@ export class DomainModelEditorProvider implements vscode.CustomTextEditorProvide
     }
   }
 
+  private resolveRequestedPath(documentUri: vscode.Uri, requestedPath: string): string {
+    if (path.isAbsolute(requestedPath)) {
+      return requestedPath;
+    }
+
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(documentUri);
+    const workspaceRoot = workspaceFolder?.uri.fsPath;
+
+    if (workspaceRoot) {
+      return path.resolve(workspaceRoot, requestedPath);
+    }
+
+    // Fallback for single-file/no-folder context.
+    return path.resolve(path.dirname(documentUri.fsPath), requestedPath);
+  }
+
   async resolveCustomTextEditor(
     document: vscode.TextDocument,
     webviewPanel: vscode.WebviewPanel
@@ -80,11 +96,13 @@ export class DomainModelEditorProvider implements vscode.CustomTextEditorProvide
         edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), msg.content);
         await vscode.workspace.applyEdit(edit);
       } else if (msg.type === 'loadModel') {
-        const content = await this.loadModelFile(msg.path);
+        const resolvedPath = this.resolveRequestedPath(document.uri, msg.path);
+        const content = await this.loadModelFile(resolvedPath);
         if (content) {
           webviewPanel.webview.postMessage({
             type: 'modelContent',
-            path: msg.path,
+            path: resolvedPath,
+            requestKey: msg.path,
             content: content
           });
         }

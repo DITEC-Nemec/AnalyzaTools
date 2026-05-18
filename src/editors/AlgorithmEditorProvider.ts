@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { pickNamespaceReference } from './namespacePicker';
 
 /**
@@ -17,6 +18,32 @@ export class AlgorithmEditorProvider implements vscode.CustomTextEditorProvider 
   }
 
   constructor(private readonly context: vscode.ExtensionContext) {}
+
+  private async loadModelFile(filePath: string): Promise<string | null> {
+    try {
+      const uri = vscode.Uri.file(filePath);
+      const doc = await vscode.workspace.openTextDocument(uri);
+      return doc.getText();
+    } catch (e) {
+      console.error('Failed to load model:', e);
+      return null;
+    }
+  }
+
+  private resolveRequestedPath(documentUri: vscode.Uri, requestedPath: string): string {
+    if (path.isAbsolute(requestedPath)) {
+      return requestedPath;
+    }
+
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(documentUri);
+    const workspaceRoot = workspaceFolder?.uri.fsPath;
+
+    if (workspaceRoot) {
+      return path.resolve(workspaceRoot, requestedPath);
+    }
+
+    return path.resolve(path.dirname(documentUri.fsPath), requestedPath);
+  }
 
   async resolveCustomTextEditor(
     document: vscode.TextDocument,
@@ -54,6 +81,17 @@ export class AlgorithmEditorProvider implements vscode.CustomTextEditorProvider 
         const edit = new vscode.WorkspaceEdit();
         edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), msg.content);
         await vscode.workspace.applyEdit(edit);
+      } else if (msg.type === 'loadModel') {
+        const resolvedPath = this.resolveRequestedPath(document.uri, msg.path);
+        const content = await this.loadModelFile(resolvedPath);
+        if (content) {
+          webviewPanel.webview.postMessage({
+            type: 'modelContent',
+            path: resolvedPath,
+            requestKey: msg.path,
+            content
+          });
+        }
       } else if (msg.type === 'pickFile') {
         const picked = await pickNamespaceReference(document.uri);
         if (!picked) {

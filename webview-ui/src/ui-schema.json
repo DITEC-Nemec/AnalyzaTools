@@ -31,9 +31,14 @@
     },
     "algorithmForm": {
       "title": "Algoritmus",
+      "tabs": {
+        "detail": "Detail",
+        "parameters": "Parametre"
+      },
       "name": "Názov",
       "description": "Popis",
       "version": "Verzia",
+      "parameters": "Parametre (zoznam)",
       "inputs": "Vstupy (oddelene čiarkou)",
       "outputs": "Výstupy (oddelene čiarkou)"
     },

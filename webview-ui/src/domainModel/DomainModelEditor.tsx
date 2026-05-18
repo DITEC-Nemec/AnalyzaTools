@@ -20,7 +20,7 @@ import type {
   EventGlossaryEntry
 } from '../types/sqd';
 import { label as L } from '../ui-labels';
-import { VariableList } from '../algorithm/VariableList';
+import { ParametersEditor } from '../components/ParametersEditor';
 
 const PRIMITIVE_TYPES = ['string', 'integer', 'decimal', 'double', 'boolean', 'date', 'time', 'dateTime'];
 const ATTRIBUTE_TYPES = ['entityRef', 'definition', 'typeRef'];
@@ -2180,7 +2180,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
                         {functionTab === 'parameters' && (
                           <div style={{ marginTop: 12 }}>
-                            <VariableList
+                            <ParametersEditor
                               value={normalizeFunctionParameters(selectedFunction)}
                               onChange={(parameters) => updateFunction(selectedFunctionIndex, {
                                 parameters,

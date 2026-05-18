@@ -1,6 +1,6 @@
 import React from 'react';
-import { VariableList } from './VariableList';
-import type { AlgorithmMeta, NamespaceEntity, SqdAlgorithm, SqdStep, StepCondition, Variable } from '../types/sqd';
+import { ParametersEditor } from '../components/ParametersEditor';
+import type { AlgorithmMeta, NamespaceEntity, Parameter, SqdAlgorithm, SqdStep, StepCondition, Variable } from '../types/sqd';
 import { StepCard } from './StepCard';
 import { label } from '../ui-labels';
 import { vscodeApi } from './main';
@@ -12,7 +12,7 @@ interface Props {
 
 type StepType = SqdStep['type'];
 type TopTab = 'algorithm' | 'steps' | 'namespaceRef';
-type AlgorithmSubTab = 'detail' | 'inputs' | 'outputs';
+type AlgorithmSubTab = 'detail' | 'parameters';
 
 interface OwnerContext {
   parentItems: SqdStep[];
@@ -93,6 +93,31 @@ const normalizeVariableArray = (items?: Array<Variable | string>): Variable[] =>
       }
     };
   });
+
+const normalizeAlgorithmParameters = (algorithm: AlgorithmMeta | undefined): Parameter[] => {
+  if (!algorithm) {
+    return [];
+  }
+
+  if (algorithm.parameters && algorithm.parameters.length > 0) {
+    return algorithm.parameters.map((param) => ({
+      ...param,
+      direction: param.direction ?? 'in'
+    }));
+  }
+
+  const legacyInputs = normalizeVariableArray(algorithm.inputs as Array<Variable | string> | undefined).map((item) => ({
+    ...item,
+    direction: 'in' as const
+  }));
+
+  const legacyOutputs = normalizeVariableArray(algorithm.outputs as Array<Variable | string> | undefined).map((item) => ({
+    ...item,
+    direction: 'out' as const
+  }));
+
+  return [...legacyInputs, ...legacyOutputs];
+};
 
 export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
   const L = (path: string, fallback: string) => label(`algorithm.${path}`, fallback);
@@ -389,11 +414,8 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
               <button className={algorithmTab === 'detail' ? 'tab active' : 'tab'} onClick={() => setAlgorithmTab('detail')}>
                 {L('algorithmForm.tabs.detail', 'Detail')}
               </button>
-              <button className={algorithmTab === 'inputs' ? 'tab active' : 'tab'} onClick={() => setAlgorithmTab('inputs')}>
-                {L('algorithmForm.tabs.inputs', 'Vstupne parametre')}
-              </button>
-              <button className={algorithmTab === 'outputs' ? 'tab active' : 'tab'} onClick={() => setAlgorithmTab('outputs')}>
-                {L('algorithmForm.tabs.outputs', 'Vystupne parametre')}
+              <button className={algorithmTab === 'parameters' ? 'tab active' : 'tab'} onClick={() => setAlgorithmTab('parameters')}>
+                {L('algorithmForm.tabs.parameters', 'Parametre')}
               </button>
             </div>
 
@@ -423,20 +445,18 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
               </>
             )}
 
-            {algorithmTab === 'inputs' && (
+            {algorithmTab === 'parameters' && (
               <div style={{ marginTop: 8 }}>
-                <VariableList
-                  value={normalizeVariableArray(model.algorithm?.inputs as Array<Variable | string> | undefined)}
-                  onChange={(inputs) => updateAlgorithm({ inputs })}
-                />
-              </div>
-            )}
-
-            {algorithmTab === 'outputs' && (
-              <div style={{ marginTop: 8 }}>
-                <VariableList
-                  value={normalizeVariableArray(model.algorithm?.outputs as Array<Variable | string> | undefined)}
-                  onChange={(outputs) => updateAlgorithm({ outputs })}
+                <ParametersEditor
+                  value={normalizeAlgorithmParameters(model.algorithm)}
+                  onChange={(parameters) => updateAlgorithm({
+                    parameters,
+                    inputs: undefined,
+                    outputs: undefined
+                  })}
+                  namespaceRef={model.namespaceRef}
+                  vscodeApi={vscodeApi}
+                  showDirection
                 />
               </div>
             )}

@@ -16,6 +16,8 @@ export interface AlgorithmMeta {
   name: string;
   description?: string;
   version?: string;
+  parameters?: Parameter[];
+  // Spatna kompatibilita so starsim formatom algoritmu
   inputs?: Variable[];
   outputs?: Variable[];
 }

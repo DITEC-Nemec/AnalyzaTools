@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AlgorithmEditorProvider = void 0;
 const vscode = __importStar(require("vscode"));
+const path = __importStar(require("path"));
 const namespacePicker_1 = require("./namespacePicker");
 /**
  * Custom Editor pre *.sqd.yaml súbory.
@@ -46,6 +47,28 @@ class AlgorithmEditorProvider {
     }
     constructor(context) {
         this.context = context;
+    }
+    async loadModelFile(filePath) {
+        try {
+            const uri = vscode.Uri.file(filePath);
+            const doc = await vscode.workspace.openTextDocument(uri);
+            return doc.getText();
+        }
+        catch (e) {
+            console.error('Failed to load model:', e);
+            return null;
+        }
+    }
+    resolveRequestedPath(documentUri, requestedPath) {
+        if (path.isAbsolute(requestedPath)) {
+            return requestedPath;
+        }
+        const workspaceFolder = vscode.workspace.getWorkspaceFolder(documentUri);
+        const workspaceRoot = workspaceFolder?.uri.fsPath;
+        if (workspaceRoot) {
+            return path.resolve(workspaceRoot, requestedPath);
+        }
+        return path.resolve(path.dirname(documentUri.fsPath), requestedPath);
     }
     async resolveCustomTextEditor(document, webviewPanel) {
         webviewPanel.webview.options = {
@@ -76,6 +99,18 @@ class AlgorithmEditorProvider {
                 const edit = new vscode.WorkspaceEdit();
                 edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), msg.content);
                 await vscode.workspace.applyEdit(edit);
+            }
+            else if (msg.type === 'loadModel') {
+                const resolvedPath = this.resolveRequestedPath(document.uri, msg.path);
+                const content = await this.loadModelFile(resolvedPath);
+                if (content) {
+                    webviewPanel.webview.postMessage({
+                        type: 'modelContent',
+                        path: resolvedPath,
+                        requestKey: msg.path,
+                        content
+                    });
+                }
             }
             else if (msg.type === 'pickFile') {
                 const picked = await (0, namespacePicker_1.pickNamespaceReference)(document.uri);

@@ -19,14 +19,14 @@ algorithm:
         type: Reťazec2
       - name: NavratovyText
         type: Reťazec2047
-  inputs:
+  parameters:
     - namedType:
         name: ''
-        type: typeRef
+        type: entityRef
         entityRef:
-          namespaceAlias: local
-          entity: ''
-          attribute: ''
+          namespaceAlias: ziak
+          entity: Spracovanie žiaka
+          attribute: DatumZaciatkuVypoctu
         definition:
           restriction:
             base:
@@ -35,11 +35,7 @@ algorithm:
         nullable: true
         readOnly: false
         multiplicity: ''
-  outputs:
-    - namedType:
-        name: ''
-    - namedType:
-        name: ''
+      direction: in
 steps:
   - id: '1'
     legacyId: '*1*'

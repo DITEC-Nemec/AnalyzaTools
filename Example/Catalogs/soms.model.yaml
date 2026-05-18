@@ -70,10 +70,8 @@ entities:
                 entity: ''
                 attribute: ''
               definition:
-                restriction:
-                  base:
-                    namespaceAlias: ziak
-                    simpleType: simpleType_1
+                list:
+                  itemType: string
               nullable: true
               readOnly: false
               multiplicity: ''

@@ -63,13 +63,6 @@
           "items": {
             "$ref": "#/$defs/parameter"
           }
-        },
-        "parameter": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/parameter"
-          },
-          "description": "Deprecated alias, use algorithm.parameters"
         }
       }
     },

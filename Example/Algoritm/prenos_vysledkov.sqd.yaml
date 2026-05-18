@@ -61,11 +61,14 @@ steps:
     text: |
       Systém zistí, či existuje spracovanie prihlášok pre zadané vstupné parametre.
     operation:
-      kind: entityFunction
-      entityFunctionRef:
+      kind: sqd
+      sqdRef:
         namespaceAlias: ''
-        entity: ''
-        function: ''
+        mapParameters:
+          - parameter: ''
+            value: ''
+          - parameter: ''
+            value: ''
   - id: '2.2'
     legacyId: '*2.2*'
     type: decision
@@ -78,8 +81,13 @@ steps:
         namespaceAlias: local
         entity: Spracovanie
       operationRef:
-        kind: step
-        stepRef: '2.1'
+        kind: sqd
+        sqdRef:
+          mapParameters:
+            - parameter: ''
+              value: ''
+            - parameter: ''
+              value: ''
     branches:
       - when: 'false'
         then:
@@ -89,6 +97,10 @@ steps:
             text: Neexistujú dáta na prenos pre vstupné parametre.
             event:
               code: sosm-11
+              eventRef:
+                kind: sqd
+                sqdRef:
+                  namespaceAlias: ''
           - id: 2.2.2
             legacyId: '*2.2.2*'
             type: return
@@ -100,13 +112,15 @@ steps:
             type: decision
             text: Ak výpočet ešte beží.
             condition:
-              kind: entityRef
+              kind: operationRef
               description: Kontrola, ci je datum ukoncenia vypoctu prazdny.
               check: is null
               entityRef:
                 namespaceAlias: local
                 entity: Spracovanie
                 attribute: DatumUkonceniaVypoctu
+              operationRef:
+                kind: entityFunction
             branches:
               - when: 'true'
                 then:

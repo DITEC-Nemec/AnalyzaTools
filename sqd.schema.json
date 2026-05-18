@@ -557,19 +557,13 @@
           "type": "string",
           "description": "funkcia pre referencovan=u funkciu"
         },
-        "mapInput": {
+
+        "mapParameters": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/variableAssign"
+            "$ref": "#/$defs/parameterMap"
           },
           "description": "Priradenie premenných sqd do parametrov volania funkce/sqd (používá se pre mapovanie vstupov algoritmu na parametry volané funkce/sqd alebo pre mapovanie premenných z jedného kroku na parametry volané funkce/sqd)"
-        },
-        "mapOutput": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/variableAssign"
-          },
-          "description": "priradenie vysledu volania premennym funkcie/sqd (používá se pre mapovanie výstupu volané funkce/sqd na proměnné v algoritmu, napr. pro získanie výsledku volania do premmennej a následné použitie tejto premennej v ďalších krokoch algoritmu)"
         }
       }
     },
@@ -585,20 +579,14 @@
           "minLength": 1,
           "description": "Alias pre referencovaný namespace (používá sa pre rozlíšenie viacero referencií na rovnaký namespace)"
         },
-        "mapInput": {
+        "mapParameters": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/variableAssign"
+            "$ref": "#/$defs/parameterMap"
           },
           "description": "Priradenie premenných sqd do parametrov volania funkce/sqd (používá se pre mapovanie vstupov algoritmu na parametry volané funkce/sqd alebo pre mapovanie premenných z jedného kroku na parametry volané funkce/sqd)"
-        },
-        "mapOutput": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/variableAssign"
-          },
-          "description": "priradenie vysledu volania premennym funkcie/sqd (používá se pro mapovanie výstupu volané funkce/sqd na proměnné v algoritmu, napr. pro získání výsledku volání do premmennej a následné použití tejto premennej v ďalších krokoch algoritmu)"
         }
+      
       }
     },
     "referenceEvent": {
@@ -617,10 +605,10 @@
           "type": "string",
           "description": "udalost pre referencovanú udalost"
         },
-        "mapInput": {
+        "mapParameters": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/variableAssign"
+            "$ref": "#/$defs/parameterMap"
           },
           "description": "Priradenie premenných sqd do parametrov volania funkce/sqd (používá se pre mapovanie vstupov algoritmu na parametry volané funkce/sqd alebo pre mapovanie premenných z jedného kroku na parametry volané funkce/sqd)"
         }
@@ -1031,14 +1019,14 @@
         }
       ]
     },
-    "variableAssign": {
+    "parameterMap": {
       "type": "object",
       "required": [
         "variable",
         "value"
       ],
       "properties": {
-        "variable": {
+        "parameter": {
           "type": "string",
           "description": "Názov premennej"
         },

@@ -1,25 +1,21 @@
 import React from 'react';
-
-export interface VariableAssign {
-  variable: string;
-  value: string;
-}
+import type { ParameterMap } from '../types/sqd';
 
 interface Props {
-  value: VariableAssign[];
-  onChange: (value: VariableAssign[]) => void;
+  value: ParameterMap[];
+  onChange: (value: ParameterMap[]) => void;
 }
 
 export const VariableAssignList: React.FC<Props> = ({ value, onChange }) => {
   const handleAdd = () => {
-    onChange([...value, { variable: '', value: '' }]);
+    onChange([...value, { parameter: '', value: '' }]);
   };
   const handleRemove = (idx: number) => {
     onChange(value.filter((_, i) => i !== idx));
   };
-  const handleChange = (idx: number, field: 'variable' | 'value', fieldValue: string) => {
+  const handleChange = (idx: number, field: 'parameter' | 'value', fieldValue: string) => {
     const next = value.map((item, i) =>
-      i === idx ? { ...item, [field]: fieldValue } : item
+      i === idx ? { ...item, [field]: fieldValue, variable: undefined } : item
     );
     onChange(next);
   };
@@ -36,9 +32,9 @@ export const VariableAssignList: React.FC<Props> = ({ value, onChange }) => {
         <div key={idx} style={{ display: 'flex', gap: 4, alignItems: 'center', marginBottom: 2 }}>
           <input
             style={{ width: 120 }}
-            placeholder="variable"
-            value={item.variable}
-            onChange={e => handleChange(idx, 'variable', e.target.value)}
+            placeholder="parameter"
+            value={item.parameter ?? item.variable ?? ''}
+            onChange={e => handleChange(idx, 'parameter', e.target.value)}
           />
           <span>=</span>
           <input

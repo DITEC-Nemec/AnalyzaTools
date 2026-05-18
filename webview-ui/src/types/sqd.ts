@@ -43,6 +43,13 @@ export interface Parameter extends Variable {
   direction?: ParameterDirection;
 }
 
+export interface ParameterMap {
+  parameter: string;
+  value: string;
+  // Spatna kompatibilita so starsim nazvom pola
+  variable?: string;
+}
+
 export type StepType =
   | 'step'
   | 'operation'
@@ -85,20 +92,27 @@ export interface ReferenceEntityFunction {
   namespaceAlias?: string;
   entity?: string;
   function?: string;
-  inputs?: string[];
-  outputs?: string[];
+  mapParameters?: ParameterMap[];
+  // Spatna kompatibilita so starsim formatom mapovania
+  mapInput?: ParameterMap[];
+  mapOutput?: ParameterMap[];
 }
 
 export interface ReferenceSqd {
   namespaceAlias?: string;
-  inputs?: string[];
-  outputs?: string[];
+  mapParameters?: ParameterMap[];
+  // Spatna kompatibilita so starsim formatom mapovania
+  mapInput?: ParameterMap[];
+  mapOutput?: ParameterMap[];
 }
 
 export interface ReferenceEvent {
   namespaceAlias?: string;
   event?: string;
-  inputs?: string[];
+  mapParameters?: ParameterMap[];
+  // Spatna kompatibilita so starsim formatom mapovania
+  mapInput?: ParameterMap[];
+  mapOutput?: ParameterMap[];
 }
 
 export interface ReferenceOperation {

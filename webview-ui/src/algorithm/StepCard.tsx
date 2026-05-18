@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { VariableAssignList } from './VariableAssignList';
 import type {
   EntityImpact,
+  ParameterMap,
   ReferenceEntity,
   ReferenceEntityFunction,
   ReferenceEvent,
@@ -81,6 +82,29 @@ const summaryCondition = (condition: StepCondition | undefined): string => {
   const check = condition.check ?? 'exists';
   const desc = condition.description?.trim();
   return `${kind} | ${check}${desc ? ` | ${desc}` : ''}`;
+};
+
+const normalizeParameterMap = (
+  ref?: { mapParameters?: ParameterMap[]; mapInput?: ParameterMap[]; mapOutput?: ParameterMap[] }
+): ParameterMap[] => {
+  if (!ref) {
+    return [];
+  }
+
+  if ((ref.mapParameters ?? []).length > 0) {
+    return (ref.mapParameters ?? []).map(item => ({
+      parameter: item.parameter ?? item.variable ?? '',
+      value: item.value ?? ''
+    }));
+  }
+
+  return [
+    ...(ref.mapInput ?? []),
+    ...(ref.mapOutput ?? [])
+  ].map(item => ({
+    parameter: item.parameter ?? item.variable ?? '',
+    value: item.value ?? ''
+  }));
 };
 
 export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }) => {
@@ -565,11 +589,10 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                         });
                       }}
                     />
-                    {/* mapInput editor */}
-                    <label className="field-label">mapInput</label>
+                    <label className="field-label">parameterMap</label>
                     <VariableAssignList
-                      value={condition.operationRef?.entityFunctionRef?.mapInput ?? []}
-                      onChange={(mapInput) => {
+                      value={normalizeParameterMap(condition.operationRef?.entityFunctionRef)}
+                      onChange={(mapParameters) => {
                         const currentRef: ReferenceEntityFunction = condition.operationRef?.entityFunctionRef ?? {};
                         onChange({
                           ...step,
@@ -578,26 +601,7 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                             operationRef: {
                               ...(condition.operationRef ?? { kind: 'entityFunction' }),
                               kind: 'entityFunction',
-                              entityFunctionRef: { ...currentRef, mapInput }
-                            }
-                          }
-                        });
-                      }}
-                    />
-                    {/* mapOutput editor */}
-                    <label className="field-label">mapOutput</label>
-                    <VariableAssignList
-                      value={condition.operationRef?.entityFunctionRef?.mapOutput ?? []}
-                      onChange={(mapOutput) => {
-                        const currentRef: ReferenceEntityFunction = condition.operationRef?.entityFunctionRef ?? {};
-                        onChange({
-                          ...step,
-                          condition: {
-                            ...condition,
-                            operationRef: {
-                              ...(condition.operationRef ?? { kind: 'entityFunction' }),
-                              kind: 'entityFunction',
-                              entityFunctionRef: { ...currentRef, mapOutput }
+                              entityFunctionRef: { ...currentRef, mapParameters, mapInput: undefined, mapOutput: undefined }
                             }
                           }
                         });
@@ -626,11 +630,10 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                         });
                       }}
                     />
-                    {/* mapInput editor */}
-                    <label className="field-label">mapInput</label>
+                    <label className="field-label">parameterMap</label>
                     <VariableAssignList
-                      value={condition.operationRef?.sqdRef?.mapInput ?? []}
-                      onChange={(mapInput) => {
+                      value={normalizeParameterMap(condition.operationRef?.sqdRef)}
+                      onChange={(mapParameters) => {
                         const currentRef: ReferenceSqd = condition.operationRef?.sqdRef ?? {};
                         onChange({
                           ...step,
@@ -639,26 +642,7 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                             operationRef: {
                               ...(condition.operationRef ?? { kind: 'sqd' }),
                               kind: 'sqd',
-                              sqdRef: { ...currentRef, mapInput }
-                            }
-                          }
-                        });
-                      }}
-                    />
-                    {/* mapOutput editor */}
-                    <label className="field-label">mapOutput</label>
-                    <VariableAssignList
-                      value={condition.operationRef?.sqdRef?.mapOutput ?? []}
-                      onChange={(mapOutput) => {
-                        const currentRef: ReferenceSqd = condition.operationRef?.sqdRef ?? {};
-                        onChange({
-                          ...step,
-                          condition: {
-                            ...condition,
-                            operationRef: {
-                              ...(condition.operationRef ?? { kind: 'sqd' }),
-                              kind: 'sqd',
-                              sqdRef: { ...currentRef, mapOutput }
+                              sqdRef: { ...currentRef, mapParameters, mapInput: undefined, mapOutput: undefined }
                             }
                           }
                         });
@@ -706,11 +690,10 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                         });
                       }}
                     />
-                    {/* mapInput editor */}
-                    <label className="field-label">mapInput</label>
+                    <label className="field-label">parameterMap</label>
                     <VariableAssignList
-                      value={condition.operationRef?.eventRef?.mapInput ?? []}
-                      onChange={(mapInput) => {
+                      value={normalizeParameterMap(condition.operationRef?.eventRef)}
+                      onChange={(mapParameters) => {
                         const currentRef: ReferenceEvent = condition.operationRef?.eventRef ?? {};
                         onChange({
                           ...step,
@@ -719,7 +702,7 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                             operationRef: {
                               ...(condition.operationRef ?? { kind: 'event' }),
                               kind: 'event',
-                              eventRef: { ...currentRef, mapInput }
+                              eventRef: { ...currentRef, mapParameters, mapInput: undefined, mapOutput: undefined }
                             }
                           }
                         });
@@ -784,6 +767,19 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                     entityFunctionRef: { ...(operation.entityFunctionRef ?? {}), function: e.target.value }
                   })}
                 />
+                <label className="field-label">parameterMap</label>
+                <VariableAssignList
+                  value={normalizeParameterMap(operation.entityFunctionRef)}
+                  onChange={(mapParameters) => upsertOperationObject({
+                    kind: 'entityFunction',
+                    entityFunctionRef: {
+                      ...(operation.entityFunctionRef ?? {}),
+                      mapParameters,
+                      mapInput: undefined,
+                      mapOutput: undefined
+                    }
+                  })}
+                />
               </>
             )}
 
@@ -796,6 +792,19 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                   onChange={(e) => upsertOperationObject({
                     kind: 'sqd',
                     sqdRef: { ...(operation.sqdRef ?? {}), namespaceAlias: e.target.value }
+                  })}
+                />
+                <label className="field-label">parameterMap</label>
+                <VariableAssignList
+                  value={normalizeParameterMap(operation.sqdRef)}
+                  onChange={(mapParameters) => upsertOperationObject({
+                    kind: 'sqd',
+                    sqdRef: {
+                      ...(operation.sqdRef ?? {}),
+                      mapParameters,
+                      mapInput: undefined,
+                      mapOutput: undefined
+                    }
                   })}
                 />
               </>
@@ -819,6 +828,19 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                   onChange={(e) => upsertOperationObject({
                     kind: 'event',
                     eventRef: { ...(operation.eventRef ?? {}), event: e.target.value }
+                  })}
+                />
+                <label className="field-label">parameterMap</label>
+                <VariableAssignList
+                  value={normalizeParameterMap(operation.eventRef)}
+                  onChange={(mapParameters) => upsertOperationObject({
+                    kind: 'event',
+                    eventRef: {
+                      ...(operation.eventRef ?? {}),
+                      mapParameters,
+                      mapInput: undefined,
+                      mapOutput: undefined
+                    }
                   })}
                 />
               </>
@@ -889,6 +911,19 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                     entityFunctionRef: { ...(eventRef?.entityFunctionRef ?? {}), function: e.target.value }
                   })}
                 />
+                <label className="field-label">parameterMap</label>
+                <VariableAssignList
+                  value={normalizeParameterMap(eventRef?.entityFunctionRef)}
+                  onChange={(mapParameters) => upsertEventRef({
+                    kind: 'entityFunction',
+                    entityFunctionRef: {
+                      ...(eventRef?.entityFunctionRef ?? {}),
+                      mapParameters,
+                      mapInput: undefined,
+                      mapOutput: undefined
+                    }
+                  })}
+                />
               </>
             )}
 
@@ -901,6 +936,19 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                   onChange={(e) => upsertEventRef({
                     kind: 'sqd',
                     sqdRef: { ...(eventRef?.sqdRef ?? {}), namespaceAlias: e.target.value }
+                  })}
+                />
+                <label className="field-label">parameterMap</label>
+                <VariableAssignList
+                  value={normalizeParameterMap(eventRef?.sqdRef)}
+                  onChange={(mapParameters) => upsertEventRef({
+                    kind: 'sqd',
+                    sqdRef: {
+                      ...(eventRef?.sqdRef ?? {}),
+                      mapParameters,
+                      mapInput: undefined,
+                      mapOutput: undefined
+                    }
                   })}
                 />
               </>
@@ -924,6 +972,19 @@ export const StepCard: React.FC<Props> = ({ step, depth = 0, actions, onChange }
                   onChange={(e) => upsertEventRef({
                     kind: 'event',
                     eventRef: { ...(eventRef?.eventRef ?? {}), event: e.target.value }
+                  })}
+                />
+                <label className="field-label">parameterMap</label>
+                <VariableAssignList
+                  value={normalizeParameterMap(eventRef?.eventRef)}
+                  onChange={(mapParameters) => upsertEventRef({
+                    kind: 'event',
+                    eventRef: {
+                      ...(eventRef?.eventRef ?? {}),
+                      mapParameters,
+                      mapInput: undefined,
+                      mapOutput: undefined
+                    }
                   })}
                 />
               </>

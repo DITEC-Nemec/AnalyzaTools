@@ -8,12 +8,14 @@ entities:
           name: DatumZaciatkuVypoctu
           type: definition
           entityRef:
-            namespaceAlias: ''
+            namespaceAlias: local
             entity: ''
             attribute: ''
           definition:
-            union:
-              memberTypes: []
+            restriction:
+              base:
+                namespaceAlias: local
+                simpleType: ''
           nullable: true
         states: []
       - name: DatumUkonceniaVypoctu
@@ -22,7 +24,7 @@ entities:
           name: DatumUkonceniaVypoctu
           type: definition
           entityRef:
-            namespaceAlias: ''
+            namespaceAlias: local
             entity: ''
             attribute: ''
           definition:
@@ -35,7 +37,7 @@ entities:
         namedType:
           name: NavratovyKod
           entityRef:
-            namespaceAlias: ''
+            namespaceAlias: local
             entity: ''
             attribute: ''
           nullable: true
@@ -57,12 +59,14 @@ entities:
               name: aaa
               type: definition
               entityRef:
-                namespaceAlias: ''
+                namespaceAlias: local
                 entity: ''
                 attribute: ''
               definition:
                 restriction:
-                  base: string
+                  base:
+                    namespaceAlias: ''
+                    simpleType: ''
               nullable: true
               readOnly: false
               multiplicity: ''
@@ -70,7 +74,7 @@ entities:
         effects:
           - type: reads
             entityRef:
-              namespaceAlias: ''
+              namespaceAlias: local
               entity: ''
               attribute: ''
       - name: OznacZaciatokPrenosu
@@ -94,7 +98,7 @@ relationships:
       nazov: ''
       multiplicity: '1'
       entityRef:
-        namespaceAlias: ''
+        namespaceAlias: local
         entity: Spracovanie
         attribute: ''
     end_role:
@@ -102,7 +106,7 @@ relationships:
       nazov: ''
       multiplicity: '*'
       entityRef:
-        namespaceAlias: ''
+        namespaceAlias: local
         entity: ''
         attribute: ''
     type: references
@@ -112,13 +116,14 @@ glossary:
     meaning: adsasdasda
     relatedEntity: Spracovanie
 eventGlossary: []
-namespaceRef:
-  - alias: ''
-    filePath: ''
 simpleTypes:
   - name: simpleType_1
     definition:
-      restriction:
-        base:
-          namespaceAlias: ''
-          simpleType: ''
+      union:
+        memberTypes: []
+namespaceRef:
+  - alias: local
+    filePath: .
+    sourceType: current
+  - alias: ''
+    filePath: ''

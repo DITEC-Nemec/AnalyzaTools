@@ -67,11 +67,27 @@
         "$ref": "#/$defs/eventGlossaryEntry"
       }
     },
-    "namespaceRef": {
+     "namespaceRef": {
       "type": "array",
       "description": "Katalóg namespacov pre definiciu referencii na entityty/funkcie, sqd, eventy definované v iných modeloch  ",
       "items": {
         "$ref": "#/$defs/namespaceEntity"
+      },
+      "uniqueItems": true,
+      "contains": {
+        "type": "object",
+        "properties": {
+          "alias": {
+            "const": "local"
+          },
+          "sourceType": {
+            "const": "current"
+          }
+        },
+        "required": [
+          "alias",
+          "sourceType"
+        ]
       }
     }
   },
@@ -305,7 +321,8 @@
       "required": ["namespaceAlias", "simpleType"],
       "properties": {
         "namespaceAlias": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1
         },
         "simpleType": {
           "type": "string"
@@ -700,7 +717,7 @@
       "properties": {
         "namespaceAlias": {
           "type": "string",
-          "minLength": 0,
+          "minLength": 1,
           "description": "zdroj model entity ak prazdne aktualny model"
         },
         "entity": {
@@ -713,24 +730,74 @@
         }
       }
     },
-    "namespaceEntity": {
+     "namespaceEntity": {
       "type": "object",
       "required": [
         "alias",
-        "filePath"
+        "filePath",
+        "sourceType"
       ],
       "additionalProperties": false,
       "properties": {
         "alias": {
           "type": "string",
-          "minLength": 0,
+          "minLength": 1,
           "description": "Alias pre referencovaný namspace (používá se pre rozlíšenie viacero referencií na rovnaký namespace)"
         },
         "filePath": {
           "type": "string",
           "description": " referencovana subor v ktorom je definovaný daný namespace"
+        },
+        "sourceType": {
+          "type": "string",
+          "enum": [
+            "current",
+            "model",
+            "sqd"
+          ],
+          "description": "Typ zdroja referencie pre jednoznačné vyhodnocovanie"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "sourceType": {
+                "const": "current"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "alias": {
+                "const": "local"
+              }
+            },
+            "required": [
+              "alias"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "alias": {
+                "const": "local"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "sourceType": {
+                "const": "current"
+              }
+            },
+            "required": [
+              "sourceType"
+            ]
+          }
+        }
+      ]
     }
   }
 }

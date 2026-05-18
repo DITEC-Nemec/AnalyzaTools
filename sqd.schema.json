@@ -23,6 +23,22 @@
       "description": "Katalóg namespacov pre definiciu referencii na entityty/funkcie, sqd, eventy definované v iných modeloch  ",
       "items": {
         "$ref": "#/$defs/namespaceEntity"
+      },
+      "uniqueItems": true,
+      "contains": {
+        "type": "object",
+        "properties": {
+          "alias": {
+            "const": "local"
+          },
+          "sourceType": {
+            "const": "current"
+          }
+        },
+        "required": [
+          "alias",
+          "sourceType"
+        ]
       }
     }
   },
@@ -355,8 +371,8 @@
       "properties": {
         "namespaceAlias": {
           "type": "string",
-          "minLength": 0,
-          "description": "zdroj model entity ak prazdne aktualny model"
+          "minLength": 1,
+          "description": "Alias namespace zo namespaceRef. Pre aktuálny súbor použi hodnotu local."
         },
         "entity": {
           "type": "string",
@@ -530,8 +546,8 @@
       "properties": {
         "namespaceAlias": {
           "type": "string",
-          "minLength": 0,
-          "description": "zdroj model/sqd ak prazdne aktualny model"
+          "minLength": 1,
+          "description": "Alias namespace zo namespaceRef. Pre aktuálny súbor použi hodnotu local."
         },
         "entity": {
           "type": "string",
@@ -566,7 +582,7 @@
       "properties": {
         "namespaceAlias": {
           "type": "string",
-          "minLength": 0,
+          "minLength": 1,
           "description": "Alias pre referencovaný namespace (používá sa pre rozlíšenie viacero referencií na rovnaký namespace)"
         },
         "mapInput": {
@@ -581,7 +597,7 @@
           "items": {
             "$ref": "#/$defs/variableAssign"
           },
-          "description": "priradenie vysledu volania premennym funkcie/sqd (používá se pre mapovanie výstupu volané funkce/sqd na proměnné v algoritmu, napr. pro získanie výsledku volania do premmennej a následné použitie tejto premennej v ďalších krokoch algoritmu)"
+          "description": "priradenie vysledu volania premennym funkcie/sqd (používá se pro mapovanie výstupu volané funkce/sqd na proměnné v algoritmu, napr. pro získání výsledku volání do premmennej a následné použití tejto premennej v ďalších krokoch algoritmu)"
         }
       }
     },
@@ -594,7 +610,7 @@
       "properties": {
         "namespaceAlias": {
           "type": "string",
-          "minLength": 0,
+          "minLength": 1,
           "description": "Alias pre referencovaný namespace (používá sa pre rozlíšenie viacero referencií na rovnaký namespace)"
         },
         "event": {
@@ -676,7 +692,9 @@
       "required": ["namespaceAlias", "simpleType"],
       "properties": {
         "namespaceAlias": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "description": "Alias namespace zo namespaceRef. Pre aktuálny súbor použi hodnotu local."
         },
         "simpleType": {
           "type": "string"
@@ -966,7 +984,7 @@
         },
         "value": {
           "type": "string",
-          "description": "Hodnota premennej (může být název jiné proměnné, literální hodnota nebo reference na atribut entity ve formátu namespaceAlias.entity.attribute)"
+          "description": "Hodnota premennej (môže být název jiné proměnné, literální hodnota nebo reference na atribút entity ve formátu namespaceAlias.entity.attribute)"
         }
       }
     },
@@ -1067,20 +1085,70 @@
       "type": "object",
       "required": [
         "alias",
-        "filePath"
+        "filePath",
+        "sourceType"
       ],
       "additionalProperties": false,
       "properties": {
         "alias": {
           "type": "string",
-          "minLength": 0,
+          "minLength": 1,
           "description": "Alias pre referencovaný namspace (používá se pre rozlíšenie viacero referencií na rovnaký namespace)"
         },
         "filePath": {
           "type": "string",
           "description": " referencovana subor v ktorom je definovaný daný namespace"
+        },
+        "sourceType": {
+          "type": "string",
+          "enum": [
+            "current",
+            "model",
+            "sqd"
+          ],
+          "description": "Typ zdroja referencie pre jednoznačné vyhodnocovanie"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "sourceType": {
+                "const": "current"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "alias": {
+                "const": "local"
+              }
+            },
+            "required": [
+              "alias"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "alias": {
+                "const": "local"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "sourceType": {
+                "const": "current"
+              }
+            },
+            "required": [
+              "sourceType"
+            ]
+          }
+        }
+      ]
     }
   }
 }

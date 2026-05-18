@@ -3,6 +3,7 @@
 export interface NamespaceEntity {
   alias: string;
   filePath: string;
+  sourceType: 'current' | 'model' | 'sqd';
 }
 
 export interface SqdAlgorithm {

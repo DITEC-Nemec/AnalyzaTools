@@ -95,9 +95,11 @@
         "priority": "default"
       }
     ],
-    "yaml.schemas": {
-      "./sqd.schema.json": "*.sqd.yaml",
-      "./domain.schema.json": "*.model.yaml"
+    "configurationDefaults": {
+      "yaml.schemas": {
+        "./sqd.schema.json": "*.sqd.yaml",
+        "./domain.schema.json": "*.model.yaml"
+      }
     },
     "configuration": {
       "title": "AnalyzaTools",

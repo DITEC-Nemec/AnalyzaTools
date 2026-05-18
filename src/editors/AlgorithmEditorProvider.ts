@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { pickNamespaceReference } from './namespacePicker';
 
 /**
  * Custom Editor pre *.sqd.yaml súbory.
@@ -53,6 +54,16 @@ export class AlgorithmEditorProvider implements vscode.CustomTextEditorProvider 
         const edit = new vscode.WorkspaceEdit();
         edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), msg.content);
         await vscode.workspace.applyEdit(edit);
+      } else if (msg.type === 'pickFile') {
+        const picked = await pickNamespaceReference(document.uri);
+        if (!picked) {
+          return;
+        }
+
+        webviewPanel.webview.postMessage({
+          type: 'filePicked',
+          ...picked
+        });
       }
     });
 

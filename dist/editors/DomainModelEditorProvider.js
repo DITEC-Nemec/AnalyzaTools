@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DomainModelEditorProvider = void 0;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
+const namespacePicker_1 = require("./namespacePicker");
 /**
  * Custom Editor pre domain.model.yaml
  * Rovnaká štruktúra ako AlgorithmEditorProvider – iný webview app.
@@ -103,6 +104,16 @@ class DomainModelEditorProvider {
                         content: content
                     });
                 }
+            }
+            else if (msg.type === 'pickFile') {
+                const picked = await (0, namespacePicker_1.pickNamespaceReference)(document.uri);
+                if (!picked) {
+                    return;
+                }
+                webviewPanel.webview.postMessage({
+                    type: 'filePicked',
+                    ...picked
+                });
             }
         });
         webviewPanel.onDidDispose(() => changeDocSub.dispose());

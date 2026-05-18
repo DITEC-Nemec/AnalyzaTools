@@ -8,12 +8,12 @@ entities:
           name: DatumZaciatkuVypoctu
           type: definition
           entityRef:
-            namespaceAlias: ''
+            namespaceAlias: local
             entity: ''
             attribute: ''
           definition:
-            union:
-              memberTypes: []
+            restriction:
+              base: string
           nullable: true
         states: []
       - name: DatumUkonceniaVypoctu
@@ -22,7 +22,7 @@ entities:
           name: DatumUkonceniaVypoctu
           type: definition
           entityRef:
-            namespaceAlias: ''
+            namespaceAlias: local
             entity: ''
             attribute: ''
           definition:
@@ -35,7 +35,7 @@ entities:
         namedType:
           name: NavratovyKod
           entityRef:
-            namespaceAlias: ''
+            namespaceAlias: local
             entity: ''
             attribute: ''
           nullable: true
@@ -57,7 +57,7 @@ entities:
               name: aaa
               type: definition
               entityRef:
-                namespaceAlias: ''
+                namespaceAlias: local
                 entity: ''
                 attribute: ''
               definition:
@@ -70,7 +70,7 @@ entities:
         effects:
           - type: reads
             entityRef:
-              namespaceAlias: ''
+              namespaceAlias: local
               entity: ''
               attribute: ''
       - name: OznacZaciatokPrenosu
@@ -94,7 +94,7 @@ relationships:
       nazov: ''
       multiplicity: '1'
       entityRef:
-        namespaceAlias: ''
+        namespaceAlias: local
         entity: Spracovanie
         attribute: ''
     end_role:
@@ -102,7 +102,7 @@ relationships:
       nazov: ''
       multiplicity: '*'
       entityRef:
-        namespaceAlias: ''
+        namespaceAlias: local
         entity: ''
         attribute: ''
     type: references
@@ -113,12 +113,14 @@ glossary:
     relatedEntity: Spracovanie
 eventGlossary: []
 namespaceRef:
-  - alias: ''
-    filePath: ''
+  - alias: ziak
+    filePath: Catalogs/ziak.model.yaml
+    sourceType: model
+  - alias: local
+    filePath: Catalogs/soms.model.yaml
+    sourceType: current
 simpleTypes:
   - name: simpleType_1
     definition:
       restriction:
-        base:
-          namespaceAlias: ''
-          simpleType: ''
+        base: string

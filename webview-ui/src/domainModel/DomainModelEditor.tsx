@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as yaml from 'js-yaml';
 import type {
   Attribute,
@@ -250,13 +250,18 @@ const normalizeModel = (input: DomainModel): DomainModel => ({
   glossary: input.glossary ?? [],
   simpleTypes: (input.simpleTypes ?? []).map(normalizeSimpleType),
   eventGlossary: input.eventGlossary ?? [],
-  namespaceRef: input.namespaceRef ?? []
+  namespaceRef: (input.namespaceRef ?? []).map(item => ({
+    alias: item.alias ?? '',
+    filePath: item.filePath ?? '',
+    sourceType: item.sourceType ?? (item.alias === 'local' ? 'current' : 'model')
+  }))
 });
 
 export const DomainModelEditor: React.FC = () => {
   const L = (path: string, fallback: string) => label(`domain.${path}`, fallback);
 
   const [model, setModel] = useState<DomainModel | null>(null);
+  const modelRef = useRef<DomainModel | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [topTab, setTopTab] = useState<TopTab>('entities');
@@ -279,8 +284,37 @@ export const DomainModelEditor: React.FC = () => {
   const [selectedNamespaceIndex, setSelectedNamespaceIndex] = useState<number | null>(null);
 
   useEffect(() => {
+    modelRef.current = model;
+  }, [model]);
+
+  useEffect(() => {
     const handler = (event: MessageEvent) => {
       const msg = event.data;
+
+      if (msg.type === 'filePicked') {
+        const current = modelRef.current;
+        if (!current) {
+          return;
+        }
+
+        const nextNamespace = [
+          ...(current.namespaceRef ?? []),
+          {
+            alias: msg.alias ?? '',
+            filePath: msg.filePath ?? '',
+            sourceType: (msg.sourceType ?? 'model') as NamespaceEntity['sourceType']
+          }
+        ];
+        const nextModel = { ...current, namespaceRef: nextNamespace };
+        const content = yaml.dump(nextModel, { lineWidth: 120 });
+
+        setModel(nextModel);
+        modelRef.current = nextModel;
+        setTopTab('namespaceRef');
+        setSelectedNamespaceIndex(nextNamespace.length - 1);
+        vscodeApi.postMessage({ type: 'edit', content });
+        return;
+      }
 
       if (msg.type !== 'update' && msg.type !== 'modelContent') {
         return;
@@ -1201,7 +1235,7 @@ export const DomainModelEditor: React.FC = () => {
   const addNamespace = () => {
     updateModel(current => ({
       ...current,
-      namespaceRef: [...(current.namespaceRef ?? []), { alias: '', filePath: '' } as NamespaceEntity]
+      namespaceRef: [...(current.namespaceRef ?? []), { alias: '', filePath: '', sourceType: 'model' } as NamespaceEntity]
     }));
 
     setTopTab('namespaceRef');
@@ -1211,7 +1245,16 @@ export const DomainModelEditor: React.FC = () => {
   const updateNamespace = (index: number, patch: Partial<NamespaceEntity>) => {
     updateModel(current => {
       const next = [...(current.namespaceRef ?? [])];
-      next[index] = { ...next[index], ...patch };
+      const merged = { ...next[index], ...patch };
+
+      if (merged.sourceType === 'current') {
+        merged.alias = 'local';
+      }
+      if (merged.alias === 'local') {
+        merged.sourceType = 'current';
+      }
+
+      next[index] = merged;
       return { ...current, namespaceRef: next };
     });
   };
@@ -2890,13 +2933,17 @@ export const DomainModelEditor: React.FC = () => {
           <section className="panel">
             <div className="panel-head">
               <h3>{L('namespaceRef.title', 'namespaceRef')}</h3>
-              <button onClick={addNamespace}>{L('namespaceRef.add', '+ Namespace')}</button>
+              <div className="inline-actions">
+                <button onClick={() => vscodeApi.postMessage({ type: 'pickFile' })}>{L('namespaceRef.pickFile', 'Vyber súbor')}</button>
+                <button onClick={addNamespace}>{L('namespaceRef.add', '+ Namespace')}</button>
+              </div>
             </div>
 
             <table className="dm-table">
               <thead>
                 <tr>
                   <th>{L('namespaceRef.columns.alias', 'Alias')}</th>
+                  <th>{L('namespaceRef.columns.sourceType', 'Source type')}</th>
                   <th>{L('namespaceRef.columns.filePath', 'File path')}</th>
                   <th>{L('namespaceRef.columns.actions', 'Akcie')}</th>
                 </tr>
@@ -2905,12 +2952,13 @@ export const DomainModelEditor: React.FC = () => {
                 {namespaceRef.map((item, i) => (
                   <tr key={`${item.alias}-${i}`} className={selectedNamespaceIndex === i ? 'selected' : ''} onClick={() => setSelectedNamespaceIndex(i)}>
                     <td>{item.alias || '-'}</td>
+                    <td>{item.sourceType || '-'}</td>
                     <td>{item.filePath || '-'}</td>
                     <td>
                       <div className="inline-actions">
                         <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveNamespace(i, -1); }}>↑</button>
                         <button disabled={i === namespaceRef.length - 1} onClick={(e) => { e.stopPropagation(); moveNamespace(i, 1); }}>↓</button>
-                        <button onClick={(e) => { e.stopPropagation(); removeNamespace(i); }}>✕</button>
+                        <button disabled={item.sourceType === 'current'} onClick={(e) => { e.stopPropagation(); removeNamespace(i); }}>✕</button>
                       </div>
                     </td>
                   </tr>
@@ -2918,11 +2966,21 @@ export const DomainModelEditor: React.FC = () => {
               </tbody>
             </table>
 
-            {selectedNamespace && selectedNamespaceIndex !== null && (
+            {selectedNamespace && selectedNamespaceIndex !== null && selectedNamespace.sourceType !== 'current' && (
               <div className="item-card">
                 <h4>{L('namespaceRef.detail', 'Detail namespace')}</h4>
                 <label>{L('namespaceRef.alias', 'Alias')}</label>
                 <input value={selectedNamespace.alias} onChange={(e) => updateNamespace(selectedNamespaceIndex, { alias: e.target.value })} />
+
+                <label>{L('namespaceRef.sourceType', 'Source type')}</label>
+                <select
+                  value={selectedNamespace.sourceType}
+                  onChange={(e) => updateNamespace(selectedNamespaceIndex, { sourceType: e.target.value as NamespaceEntity['sourceType'] })}
+                >
+                  <option value="model">model</option>
+                  <option value="sqd">sqd</option>
+                  <option value="current">current</option>
+                </select>
 
                 <label>{L('namespaceRef.filePath', 'File path')}</label>
                 <input value={selectedNamespace.filePath} onChange={(e) => updateNamespace(selectedNamespaceIndex, { filePath: e.target.value })} />

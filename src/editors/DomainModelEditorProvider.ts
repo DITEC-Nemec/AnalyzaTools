@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { pickNamespaceReference } from './namespacePicker';
 
 interface ModelFile {
   path: string;
@@ -87,6 +88,16 @@ export class DomainModelEditorProvider implements vscode.CustomTextEditorProvide
             content: content
           });
         }
+      } else if (msg.type === 'pickFile') {
+        const picked = await pickNamespaceReference(document.uri);
+        if (!picked) {
+          return;
+        }
+
+        webviewPanel.webview.postMessage({
+          type: 'filePicked',
+          ...picked
+        });
       }
     });
 

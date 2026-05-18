@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AlgorithmEditorProvider = void 0;
 const vscode = __importStar(require("vscode"));
+const namespacePicker_1 = require("./namespacePicker");
 /**
  * Custom Editor pre *.sqd.yaml súbory.
  * Webview UI je samostatná React aplikácia v ./webview-ui/dist/algorithm/
@@ -75,6 +76,16 @@ class AlgorithmEditorProvider {
                 const edit = new vscode.WorkspaceEdit();
                 edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), msg.content);
                 await vscode.workspace.applyEdit(edit);
+            }
+            else if (msg.type === 'pickFile') {
+                const picked = await (0, namespacePicker_1.pickNamespaceReference)(document.uri);
+                if (!picked) {
+                    return;
+                }
+                webviewPanel.webview.postMessage({
+                    type: 'filePicked',
+                    ...picked
+                });
             }
         });
         webviewPanel.onDidDispose(() => changeDocSub.dispose());

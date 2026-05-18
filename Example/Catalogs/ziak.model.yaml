@@ -65,7 +65,7 @@ entities:
               definition:
                 restriction:
                   base:
-                    namespaceAlias: ''
+                    namespaceAlias: local
                     simpleType: ''
               nullable: true
               readOnly: false
@@ -119,11 +119,9 @@ eventGlossary: []
 simpleTypes:
   - name: simpleType_1
     definition:
-      union:
-        memberTypes: []
+      restriction:
+        base: string
 namespaceRef:
   - alias: local
     filePath: .
     sourceType: current
-  - alias: ''
-    filePath: ''

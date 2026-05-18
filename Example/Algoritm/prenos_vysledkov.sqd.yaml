@@ -24,12 +24,12 @@ algorithm:
         name: ''
         type: definition
         entityRef:
-          namespaceAlias: ''
+          namespaceAlias: local
           entity: ''
           attribute: ''
         definition:
-          union:
-            memberTypes: []
+          restriction:
+            base: string
         nullable: true
         readOnly: false
         multiplicity: ''
@@ -65,7 +65,7 @@ steps:
     operation:
       kind: sqd
       sqdRef:
-        namespaceAlias: ''
+        namespaceAlias: local
   - id: '2.2'
     legacyId: '*2.2*'
     type: decision
@@ -75,26 +75,27 @@ steps:
       description: Overenie existencie spracovania pre vstupné parametre.
       check: not equals
       entityRef:
-        namespaceAlias: ''
+        namespaceAlias: local
         entity: Spracovanie
       operationRef:
-        kind: event
+        kind: step
+        stepRef: '2.1'
     branches:
       - when: 'false'
         then:
-          - id: 2.2.1
+          - id: '2.2.1'
             legacyId: '*2.2.1*'
             type: event
             text: Neexistujú dáta na prenos pre vstupné parametre.
             event:
               code: sosm-11
-          - id: 2.2.2
+          - id: '2.2.2'
             legacyId: '*2.2.2*'
             type: return
             text: NAVRAT
       - when: 'true'
         then:
-          - id: 2.2.3
+          - id: '2.2.3'
             legacyId: '*2.2.3*'
             type: decision
             text: Ak výpočet ešte beží.
@@ -103,23 +104,23 @@ steps:
               description: Kontrola, ci je datum ukoncenia vypoctu prazdny.
               check: is null
               entityRef:
-                namespaceAlias: ''
+                namespaceAlias: local
                 entity: Spracovanie
                 attribute: DatumUkonceniaVypoctu
             branches:
               - when: 'true'
                 then:
-                  - id: 2.2.3.1
+                  - id: '2.2.3.1'
                     type: event
                     text: Výpočet ešte beží.
                     event:
                       code: sosm-12
-                  - id: 2.2.3.2
+                  - id: '2.2.3.2'
                     type: return
                     text: NAVRAT
               - when: 'false'
                 then:
-                  - id: 2.2.5
+                  - id: '2.2.5'
                     legacyId: '*2.2.5*'
                     type: decision
                     text: Ak výpočet skončil s chybou.
@@ -129,23 +130,23 @@ steps:
                       check: not equals
                       value: '00'
                       entityRef:
-                        namespaceAlias: ''
+                        namespaceAlias: local
                         entity: Spracovanie
                         attribute: NavratovyKodVypoctu
                     branches:
                       - when: 'true'
                         then:
-                          - id: 2.2.5.1
+                          - id: '2.2.5.1'
                             type: event
                             text: Výpočet skončil s chybou – neprenášam výsledky.
                             event:
                               code: sosm-21
-                          - id: 2.2.5.2
+                          - id: '2.2.5.2'
                             type: return
                             text: NAVRAT
                       - when: 'false'
                         then:
-                          - id: 2.2.7
+                          - id: '2.2.7'
                             legacyId: '*2.2.7*'
                             type: decision
                             text: Ak už bol spustený prenos dát.
@@ -154,13 +155,13 @@ steps:
                               description: Kontrola, ci bol prenos dat uz spusteny.
                               check: is not null
                               entityRef:
-                                namespaceAlias: ''
+                                namespaceAlias: local
                                 entity: Spracovanie
                                 attribute: DatumZaciatkuPrenosu
                             branches:
                               - when: 'true'
                                 then:
-                                  - id: 2.2.7.1
+                                  - id: '2.2.7.1'
                                     type: decision
                                     text: Ak prenos ešte neskončil.
                                     condition:
@@ -168,35 +169,35 @@ steps:
                                       description: Kontrola, ci je datum ukoncenia prenosu prazdny.
                                       check: is null
                                       entityRef:
-                                        namespaceAlias: ''
+                                        namespaceAlias: local
                                         entity: Spracovanie
                                         attribute: DatumUkonceniaPrenosu
                                     branches:
                                       - when: 'true'
                                         then:
-                                          - id: 2.2.7.1.1
+                                          - id: '2.2.7.1.1'
                                             type: event
                                             text: Prenos ešte beží.
                                             event:
                                               code: sosm-13
-                                          - id: 2.2.7.1.2
+                                          - id: '2.2.7.1.2'
                                             type: return
                                             text: NAVRAT
                                       - when: 'false'
                                         then:
-                                          - id: 2.2.7.2
+                                          - id: '2.2.7.2'
                                             type: decision
                                             text: Ak Reset je FALSE.
                                             condition:
-                                              kind: variable
+                                              kind: variableRef
                                               description: Kontrola vstupnej premennej Reset.
-                                              variable: Reset
+                                              variableRef: Reset
                                               check: equals
                                               value: false
                                             branches:
                                               - when: 'true'
                                                 then:
-                                                  - id: 2.2.7.2.1
+                                                  - id: '2.2.7.2.1'
                                                     type: decision
                                                     text: Prenos skončil s chybou.
                                                     condition:
@@ -205,33 +206,33 @@ steps:
                                                       check: not equals
                                                       value: '00'
                                                       entityRef:
-                                                        namespaceAlias: ''
+                                                        namespaceAlias: local
                                                         entity: Spracovanie
                                                         attribute: NavratovyKodPrenosu
                                                     branches:
                                                       - when: 'true'
                                                         then:
-                                                          - id: 2.2.7.2.1.1
+                                                          - id: '2.2.7.2.1.1'
                                                             type: event
                                                             text: Prenos už bežal a skončil s chybou.
                                                             event:
                                                               code: sosm-23
-                                                          - id: 2.2.7.2.1.2
+                                                          - id: '2.2.7.2.1.2'
                                                             type: return
                                                             text: NAVRAT
                                                       - when: 'false'
                                                         then:
-                                                          - id: 2.2.7.2.2
+                                                          - id: '2.2.7.2.2'
                                                             type: event
                                                             text: Prenos už bežal a skončil bez chýb.
                                                             event:
                                                               code: sosm-03
-                                                          - id: 2.2.7.2.3
+                                                          - id: '2.2.7.2.3'
                                                             type: return
                                                             text: NAVRAT
                                               - when: 'false'
                                                 then:
-                                                  - id: 2.2.7.3
+                                                  - id: '2.2.7.3'
                                                     type: operation
                                                     text: Reset prenosu dát.
                                                     operation: Spracovanie.ResetujPrenosDat(Spracovanie)
@@ -251,14 +252,14 @@ steps:
     type: operation
     text: Získanie priradení spracovania.
     operation: Priradenie.VratPriradeniaPreSpracovanie(Spracovanie)
-  - id: 3.2.1
+  - id: '3.2.1'
     legacyId: '*3.2.1*'
     type: foreach
     text: Pre každé priradenie spracovania.
     collection: priradeniaSpracovania
     item: priradenie
     body:
-      - id: 3.2.1.1
+      - id: '3.2.1.1'
         type: operation
         text: Prenos výsledkov na ŠaŠZ z prihlášky.
         operation: SasZPrihlasky.NastavVysledokPoAutomate(priradenie)
@@ -282,25 +283,29 @@ steps:
     type: decision
     text: Ak nastane neočakávaná chyba.
     condition:
-      kind: variable
+      kind: variableRef
       description: Kontrola pritomnosti vynimky.
-      variable: Exception
+      variableRef: Exception
       check: exists
     branches:
       - when: 'true'
         then:
-          - id: 4.1.1
+          - id: '4.1.1'
             type: event
             text: Neočakávaná chyba.
             event:
               code: sosm-99
-          - id: 4.1.2
+          - id: '4.1.2'
             type: operation
             text: Ukončenie prenosu dát pri chybe.
             operation: Spracovanie.UkonciPrenosDat(Spracovanie, NavratovyKod=99, NavratovyText=Neocakavana chyba)
-          - id: 4.1.3
+          - id: '4.1.3'
             type: return
             text: NAVRAT
 namespaceRef:
-  - alias: ''
-    filePath: ''
+  - alias: ziak
+    filePath: Catalogs/ziak.model.yaml
+    sourceType: model
+  - alias: local
+    filePath: Algoritm/prenos_vysledkov.sqd.yaml
+    sourceType: current

@@ -3,6 +3,7 @@ import { VariableList } from './VariableList';
 import type { AlgorithmMeta, NamespaceEntity, SqdAlgorithm, SqdStep, StepCondition, Variable } from '../types/sqd';
 import { StepCard } from './StepCard';
 import { label } from '../ui-labels';
+import { vscodeApi } from './main';
 
 interface Props {
   model: SqdAlgorithm;
@@ -177,9 +178,52 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
     onChange({ ...model, algorithm: { ...model.algorithm, ...patch } });
   };
 
-  const namespaceItems = model.namespaceRef ?? [];
+  const namespaceItems = (model.namespaceRef ?? []).map((item) => ({
+    alias: item.alias ?? '',
+    filePath: item.filePath ?? '',
+    sourceType: item.sourceType ?? (item.alias === 'local' ? 'current' : 'model')
+  }));
   const selectedNamespace =
     selectedNamespaceIndex === null ? null : namespaceItems[selectedNamespaceIndex] ?? null;
+
+  const applyNamespacePatch = (index: number, patch: Partial<NamespaceEntity>) => {
+    const next = [...namespaceItems];
+    const merged = { ...next[index], ...patch };
+
+    if (merged.sourceType === 'current') {
+      merged.alias = 'local';
+    }
+    if (merged.alias === 'local' && merged.sourceType !== 'current') {
+      merged.sourceType = 'current';
+    }
+
+    next[index] = merged;
+    onChange({ ...model, namespaceRef: next });
+  };
+
+  React.useEffect(() => {
+    const handler = (event: MessageEvent) => {
+      const msg = event.data;
+      if (msg.type !== 'filePicked') {
+        return;
+      }
+
+      const next = [
+        ...namespaceItems,
+        {
+          alias: msg.alias ?? '',
+          filePath: msg.filePath ?? '',
+          sourceType: (msg.sourceType ?? 'model') as NamespaceEntity['sourceType']
+        }
+      ];
+      onChange({ ...model, namespaceRef: next });
+      setSelectedNamespaceIndex(next.length - 1);
+      setTab('namespaceRef');
+    };
+
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [model, namespaceItems, onChange]);
 
   const renderStepList = (
     items: SqdStep[],
@@ -405,22 +449,28 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
           <section className="panel">
             <div className="panel-head">
               <h4>{L('namespaceRef.title', 'namespaceRef')}</h4>
-              <button
-                className="icon-btn"
-                onClick={() => {
-                  const next = [...namespaceItems, { alias: '', filePath: '' } as NamespaceEntity];
-                  onChange({ ...model, namespaceRef: next });
-                  setSelectedNamespaceIndex(next.length - 1);
-                }}
-              >
-                + {L('actions.add', 'Add')}
-              </button>
+              <div className="inline-actions">
+                <button className="icon-btn" onClick={() => vscodeApi.postMessage({ type: 'pickFile' })}>
+                  📂 {L('namespaceRef.pickFile', 'Vyber súbor')}
+                </button>
+                <button
+                  className="icon-btn"
+                  onClick={() => {
+                    const next = [...namespaceItems, { alias: '', filePath: '', sourceType: 'model' } as NamespaceEntity];
+                    onChange({ ...model, namespaceRef: next });
+                    setSelectedNamespaceIndex(next.length - 1);
+                  }}
+                >
+                  + {L('actions.add', 'Add')}
+                </button>
+              </div>
             </div>
 
             <table className="dm-table">
               <thead>
                 <tr>
                   <th>{L('namespaceRef.alias', 'Alias')}</th>
+                  <th>{L('namespaceRef.sourceType', 'Source type')}</th>
                   <th>{L('namespaceRef.filePath', 'File path')}</th>
                   <th>{L('namespaceRef.actions', 'Akcie')}</th>
                 </tr>
@@ -433,50 +483,56 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
                     onClick={() => setSelectedNamespaceIndex(i)}
                   >
                     <td>{item.alias || '-'}</td>
+                    <td>{item.sourceType || '-'}</td>
                     <td>{item.filePath || '-'}</td>
                     <td>
-                      <button
-                        className="icon-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const next = namespaceItems.filter((_, idx) => idx !== i);
-                          onChange({ ...model, namespaceRef: next });
-                          if (selectedNamespaceIndex === i) {
-                            setSelectedNamespaceIndex(next.length ? Math.min(i, next.length - 1) : null);
-                          }
-                        }}
-                      >
-                        ✕
-                      </button>
+                      {item.sourceType !== 'current' && (
+                        <button
+                          className="icon-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const next = namespaceItems.filter((_, idx) => idx !== i);
+                            onChange({ ...model, namespaceRef: next });
+                            if (selectedNamespaceIndex === i) {
+                              setSelectedNamespaceIndex(next.length ? Math.min(i, next.length - 1) : null);
+                            }
+                          }}
+                        >
+                          ✕
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
 
-            {selectedNamespace && selectedNamespaceIndex !== null && (
+            {selectedNamespace && selectedNamespaceIndex !== null && selectedNamespace.sourceType !== 'current' && (
               <div className="item-card compact">
                 <h4>{L('namespaceRef.detailTitle', 'Detail namespaceRef')}</h4>
                 <label className="field-label">{L('namespaceRef.alias', 'Alias')}</label>
                 <input
                   className="field-input"
                   value={selectedNamespace.alias}
-                  onChange={(e) => {
-                    const next = [...namespaceItems];
-                    next[selectedNamespaceIndex] = { ...next[selectedNamespaceIndex], alias: e.target.value };
-                    onChange({ ...model, namespaceRef: next });
-                  }}
+                  onChange={(e) => applyNamespacePatch(selectedNamespaceIndex, { alias: e.target.value })}
                 />
+
+                <label className="field-label">{L('namespaceRef.sourceType', 'Source type')}</label>
+                <select
+                  className="field-input"
+                  value={selectedNamespace.sourceType}
+                  onChange={(e) => applyNamespacePatch(selectedNamespaceIndex, { sourceType: e.target.value as NamespaceEntity['sourceType'] })}
+                >
+                  <option value="model">model</option>
+                  <option value="sqd">sqd</option>
+                  <option value="current">current</option>
+                </select>
 
                 <label className="field-label">{L('namespaceRef.filePath', 'File path')}</label>
                 <input
                   className="field-input"
                   value={selectedNamespace.filePath}
-                  onChange={(e) => {
-                    const next = [...namespaceItems];
-                    next[selectedNamespaceIndex] = { ...next[selectedNamespaceIndex], filePath: e.target.value };
-                    onChange({ ...model, namespaceRef: next });
-                  }}
+                  onChange={(e) => applyNamespacePatch(selectedNamespaceIndex, { filePath: e.target.value })}
                 />
               </div>
             )}

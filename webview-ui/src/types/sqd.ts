@@ -161,7 +161,7 @@ export interface StepEvent {
 
 export interface EntityImpact {
   entityRef?: ReferenceEntity;
-  variableName?: string;
+  variableRef?: string;
   impact: 'read' | 'write' | 'affect';
   note?: string;
 

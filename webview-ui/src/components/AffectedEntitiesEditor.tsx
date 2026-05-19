@@ -58,7 +58,7 @@ const normalizeDraft = (draft: DraftItem): AffectedItem => {
   }
   if (draft._mode === 'variable') {
     return {
-      variableName: draft.variableName,
+      variableRef: draft.variableRef,
       impact: draft.impact,
       note: draft.note
     };
@@ -74,8 +74,8 @@ const summaryItem = (item: AffectedItem): string => {
   if (isOutput(item)) {
     return `[OUTPUT] ${item.variable}${item.description ? ' - ' + item.description : ''}`;
   }
-  if (item.variableName) {
-    return `$${item.variableName} | ${item.impact}${item.note ? ' | ' + item.note : ''}`;
+  if (item.variableRef) {
+    return `$${item.variableRef} | ${item.impact}${item.note ? ' | ' + item.note : ''}`;
   }
   const entity = item.entityRef?.entity ?? item.entity ?? '-';
   const attr = item.entityRef?.attribute ? `.${item.entityRef.attribute}` : '';
@@ -107,7 +107,7 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
         return;
       }
     } else {
-      if (!draft.variableName?.trim()) {
+      if (!draft.variableRef?.trim()) {
         alert(L('validation.variableRequired', 'Názov premennej je povinný'));
         return;
       }
@@ -168,13 +168,13 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
             {/* OUTPUT MODE */}
             {itemType === 'output' && draft._mode === 'output' && (
               <>
-                <label className="field-label">{L('fields.variableName', 'Názov výstupnej premennej')}</label>
+                <label className="field-label">{L('fields.variableRef', 'Názov výstupnej premennej')}</label>
                 <input
                   className="field-input"
                   type="text"
                   value={draft.variable}
                   onChange={(e) => setDraft({ ...draft, variable: e.target.value })}
-                  placeholder={L('placeholders.variableName', 'napr. result, processedId')}
+                  placeholder={L('placeholders.variableRef', 'napr. result, processedId')}
                 />
 
                 <label className="field-label">{L('fields.description', 'Popis (voliteľne)')}</label>
@@ -200,7 +200,7 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
                     if (mode === 'entityRef') {
                       setDraft(defaultDraftImpact());
                     } else {
-                      setDraft({ ...defaultDraftImpact(), _mode: 'variable', entityRef: undefined, variableName: '' });
+                      setDraft({ ...defaultDraftImpact(), _mode: 'variable', entityRef: undefined, variableRef: '' });
                     }
                   }}
                 >
@@ -217,9 +217,9 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
                       value={draft.entityRef?.namespaceAlias ?? ''}
                       onChange={(e) =>
                         setDraft((prev) => ({
-                          ...prev,
+                          ...(prev as DraftImpact),
                           entityRef: {
-                            ...(prev.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                            ...((prev as DraftImpact).entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
                             namespaceAlias: e.target.value
                           }
                         }))
@@ -239,9 +239,9 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
                       value={draft.entityRef?.entity ?? ''}
                       onChange={(e) =>
                         setDraft((prev) => ({
-                          ...prev,
+                          ...(prev as DraftImpact),
                           entityRef: {
-                            ...(prev.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                            ...((prev as DraftImpact).entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
                             entity: e.target.value
                           }
                         }))
@@ -264,9 +264,9 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
                       value={draft.entityRef?.attribute ?? ''}
                       onChange={(e) =>
                         setDraft((prev) => ({
-                          ...prev,
+                          ...(prev as DraftImpact),
                           entityRef: {
-                            ...(prev.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                            ...((prev as DraftImpact).entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
                             attribute: e.target.value
                           }
                         }))
@@ -279,13 +279,13 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
                 {/* VARIABLE MODE */}
                 {draft._mode === 'variable' && (
                   <>
-                    <label className="field-label">{L('fields.variableName', 'Názov premennej')}</label>
+                    <label className="field-label">{L('fields.variableRef', 'Názov premennej')}</label>
                     <input
                       className="field-input"
                       type="text"
-                      value={draft.variableName ?? ''}
-                      onChange={(e) => setDraft({ ...draft, variableName: e.target.value })}
-                      placeholder={L('placeholders.variableName', 'napr. result, processedId, count')}
+                      value={draft.variableRef ?? ''}
+                      onChange={(e) => setDraft({ ...draft, variableRef: e.target.value })}
+                      placeholder={L('placeholders.variableRef', 'napr. result, processedId, count')}
                     />
                   </>
                 )}

@@ -814,7 +814,7 @@
           "$ref": "#/$defs/referenceEntity",
           "description": "Referencovana entita a jej atribút - použi ak ide o zmenu v entite domény"
         },
-        "variableName": {
+        "variableRef": {
           "type": "string",
           "description": "Názov premennej - použi ak ide o premennú z predchádzajúceho kroku"
         },
@@ -841,7 +841,7 @@
         },
         {
           "required": [
-            "variableName",
+            "variableRef",
             "impact"
           ]
         }

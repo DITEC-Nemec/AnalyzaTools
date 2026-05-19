@@ -622,15 +622,6 @@
         }
       }
     },
-    "variable": {
-      "type": "object",
-      "properties": {
-        "namedType": {
-          "$ref": "#/$defs/namedType",
-          "description": "Odkaz na pomenovaný typ proměnné (obsahuje aj názov, ale primárne slúži pro definici typu a dalších vlastností proměnné)"
-        }
-      }
-    },
     "annotation": {
       "type": "object",
       "additionalProperties": false,
@@ -1012,17 +1003,17 @@
     "parameterMap": {
       "type": "object",
       "required": [
-        "variable",
+        "parameter",
         "value"
       ],
       "properties": {
         "parameter": {
           "type": "string",
-          "description": "Názov premennej"
+          "description": "Názov parametra"
         },
         "value": {
           "type": "string",
-          "description": "Hodnota premennej (môže být název jiné proměnné, literální hodnota nebo reference na atribút entity ve formátu namespaceAlias.entity.attribute)"
+          "description": "Hodnota parametra (môže byť názov iného parametra, literálna hodnota alebo referencia na atribút entity vo formáte namespaceAlias.entity.attribute)"
         }
       }
     },
@@ -1062,7 +1053,7 @@
           "$ref": "#/$defs/referenceEntity",
           "description": "Referencovana entita a jej atribút - použiť ak ide o zmenu v entite domény"
         },
-        "variableName": {
+        "variableRef": {
           "type": "string",
           "description": "Názov premennej - použiť ak ide o premennu z predchádzajúceho kroku"
         },
@@ -1089,7 +1080,7 @@
         },
         {
           "required": [
-            "variableName",
+            "variableRef",
             "impact"
           ]
         }

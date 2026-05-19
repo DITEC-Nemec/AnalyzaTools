@@ -134,7 +134,7 @@ export const VariableList: React.FC<Props> = ({
       });
 
   const ensureNamedType = (item: Variable): NamedType => ({
-    name: item.namedType?.name ?? '',
+    name: item.namedType?.name,
     type: item.namedType?.type,
     entityRef: {
       namespaceAlias: item.namedType?.entityRef?.namespaceAlias ?? '',
@@ -188,10 +188,12 @@ export const VariableList: React.FC<Props> = ({
         return item;
       }
       const namedType = ensureNamedType(item);
-      const updatedNamedType: NamedType = {
-        ...namedType,
-        ...patch
-      };
+      // Patchuj len hodnoty, ktoré sa menia, ostatné nechaj pôvodné
+      const updatedNamedType: NamedType = { ...namedType };
+      Object.keys(patch).forEach(key => {
+        // @ts-ignore
+        updatedNamedType[key] = patch[key];
+      });
       return {
         ...item,
         namedType: updatedNamedType

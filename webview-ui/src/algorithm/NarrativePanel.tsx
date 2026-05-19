@@ -218,8 +218,9 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
     const handler = (event: MessageEvent) => {
       const msg = event.data;
       if (msg.type === 'filePicked') {
+        const current = model.namespaceRef ?? [];
         const next = [
-          ...namespaceItems,
+          ...current,
           {
             alias: msg.alias ?? '',
             filePath: msg.filePath ?? '',
@@ -258,7 +259,7 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
 
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [model, namespaceItems, onChange]);
+  }, [model, onChange]);
 
   React.useEffect(() => {
     const aliasesInUse = new Set(

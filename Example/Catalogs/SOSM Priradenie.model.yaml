@@ -1,0 +1,120 @@
+domain:
+  name: SOSM Priradenie
+entities:
+  - name: SOSM Priradenie
+    label: ''
+    attributes:
+      - name: atribut_1
+        label: ''
+        type: element
+        nullable: true
+        states: []
+        namedType:
+          name: Preferencia študenta
+          nullable: false
+          type: definition
+          definition:
+            restriction:
+              base: integer
+      - name: atribut_2
+        label: ''
+        type: element
+        nullable: true
+        states: []
+        namedType:
+          name: Preferencia školy
+          nullable: false
+          type: definition
+          definition:
+            restriction:
+              base: integer
+      - name: atribut_3
+        label: ''
+        type: element
+        nullable: true
+        states: []
+        namedType:
+          name: Preferencia školy po automate
+          nullable: true
+          type: definition
+          definition:
+            restriction:
+              base: integer
+    functions:
+      - name: funkcia_1
+        parameters:
+          - direction: in
+            namedType:
+              name: pokus
+              type: definition
+              entityRef:
+                namespaceAlias: ''
+                entity: ''
+                attribute: ''
+              typeRef:
+                namespaceAlias: local
+                simpleType: ''
+              definition:
+                restriction:
+                  base: string
+              nullable: false
+              readOnly: false
+              multiplicity: ''
+        behavior:
+          description: ''
+          preconditions: []
+          postconditions: []
+          affectedEntities: []
+          actors: []
+        effects: []
+    stateModel: []
+    description: priradenie studenta k škole
+    type: business_concept
+namespaceRef:
+  - alias: local
+    filePath: Catalogs/SOSM Priradenie.model.yaml
+    sourceType: current
+  - alias: Externe
+    filePath: Catalogs/Externe.model.yaml
+    sourceType: model
+relationships:
+  - start_role:
+      entity: ŠaŠZ z prihlášky
+      nazov: ''
+      multiplicity: '1'
+      description: ''
+      entityRef:
+        namespaceAlias: Externe
+        entity: ŠaŠZ z prihlášky
+        attribute: ''
+    end_role:
+      entity: SOSM Priradenie
+      nazov: ''
+      multiplicity: '*'
+      description: ''
+      entityRef:
+        namespaceAlias: local
+        entity: SOSM Priradenie
+        attribute: ''
+    type: references
+    description: ''
+  - start_role:
+      entity: Dôvod prijatia alebo neprijatia
+      nazov: ''
+      multiplicity: 0..1
+      description: ''
+      entityRef:
+        namespaceAlias: Externe
+        entity: Dôvod prijatia alebo neprijatia
+        attribute: ''
+    end_role:
+      entity: SOSM Priradenie
+      nazov: ''
+      multiplicity: '*'
+      description: ''
+      entityRef:
+        namespaceAlias: local
+        entity: SOSM Priradenie
+        attribute: ''
+    type: references
+    description: ''

@@ -1,0 +1,6 @@
+algorithm:
+  name: 'rozradenie_ziakov'
+steps:
+  - id: '1'
+    type: step
+    text: ''

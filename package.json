@@ -44,6 +44,18 @@
           "when": "view == sqd.explorer && viewItem == domainModel",
           "group": "inline"
         }
+      ],
+      "explorer/context": [
+        {
+          "command": "sqd.newSqdFile",
+          "when": "explorerResourceIsFolder",
+          "group": "sqd@1"
+        },
+        {
+          "command": "sqd.newModelFile",
+          "when": "explorerResourceIsFolder",
+          "group": "sqd@2"
+        }
       ]
     },
     "commands": [
@@ -70,6 +82,16 @@
       {
         "command": "sqd.refreshExplorer",
         "title": "Refresh",
+        "category": "SQD"
+      },
+      {
+        "command": "sqd.newSqdFile",
+        "title": "New SQD Algorithm…",
+        "category": "SQD"
+      },
+      {
+        "command": "sqd.newModelFile",
+        "title": "New Domain Model…",
         "category": "SQD"
       }
     ],

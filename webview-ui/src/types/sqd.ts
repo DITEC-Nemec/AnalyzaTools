@@ -265,6 +265,8 @@ export interface DomainMeta {
 export interface Entity {
   name: string;
   description?: string;
+  type?: 'business_concept' | 'database_table' | 'code_list' | 'conceptual_system' | 'computational_system' | 'other';
+  agregationStatus?: 'root' | 'leaf' | 'intermediate';
   status?: 'active' | 'deprecated';
   stateModel?: StateEntry[];
   attributes?: Attribute[];

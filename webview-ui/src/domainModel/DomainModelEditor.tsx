@@ -29,6 +29,15 @@ import { displayType, displaySimpleTypeDefinition } from '../utils/displayType';
 const PRIMITIVE_TYPES = ['string', 'integer', 'decimal', 'double', 'boolean', 'date', 'time', 'dateTime'];
 const ATTRIBUTE_TYPES = ['entityRef', 'definition', 'typeRef'];
 const RELATIONSHIP_TYPES = ['references', 'depends', 'inherits'];
+const ENTITY_TYPES: NonNullable<Entity['type']>[] = [
+  'business_concept',
+  'database_table',
+  'code_list',
+  'conceptual_system',
+  'computational_system',
+  'other'
+];
+const ENTITY_AGREGATION_STATUSES: NonNullable<Entity['agregationStatus']>[] = ['root', 'leaf', 'intermediate'];
 const L = (path: string, fallback: string) => rawLabel(`domain.${path}`, fallback);
 const DL = L;
 
@@ -1322,6 +1331,32 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
                 <label>{DL('entities.form.description', 'Popis')}</label>
                 <textarea rows={3} value={selectedEntity.description ?? ''} onChange={(e) => updateEntity(selectedEntityIndex, { description: e.target.value })} />
+
+                <label>{DL('entities.form.type', 'Typ')}</label>
+                <select
+                  value={selectedEntity.type ?? ''}
+                  onChange={(e) => updateEntity(selectedEntityIndex, {
+                    type: (e.target.value || undefined) as Entity['type']
+                  })}
+                >
+                  <option value="">-</option>
+                  {ENTITY_TYPES.map((entityType) => (
+                    <option key={entityType} value={entityType}>{entityType}</option>
+                  ))}
+                </select>
+
+                <label>{DL('entities.form.agregationStatus', 'Agregation status')}</label>
+                <select
+                  value={selectedEntity.agregationStatus ?? ''}
+                  onChange={(e) => updateEntity(selectedEntityIndex, {
+                    agregationStatus: (e.target.value || undefined) as Entity['agregationStatus']
+                  })}
+                >
+                  <option value="">-</option>
+                  {ENTITY_AGREGATION_STATUSES.map((agregationStatus) => (
+                    <option key={agregationStatus} value={agregationStatus}>{agregationStatus}</option>
+                  ))}
+                </select>
 
                 <label>{DL('entities.form.status', 'Status')}</label>
                 <select

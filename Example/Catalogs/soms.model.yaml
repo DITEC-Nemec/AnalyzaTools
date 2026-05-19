@@ -99,7 +99,9 @@ entities:
         outputs: []
         effects: []
     stateModel: []
-    status: deprecated
+    status: active
+    type: business_concept
+    agregationStatus: root
 domain:
   name: Domain Model
 relationships:

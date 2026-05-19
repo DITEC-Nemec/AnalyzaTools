@@ -148,6 +148,8 @@
       "form": {
         "name": "Názov entity",
         "description": "Popis",
+        "type": "Typ",
+        "agregationStatus": "Agregation status",
         "status": "Status"
       }
     },

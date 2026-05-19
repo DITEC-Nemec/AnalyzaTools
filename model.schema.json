@@ -186,6 +186,27 @@
           "type": "string",
           "description": "Voľný popis významu entity"
         },
+        "type":{
+          "type": "string",
+          "enum": [
+            "business_concept",
+            "database_table",
+            "code_list",
+            "conceptual_system",
+            "computational_system",
+            "other"
+          ],
+          "description": "Typ entity pro lepší kategorizaci a interpretaci (např. koncept, databázová tabulka, číselník, systém)"
+        },
+        "agregationStatus": {
+          "type": "string",
+          "enum": [
+            "root",
+            "leaf",
+            "intermediate"
+          ],
+          "description": "Určuje roli entity ve vztazích agregace (root - pouze jako zdroj, leaf - pouze jako cíl, intermediate - může být zdrojem i cílem)"
+        },
         "status": {
           "type": "string",
           "enum": [

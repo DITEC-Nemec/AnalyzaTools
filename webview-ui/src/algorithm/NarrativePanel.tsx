@@ -28,7 +28,11 @@ interface AddMenuProps {
 }
 
 type NamespaceReferencedModel = {
-  entities?: Array<{ name?: string; functions?: Array<{ name?: string }> }>;
+  entities?: Array<{
+    name?: string;
+    functions?: Array<{ name?: string }>;
+    attributes?: Array<{ name?: string; namedType?: { name?: string } } | string>;
+  }>;
   eventGlossary?: Array<{ code?: string; title?: string }>;
   actors?: Array<{ code?: string }>;
 };
@@ -315,6 +319,22 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
       .filter((name): name is string => Boolean(name));
   }, [namespaceModels]);
 
+  const getAttributesForEntity = React.useCallback((entityName: string, alias?: string): string[] => {
+    if (!alias) {
+      return [];
+    }
+
+    const entity = (namespaceModels[alias]?.entities ?? []).find(item => item.name === entityName);
+    return (entity?.attributes ?? [])
+      .map((attribute) => {
+        if (typeof attribute === 'string') {
+          return attribute;
+        }
+        return attribute.namedType?.name ?? attribute.name;
+      })
+      .filter((name): name is string => Boolean(name));
+  }, [namespaceModels]);
+
   const getEventsForAlias = React.useCallback((alias: string): string[] => {
     return (namespaceModels[alias]?.eventGlossary ?? [])
       .map(event => event.code ?? event.title)
@@ -400,6 +420,7 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
                 modelAliases={modelAliases}
                 sqdAliases={sqdAliases}
                 getEntitiesForAlias={getEntitiesForAlias}
+                getAttributesForEntity={getAttributesForEntity}
                 getFunctionsForEntity={getFunctionsForEntity}
                 getEventsForAlias={getEventsForAlias}
                 getActorsForAlias={getActorsForAlias}
@@ -566,6 +587,7 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
                     modelAliases={modelAliases}
                     sqdAliases={sqdAliases}
                     getEntitiesForAlias={getEntitiesForAlias}
+                    getAttributesForEntity={getAttributesForEntity}
                     onChange={(affectedEntities) => updateAlgorithm({
                       behavior: {
                         ...(model.algorithm?.behavior ?? {}),

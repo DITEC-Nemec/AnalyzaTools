@@ -134,12 +134,11 @@ export const VariableList: React.FC<Props> = ({
       });
 
   const ensureNamedType = (item: Variable): NamedType => ({
-    name: item.namedType?.name,
+    name: item.namedType?.name ?? '',
     type: item.namedType?.type,
     entityRef: {
       namespaceAlias: item.namedType?.entityRef?.namespaceAlias ?? '',
-      entity: item.namedType?.entityRef?.entity ?? '',
-      attribute: item.namedType?.entityRef?.attribute ?? ''
+      entity: item.namedType?.entityRef?.entity ?? ''
     },
     typeRef: item.namedType?.typeRef ? normalizeSimpleTypeRef(item.namedType.typeRef) : undefined,
     definition: item.namedType?.definition ? normalizeSimpleTypeDefinition(item.namedType.definition) : undefined,
@@ -154,7 +153,7 @@ export const VariableList: React.FC<Props> = ({
       namedType: {
         name: '',
         type: 'typeRef',
-        entityRef: { namespaceAlias: '', entity: '', attribute: '' },
+        entityRef: { namespaceAlias: '', entity: '' },
         typeRef: { namespaceAlias: '', simpleType: '' },
         nullable: true,
         readOnly: false,
@@ -320,10 +319,10 @@ export const VariableList: React.FC<Props> = ({
                   value={selectedVariable.namedType?.entityRef?.namespaceAlias ?? ''}
                   onChange={e => handleNamedTypeChange(selectedIndex, {
                     entityRef: {
-                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '' }),
                       namespaceAlias: e.target.value,
-                      entity: '',
-                      attribute: ''
+                      entity: ''
+                     
                     }
                   })}
                 >
@@ -338,7 +337,7 @@ export const VariableList: React.FC<Props> = ({
                   value={selectedVariable.namedType?.entityRef?.namespaceAlias ?? ''}
                   onChange={e => handleNamedTypeChange(selectedIndex, {
                     entityRef: {
-                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '' }),
                       namespaceAlias: e.target.value
                     }
                   })}
@@ -352,9 +351,9 @@ export const VariableList: React.FC<Props> = ({
                   value={selectedVariable.namedType?.entityRef?.entity ?? ''}
                   onChange={e => handleNamedTypeChange(selectedIndex, {
                     entityRef: {
-                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
-                      entity: e.target.value,
-                      attribute: ''
+                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '' }),
+                      entity: e.target.value
+                     
                     }
                   })}
                 >
@@ -369,45 +368,14 @@ export const VariableList: React.FC<Props> = ({
                   value={selectedVariable.namedType?.entityRef?.entity ?? ''}
                   onChange={e => handleNamedTypeChange(selectedIndex, {
                     entityRef: {
-                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: ''}),
                       entity: e.target.value
                     }
                   })}
                 />
               )}
 
-              <label className="field-label">entityRef.attribute</label>
-              {useSelectsForRefs ? (
-                <select
-                  className="field-input"
-                  value={selectedVariable.namedType?.entityRef?.attribute ?? ''}
-                  onChange={e => handleNamedTypeChange(selectedIndex, {
-                    entityRef: {
-                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
-                      attribute: e.target.value
-                    }
-                  })}
-                >
-                  <option value="">—</option>
-                  {getAvailableAttributes(
-                    selectedVariable.namedType?.entityRef?.entity ?? '',
-                    selectedVariable.namedType?.entityRef?.namespaceAlias
-                  ).map(attribute => (
-                    <option key={attribute} value={attribute}>{attribute}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  className="field-input"
-                  value={selectedVariable.namedType?.entityRef?.attribute ?? ''}
-                  onChange={e => handleNamedTypeChange(selectedIndex, {
-                    entityRef: {
-                      ...(selectedVariable.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
-                      attribute: e.target.value
-                    }
-                  })}
-                />
-              )}
+
             </>
           )}
 

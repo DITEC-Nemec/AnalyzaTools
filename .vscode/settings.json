@@ -1,6 +1,6 @@
 {
   "yaml.schemas": {
-    "${workspaceFolder}/sqd.schema.json": "*.sqd.yaml",
-    "${workspaceFolder}/model.schema.json": "*.model.yaml"
+    "file:///c:/D/repos_hub/analyzaTools/sqd.schema.json": "*.sqd.yaml",
+    "file:///c:/D/repos_hub/analyzaTools/model.schema.json": "*.model.yaml"
   }
 }

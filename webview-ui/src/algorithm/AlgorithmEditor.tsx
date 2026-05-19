@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as yaml from 'js-yaml';
 import { NarrativePanel } from './NarrativePanel';
-import type { ReferenceEntity, ReferenceEvent, ReferenceOperation, SqdAlgorithm, SqdStep } from '../types/sqd';
+import type {ReferenceAttribute, ReferenceEntity, ReferenceEvent, ReferenceOperation, SqdAlgorithm, SqdStep } from '../types/sqd';
 import { vscodeApi } from './main';
 import { label } from '../ui-labels';
 
@@ -21,12 +21,19 @@ const sanitizeRefOperation = (op: AnyObject): AnyObject => {
   return cleaned;
 };
 
-const sanitizeEntityRef = (ref: AnyObject): AnyObject => {
+const sanitizeAttributeRef = (ref: AnyObject): AnyObject => {
   const cleaned: AnyObject = {};
   if (ref.namespaceAlias !== undefined) cleaned.namespaceAlias = ref.namespaceAlias;
   if (ref.entity !== undefined) cleaned.entity = ref.entity;
   if (ref.attribute !== undefined) cleaned.attribute = ref.attribute;
   return cleaned;
+};
+
+const sanitizeEntityRef = (ref: AnyObject): AnyObject => {
+  const cleaned: AnyObject = {};
+  if (ref.namespaceAlias !== undefined) cleaned.namespaceAlias = ref.namespaceAlias;
+  if (ref.entity !== undefined) cleaned.entity = ref.entity;
+   return cleaned;
 };
 
 const sanitizeStep = (step: SqdStep): SqdStep => {
@@ -45,7 +52,7 @@ const sanitizeStep = (step: SqdStep): SqdStep => {
   if (s.operation !== undefined) {
     result.operation =
       typeof s.operation === 'object' && s.operation !== null
-        ? (sanitizeRefOperation(s.operation as AnyObject) as ReferenceOperation)
+        ? (sanitizeRefOperation(s.operation as unknown as AnyObject) as unknown as ReferenceOperation)
         : (s.operation as string);
   }
 
@@ -53,11 +60,11 @@ const sanitizeStep = (step: SqdStep): SqdStep => {
     const cond = s.condition;
     result.condition = {
       ...cond,
-      entityRef: cond.entityRef
-        ? (sanitizeEntityRef(cond.entityRef as unknown as AnyObject) as ReferenceEntity)
+      attributeRef: cond.attributeRef
+        ? (sanitizeAttributeRef(cond.attributeRef as unknown as AnyObject) as ReferenceAttribute)
         : undefined,
       operationRef: cond.operationRef
-        ? (sanitizeRefOperation(cond.operationRef as unknown as AnyObject) as ReferenceOperation)
+        ? (sanitizeRefOperation(cond.operationRef as unknown as AnyObject) as unknown as ReferenceOperation)
         : undefined,
       waitEvent: cond.waitEvent
         ? {

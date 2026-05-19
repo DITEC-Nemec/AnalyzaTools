@@ -8,6 +8,8 @@
 import React from 'react';
 import type {
   NamespaceData,
+  NamespaceDataEntry,
+  ReferenceAttribute,
   ReferenceEntity,
   ReferenceEntityFunction,
   ReferenceSqd,
@@ -20,7 +22,7 @@ import type {
 type SourceFilter = 'model' | 'sqd' | 'any';
 
 function aliasOptions(namespaceData: NamespaceData, filter: SourceFilter): string[] {
-  return Object.values(namespaceData)
+  return (Object.values(namespaceData) as NamespaceDataEntry[])
     .filter(e => filter === 'any' || e.sourceType === filter || e.sourceType === 'current')
     .map(e => e.alias);
 }
@@ -49,19 +51,19 @@ const ComboSelect: React.FC<ComboProps> = ({ label: lbl, value, options, onChang
   </div>
 );
 
-// ─── EntityRefSelect ───────────────────────────────────────────────────────────
+// ─── AttributeRefSelect ───────────────────────────────────────────────────────────
 
-interface EntityRefSelectProps {
-  value: ReferenceEntity;
+interface AttributeRefSelectProps {
+  value: ReferenceAttribute;
   namespaceData: NamespaceData;
-  onChange: (v: ReferenceEntity) => void;
+  onChange: (v: ReferenceAttribute) => void;
 }
 
-export const EntityRefSelect: React.FC<EntityRefSelectProps> = ({ value, namespaceData, onChange }) => {
+export const AttributeRefSelect: React.FC<AttributeRefSelectProps> = ({ value, namespaceData, onChange }) => {
   const aliases = aliasOptions(namespaceData, 'model');
   const nsEntry = value.namespaceAlias ? namespaceData[value.namespaceAlias] : undefined;
-  const entities = nsEntry?.entities?.map(e => e.name) ?? [];
-  const attributes = nsEntry?.entities?.find(e => e.name === value.entity)?.attributes ?? [];
+  const entities = nsEntry?.entities?.map((e: { name: string }) => e.name) ?? [];
+  const attributes = nsEntry?.entities?.find((e: { name: string }) => e.name === value.entity)?.attributes ?? [];
 
   return (
     <div className="ref-group">
@@ -86,6 +88,37 @@ export const EntityRefSelect: React.FC<EntityRefSelectProps> = ({ value, namespa
     </div>
   );
 };
+// ─── EntityRefSelect ───────────────────────────────────────────────────────────
+
+interface EntityRefSelectProps {
+  value: ReferenceEntity;
+  namespaceData: NamespaceData;
+  onChange: (v: ReferenceEntity) => void;
+}
+
+export const EntityRefSelect: React.FC<EntityRefSelectProps> = ({ value, namespaceData, onChange }) => {
+  const aliases = aliasOptions(namespaceData, 'model');
+  const nsEntry = value.namespaceAlias ? namespaceData[value.namespaceAlias] : undefined;
+  const entities = nsEntry?.entities?.map((e: { name: string }) => e.name) ?? [];
+
+  return (
+    <div className="ref-group">
+      <ComboSelect
+        label="namespaceAlias"
+        value={value.namespaceAlias ?? ''}
+        options={aliases}
+        onChange={(v) => onChange({ ...value, namespaceAlias: v, entity: '' })}
+      />
+      <ComboSelect
+        label="entity"
+        value={value.entity ?? ''}
+        options={entities}
+        onChange={(v) => onChange({ ...value, entity: v })}
+      />
+     
+    </div>
+  );
+};
 
 // ─── EntityFunctionRefSelect ───────────────────────────────────────────────────
 
@@ -98,8 +131,8 @@ interface EntityFunctionRefSelectProps {
 export const EntityFunctionRefSelect: React.FC<EntityFunctionRefSelectProps> = ({ value, namespaceData, onChange }) => {
   const aliases = aliasOptions(namespaceData, 'model');
   const nsEntry = value.namespaceAlias ? namespaceData[value.namespaceAlias] : undefined;
-  const entities = nsEntry?.entities?.map(e => e.name) ?? [];
-  const functions = nsEntry?.entities?.find(e => e.name === value.entity)?.functions ?? [];
+  const entities = nsEntry?.entities?.map((e: { name: string }) => e.name) ?? [];
+  const functions = nsEntry?.entities?.find((e: { name: string }) => e.name === value.entity)?.functions ?? [];
 
   return (
     <div className="ref-group">

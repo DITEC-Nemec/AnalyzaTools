@@ -232,8 +232,8 @@
           "description": "Názov vstupného parametra algoritmu (z algorithm.inputs). Použiť keď podmienka overuje hodnotu vstupu algoritmu.",
           "deprecated": true
         },
-        "entityRef": {
-          "$ref": "#/$defs/referenceEntity"
+        "attributeRef": {
+          "$ref": "#/$defs/referenceAttribute"
         },
         "operationRef": {
           "$ref": "#/$defs/referenceOperation",
@@ -268,13 +268,13 @@
           "if": {
             "properties": {
               "kind": {
-                "const": "entityRef"
+                "const": "attributeRef"
               }
             }
           },
           "then": {
             "required": [
-              "entityRef"
+              "attributeRef"
             ],
             "not": {
               "required": [
@@ -298,8 +298,9 @@
             ],
             "not": {
               "required": [
-                "entityRef",
-                "operationRef"
+                "attributeRef",
+                "operationRef",
+                "waitEvent"
               ]
             }
           }
@@ -318,8 +319,9 @@
             ],
             "not": {
               "required": [
-                "entityRef",
-                "variableRef"
+                "attributeRef",
+                "variableRef",
+                "waitEvent"
               ]
             }
           }
@@ -338,7 +340,7 @@
             ],
             "not": {
               "required": [
-                "entityRef",
+                "attributeRef",
                 "operationRef",
                 "variableRef"
               ]
@@ -359,15 +361,17 @@
             ],
             "not": {
               "required": [
-                "entityRef",
-                "operationRef"
+                "attributeRef",
+                "operationRef",
+                "variableRef",
+                "waitEvent"
               ]
             }
           }
         }
       ]
     },
-    "referenceEntity": {
+    "referenceAttribute": {
       "type": "object",
       "required": [
         "namespaceAlias"
@@ -386,6 +390,24 @@
         "attribute": {
           "type": "string",
           "description": "atribút pre  referencovanu entitu"
+        }
+      }
+    },
+    "referenceEntity": {
+      "type": "object",
+      "required": [
+        "namespaceAlias"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "namespaceAlias": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Alias namespace zo namespaceRef. Pre aktuálny súbor použi hodnotu local."
+        },
+        "entity": {
+          "type": "string",
+          "description": " referencovana entita"
         }
       }
     },
@@ -1064,8 +1086,8 @@
         "impact"
       ],
       "properties": {
-        "entityRef": {
-          "$ref": "#/$defs/referenceEntity",
+        "attributeRef": {
+          "$ref": "#/$defs/referenceAttribute",
           "description": "Referencovana entita a jej atribút - použiť ak ide o zmenu v entite domény"
         },
         "variableRef": {
@@ -1089,7 +1111,7 @@
       "anyOf": [
         {
           "required": [
-            "entityRef",
+            "attributeRef",
             "impact"
           ]
         },

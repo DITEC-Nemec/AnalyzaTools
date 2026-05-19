@@ -107,8 +107,7 @@ const normalizeRole = (role: any): RelationshipRole => ({
   description: role?.description ?? '',
   entityRef: {
     namespaceAlias: role?.entityRef?.namespaceAlias ?? '',
-    entity: role?.entityRef?.entity ?? '',
-    attribute: role?.entityRef?.attribute ?? ''
+    entity: role?.entityRef?.entity ?? ''
   }
 });
 
@@ -737,13 +736,13 @@ const DomainModelEditor: React.FC<EditorProps> = ({
             nazov: '',
             multiplicity: '1',
             description: '',
-            entityRef: { namespaceAlias: '', entity: current.entities[0]?.name ?? '', attribute: '' }
+            entityRef: { namespaceAlias: '', entity: current.entities[0]?.name ?? '' }
           },
           end_role: {
             nazov: '',
             multiplicity: '*',
             description: '',
-            entityRef: { namespaceAlias: '', entity: '', attribute: '' }
+            entityRef: { namespaceAlias: '', entity: '' }
           },
           type: 'references',
           description: ''
@@ -1227,21 +1226,6 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           ))}
         </select>
 
-        <label>{L('relationships.form.role.entityRefAttribute', 'EntityRef attribute')}</label>
-        <select
-          value={role.entityRef?.attribute ?? ''}
-          onChange={(e) =>
-            updateRole(selectedRelationshipIndex, side, {
-              entityRef: { ...(role.entityRef ?? { namespaceAlias: '' }), attribute: e.target.value }
-            })
-          }
-        >
-          <option value="">—</option>
-          {getAvailableAttributes(role.entityRef?.entity ?? '', role.entityRef?.namespaceAlias).map(attr => (
-            <option key={attr} value={attr}>{attr}</option>
-          ))}
-        </select>
-
         <label>{L('relationships.form.role.description', 'Popis roly')}</label>
         <input
           value={role.description ?? ''}
@@ -1470,7 +1454,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                 namedType: {
                                   ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
                                   entityRef: {
-                                    ...(selectedAttribute.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                                    ...(selectedAttribute.namedType?.entityRef ?? { namespaceAlias: '', entity: '' }),
                                     namespaceAlias: e.target.value
                                   }
                                 }
@@ -1489,7 +1473,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                 namedType: {
                                   ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
                                   entityRef: {
-                                    ...(selectedAttribute.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                                    ...(selectedAttribute.namedType?.entityRef ?? { namespaceAlias: '', entity: '' }),
                                     entity: e.target.value
                                   }
                                 }
@@ -1501,27 +1485,6 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                               ))}
                             </select>
 
-                            <label>{L('attributes.form.entityRefAttribute', 'EntityRef attribute')}</label>
-                            <select
-                              value={selectedAttribute.namedType?.entityRef?.attribute ?? selectedAttribute.entityRef?.attribute ?? ''}
-                              onChange={(e) => updateAttribute(selectedAttributeIndex, {
-                                namedType: {
-                                  ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
-                                  entityRef: {
-                                    ...(selectedAttribute.namedType?.entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
-                                    attribute: e.target.value
-                                  }
-                                }
-                              })}
-                            >
-                              <option value="">—</option>
-                              {getAvailableAttributes(
-                                selectedAttribute.namedType?.entityRef?.entity ?? selectedAttribute.entityRef?.entity ?? '',
-                                selectedAttribute.namedType?.entityRef?.namespaceAlias ?? selectedAttribute.entityRef?.namespaceAlias
-                              ).map(attr => (
-                                <option key={attr} value={attr}>{attr}</option>
-                              ))}
-                            </select>
                           </>
                         )}
 
@@ -2251,6 +2214,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                 affectedEntities={selectedFunction.behavior?.affectedEntities ?? []}
                                 modelAliases={getNamespaceAliases()}
                                 getEntitiesForAlias={getAvailableEntities}
+                                getAttributesForEntity={getAvailableAttributes}
                                 onChange={(affectedEntities) => updateFunctionBehavior(selectedFunctionIndex, { affectedEntities })}
                               />
                             </div>

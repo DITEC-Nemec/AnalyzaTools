@@ -226,8 +226,7 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/attribute"
-          },
-          "minItems": 1
+          }         
         },
         "functions": {
           "type": "array",
@@ -664,25 +663,7 @@
         }
       ]
     },
-    "effect": {
-      "type": "object",
-      "required": [
-        "type"
-      ],
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": [
-            "reads",
-            "writes"
-          ]
-        },
-        "entityRef": {
-          "$ref": "#/$defs/referenceEntity",
-          "description": "Atribút entity"
-        }
-      }
-    },
+   
     "attribute": {
       "type": "object",
       "required": [
@@ -855,6 +836,28 @@
         }
       }
     },
+     "referenceAttribute": {
+      "type": "object",
+      "required": [
+        "namespaceAlias"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "namespaceAlias": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Alias namespace zo namespaceRef. Pre aktuálny súbor použi hodnotu local."
+        },
+        "entity": {
+          "type": "string",
+          "description": " referencovana entita"
+        },
+        "attribute": {
+          "type": "string",
+          "description": "atribút pre  referencovanu entitu"
+        }
+      }
+    },
     "referenceEntity": {
       "type": "object",
       "required": [
@@ -870,11 +873,8 @@
         "entity": {
           "type": "string",
           "description": " referencovana entita"
-        },
-        "attribute": {
-          "type": "string",
-          "description": "atribút pre  referencovanu entitu"
         }
+    
       }
     },
     "affectedEntities": {
@@ -909,8 +909,8 @@
         "impact"
       ],
       "properties": {
-        "entityRef": {
-          "$ref": "#/$defs/referenceEntity",
+        "attributeRef": {
+          "$ref": "#/$defs/referenceAttribute",
           "description": "Referencovana entita a jej atribút - použi ak ide o zmenu v entite domény"
         },
         "variableRef": {
@@ -934,7 +934,7 @@
       "anyOf": [
         {
           "required": [
-            "entityRef",
+            "attributeRef",
             "impact"
           ]
         },

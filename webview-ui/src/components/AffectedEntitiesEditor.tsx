@@ -14,6 +14,7 @@ interface Props {
   modelAliases?: string[];
   sqdAliases?: string[];
   getEntitiesForAlias?: (alias: string) => string[];
+  getAttributesForEntity?: (entityName: string, alias?: string) => string[];
   onChange: (updated: AffectedItem[]) => void;
 }
 
@@ -32,7 +33,7 @@ type DraftItem = DraftImpact | DraftOutput;
 const defaultDraftImpact = (): DraftImpact => ({
   _mode: 'entity',
   impact: 'read',
-  entityRef: { namespaceAlias: '', entity: '', attribute: '' }
+  attributeRef: { namespaceAlias: '', entity: '', attribute: '' }
 });
 
 const defaultDraftOutput = (): DraftOutput => ({
@@ -64,7 +65,7 @@ const normalizeDraft = (draft: DraftItem): AffectedItem => {
     };
   }
   return {
-    entityRef: draft.entityRef,
+    attributeRef: draft.attributeRef,
     impact: draft.impact,
     note: draft.note
   };
@@ -77,9 +78,9 @@ const summaryItem = (item: AffectedItem): string => {
   if (item.variableRef) {
     return `$${item.variableRef} | ${item.impact}${item.note ? ' | ' + item.note : ''}`;
   }
-  const entity = item.entityRef?.entity ?? item.entity ?? '-';
-  const attr = item.entityRef?.attribute ? `.${item.entityRef.attribute}` : '';
-  const ns = item.entityRef?.namespaceAlias ? ` @${item.entityRef.namespaceAlias}` : '';
+  const entity = item.attributeRef?.entity ?? item.entity ?? '-';
+  const attr = item.attributeRef?.attribute ? `.${item.attributeRef.attribute}` : '';
+  const ns = item.attributeRef?.namespaceAlias ? ` @${item.attributeRef.namespaceAlias}` : '';
   return `${entity}${attr}${ns} | ${item.impact}${item.note ? ' | ' + item.note : ''}`;
 };
 
@@ -88,6 +89,7 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
   modelAliases,
   sqdAliases,
   getEntitiesForAlias,
+  getAttributesForEntity,
   onChange
 }) => {
   const safeAffectedEntities = Array.isArray(affectedEntities) ? affectedEntities : [];
@@ -102,7 +104,7 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
         return;
       }
     } else if (draft._mode === 'entity') {
-      if (!draft.entityRef?.entity || !draft.entityRef?.namespaceAlias) {
+      if (!draft.attributeRef?.entity || !draft.attributeRef?.namespaceAlias) {
         alert(L('validation.entityRequired', 'Entita a namespace alias sú povinné'));
         return;
       }
@@ -161,7 +163,7 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
                 setDraft(type === 'output' ? defaultDraftOutput() : defaultDraftImpact());
               }}
             >
-              <option value="impact">Vplyv na entitu/premennú</option>
+              <option value="impact">Vplyv na entitu.atribút/premennú</option>
               <option value="output">Výstupná premenná</option>
             </select>
 
@@ -200,7 +202,7 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
                     if (mode === 'entityRef') {
                       setDraft(defaultDraftImpact());
                     } else {
-                      setDraft({ ...defaultDraftImpact(), _mode: 'variable', entityRef: undefined, variableRef: '' });
+                      setDraft({ ...defaultDraftImpact(), _mode: 'variable', attributeRef: undefined, variableRef: '' });
                     }
                   }}
                 >
@@ -214,13 +216,15 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
                     <label className="field-label">{L('fields.namespaceAlias', 'Namespace alias')}</label>
                     <select
                       className="field-input"
-                      value={draft.entityRef?.namespaceAlias ?? ''}
+                      value={draft.attributeRef?.namespaceAlias ?? ''}
                       onChange={(e) =>
                         setDraft((prev) => ({
                           ...(prev as DraftImpact),
-                          entityRef: {
-                            ...((prev as DraftImpact).entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
-                            namespaceAlias: e.target.value
+                          attributeRef: {
+                            ...((prev as DraftImpact).attributeRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                            namespaceAlias: e.target.value,
+                            entity: '',
+                            attribute: ''
                           }
                         }))
                       }
@@ -236,21 +240,22 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
                     <label className="field-label">{L('fields.entity', 'Entita')}</label>
                     <select
                       className="field-input"
-                      value={draft.entityRef?.entity ?? ''}
+                      value={draft.attributeRef?.entity ?? ''}
                       onChange={(e) =>
                         setDraft((prev) => ({
                           ...(prev as DraftImpact),
-                          entityRef: {
-                            ...((prev as DraftImpact).entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
-                            entity: e.target.value
+                          attributeRef: {
+                            ...((prev as DraftImpact).attributeRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                            entity: e.target.value,
+                            attribute: ''
                           }
                         }))
                       }
-                      disabled={!draft.entityRef?.namespaceAlias}
+                      disabled={!draft.attributeRef?.namespaceAlias}
                     >
                       <option value="">{L('select.choose', '-- Zvolte --')}</option>
-                      {draft.entityRef?.namespaceAlias &&
-                        (getEntitiesForAlias?.(draft.entityRef.namespaceAlias) ?? []).map((entity) => (
+                      {draft.attributeRef?.namespaceAlias &&
+                        (getEntitiesForAlias?.(draft.attributeRef.namespaceAlias) ?? []).map((entity) => (
                           <option key={entity} value={entity}>
                             {entity}
                           </option>
@@ -258,21 +263,28 @@ export const AffectedEntitiesEditor: React.FC<Props> = ({
                     </select>
 
                     <label className="field-label">{L('fields.attribute', 'Atribút (voliteľne)')}</label>
-                    <input
+                    <select
                       className="field-input"
-                      type="text"
-                      value={draft.entityRef?.attribute ?? ''}
+                      value={draft.attributeRef?.attribute ?? ''}
                       onChange={(e) =>
                         setDraft((prev) => ({
                           ...(prev as DraftImpact),
-                          entityRef: {
-                            ...((prev as DraftImpact).entityRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
+                          attributeRef: {
+                            ...((prev as DraftImpact).attributeRef ?? { namespaceAlias: '', entity: '', attribute: '' }),
                             attribute: e.target.value
                           }
                         }))
                       }
-                      placeholder={L('placeholders.attributeName', 'napr. id, status, dátum')}
-                    />
+                      disabled={!draft.attributeRef?.namespaceAlias || !draft.attributeRef?.entity}
+                    >
+                      <option value="">{L('select.choose', '-- Zvolte --')}</option>
+                      {draft.attributeRef?.entity &&
+                        (getAttributesForEntity?.(draft.attributeRef.entity, draft.attributeRef.namespaceAlias) ?? []).map((attribute) => (
+                          <option key={attribute} value={attribute}>
+                            {attribute}
+                          </option>
+                        ))}
+                    </select>
                   </>
                 )}
 

@@ -6,6 +6,7 @@ import type {
   ActorRef,
   EntityImpact,
   ParameterMap,
+  ReferenceAttribute,
   ReferenceEntity,
   ReferenceEntityFunction,
   ReferenceEvent,
@@ -23,6 +24,7 @@ interface Props {
   modelAliases?: string[];
   sqdAliases?: string[];
   getEntitiesForAlias?: (alias: string) => string[];
+  getAttributesForEntity?: (entityName: string, alias?: string) => string[];
   getFunctionsForEntity?: (alias: string, entity: string) => string[];
   getEventsForAlias?: (alias: string) => string[];
   getActorsForAlias?: (alias?: string) => string[];
@@ -40,7 +42,7 @@ const TYPE_LABELS: Record<string, string> = {
   block:     label('algorithm.stepTypeLabels.block', 'Blok'),
 };
 
-const CONDITION_KINDS: Array<NonNullable<StepCondition['kind']>> = ['entityRef', 'variable', 'operationRef', 'waitEvent', 'simple'];
+const CONDITION_KINDS: Array<NonNullable<StepCondition['kind']>> = ['attributeRef', 'variable', 'operationRef', 'waitEvent', 'simple'];
 const CONDITION_CHECKS: StepCondition['check'][] = [
   'exists',
   'is null',
@@ -136,6 +138,7 @@ export const StepCard: React.FC<Props> = ({
   modelAliases = [],
   sqdAliases = [],
   getEntitiesForAlias = () => [],
+  getAttributesForEntity = () => [],
   getFunctionsForEntity = () => [],
   getEventsForAlias = () => [],
   getActorsForAlias = (_alias?: string) => [],
@@ -390,6 +393,7 @@ export const StepCard: React.FC<Props> = ({
                 modelAliases={modelAliases}
                 sqdAliases={sqdAliases}
                 getEntitiesForAlias={getEntitiesForAlias}
+                getAttributesForEntity={getAttributesForEntity}
                 onChange={affectedEntities => updateBehavior({ affectedEntities })}
               />
 
@@ -447,38 +451,58 @@ export const StepCard: React.FC<Props> = ({
           <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
             <h4>{L('dialogs.condition', 'Condition detail')}</h4>
 
-            {condition.kind === 'entityRef' && (
+            {condition.kind === 'attributeRef' && (
               <>
                 <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
-                <input
+                <select
                   className="field-input"
-                  value={condition.entityRef?.namespaceAlias ?? ''}
+                  value={condition.attributeRef?.namespaceAlias ?? ''}
                   onChange={(e) => onChange({
                     ...step,
                     condition: {
                       ...condition,
-                      entityRef: { ...condition.entityRef, namespaceAlias: e.target.value }
+                      attributeRef: { ...condition.attributeRef, namespaceAlias: e.target.value, entity: '', attribute: '' }
                     }
                   })}
-                />
+                >
+                  <option value="">—</option>
+                  {modelAliases.map(alias => (
+                    <option key={alias} value={alias}>{alias}</option>
+                  ))}
+                </select>
                 <label className="field-label">{L('dialogs.entity', 'Entity')}</label>
-                <input
+                <select
                   className="field-input"
-                  value={condition.entityRef?.entity ?? ''}
+                  value={condition.attributeRef?.entity ?? ''}
                   onChange={(e) => onChange({
                     ...step,
-                    condition: { ...condition, entityRef: { ...condition.entityRef, entity: e.target.value } }
+                    condition: { ...condition, attributeRef: { ...condition.attributeRef, entity: e.target.value, attribute: '' } }
                   })}
-                />
+                  disabled={!condition.attributeRef?.namespaceAlias}
+                >
+                  <option value="">—</option>
+                  {getEntitiesForAlias(condition.attributeRef?.namespaceAlias ?? '').map(entity => (
+                    <option key={entity} value={entity}>{entity}</option>
+                  ))}
+                </select>
                 <label className="field-label">{L('dialogs.attribute', 'Attribute')}</label>
-                <input
+                <select
                   className="field-input"
-                  value={condition.entityRef?.attribute ?? ''}
+                  value={condition.attributeRef?.attribute ?? ''}
                   onChange={(e) => onChange({
                     ...step,
-                    condition: { ...condition, entityRef: { ...condition.entityRef, attribute: e.target.value } }
+                    condition: { ...condition, attributeRef: { ...condition.attributeRef, attribute: e.target.value } }
                   })}
-                />
+                  disabled={!condition.attributeRef?.namespaceAlias || !condition.attributeRef?.entity}
+                >
+                  <option value="">—</option>
+                  {getAttributesForEntity(
+                    condition.attributeRef?.entity ?? '',
+                    condition.attributeRef?.namespaceAlias
+                  ).map(attribute => (
+                    <option key={attribute} value={attribute}>{attribute}</option>
+                  ))}
+                </select>
               </>
             )}
 
@@ -623,7 +647,7 @@ export const StepCard: React.FC<Props> = ({
                             operationRef: {
                               ...(condition.operationRef ?? { kind: 'entityFunction' }),
                               kind: 'entityFunction',
-                              entityFunctionRef: { ...currentRef, mapParameters, mapInput: undefined, mapOutput: undefined }
+                              entityFunctionRef: { ...currentRef, mapParameters }
                             }
                           }
                         });
@@ -886,9 +910,7 @@ export const StepCard: React.FC<Props> = ({
                     kind: 'entityFunction',
                     entityFunctionRef: {
                       ...(operation.entityFunctionRef ?? {}),
-                      mapParameters,
-                      mapInput: undefined,
-                      mapOutput: undefined
+                      mapParameters
                     }
                   })}
                 />

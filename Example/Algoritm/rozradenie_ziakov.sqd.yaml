@@ -8,11 +8,17 @@ steps:
   - id: '1'
     type: step
     text: ''
+    behavior:
+      description: ''
+      preconditions: []
+      postconditions: []
+      affectedEntities: []
+      actors: []
   - id: '2'
     type: decision
     text: ''
     condition:
-      kind: simple
+      kind: attributeRef
       description: ''
       check: exists
     branches:
@@ -28,3 +34,7 @@ steps:
                 operation: ''
       - when: false
         then: []
+namespaceRef:
+  - alias: Externe
+    filePath: Catalogs/Externe.model.yaml
+    sourceType: model

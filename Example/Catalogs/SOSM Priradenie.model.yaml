@@ -2,7 +2,6 @@ domain:
   name: SOSM Priradenie
 entities:
   - name: SOSM Priradenie
-    label: ''
     attributes:
       - namedType:
           name: Preferencia študenta
@@ -34,20 +33,16 @@ entities:
           - direction: in
             namedType:
               name: pokus
-              type: definition
+              type: entityRef
               nullable: false
               readOnly: false
               multiplicity: ''
-              definition:
-                restriction:
-                  base: string
         behavior:
           description: ''
           preconditions: []
           postconditions: []
           affectedEntities: []
           actors: []
-        effects: []
     stateModel: []
     description: priradenie studenta k škole
     type: business_concept
@@ -67,7 +62,6 @@ relationships:
       entityRef:
         namespaceAlias: Externe
         entity: ŠaŠZ z prihlášky
-        attribute: ''
     end_role:
       entity: SOSM Priradenie
       nazov: ''
@@ -76,7 +70,6 @@ relationships:
       entityRef:
         namespaceAlias: local
         entity: SOSM Priradenie
-        attribute: ''
     type: references
     description: ''
   - start_role:
@@ -87,7 +80,6 @@ relationships:
       entityRef:
         namespaceAlias: Externe
         entity: Dôvod prijatia alebo neprijatia
-        attribute: ''
     end_role:
       entity: SOSM Priradenie
       nazov: ''
@@ -96,6 +88,5 @@ relationships:
       entityRef:
         namespaceAlias: local
         entity: SOSM Priradenie
-        attribute: ''
     type: references
     description: ''

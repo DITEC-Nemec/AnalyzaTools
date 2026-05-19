@@ -84,7 +84,23 @@ export interface StepOutput {
   description?: string;
 }
 
+export interface NamespaceDataEntry {
+  alias: string;
+  sourceType: 'current' | 'model' | 'sqd';
+  entities?: Array<{ name: string; attributes?: string[]; functions?: string[] }>;
+  events?: string[];
+  simpleTypes?: string[];
+}
+
+export type NamespaceData = Record<string, NamespaceDataEntry>;
+
 export interface ReferenceEntity {
+  namespaceAlias?: string;
+  entity?: string;
+
+}
+
+export interface ReferenceAttribute {
   namespaceAlias?: string;
   entity?: string;
   attribute?: string;
@@ -95,9 +111,7 @@ export interface ReferenceEntityFunction {
   entity?: string;
   function?: string;
   mapParameters?: ParameterMap[];
-  // Spatna kompatibilita so starsim formatom mapovania
-  mapInput?: ParameterMap[];
-  mapOutput?: ParameterMap[];
+  
 }
 
 export interface ReferenceSqd {
@@ -126,18 +140,16 @@ export interface ReferenceOperation {
 }
 
 export interface StepCondition {
-  kind?: 'entityRef' | 'variable' | 'operationRef' | 'waitEvent' | 'simple';
+  kind?: 'attributeRef' | 'variable' | 'operationRef' | 'waitEvent' | 'simple';
   variable?: string;
-  entityRef?: ReferenceEntity;
+  attributeRef?: ReferenceAttribute;
   operationRef?: ReferenceOperation;
   waitEvent?: StepEvent;
   description?: string;
   check: 'exists' | 'is null' | 'is not null' | 'equals' | 'not equals' | 'greater than' | 'less than';
   value?: unknown;
 
-  // Spatna kompatibilita
-  entity?: string;
-  attribute?: string;
+ 
 }
 
 export interface Branch {
@@ -152,7 +164,7 @@ export interface StepEvent {
 }
 
 export interface EntityImpact {
-  entityRef?: ReferenceEntity;
+  attributeRef?: ReferenceAttribute;
   variableRef?: string;
   impact: 'read' | 'write' | 'affect';
   note?: string;
@@ -283,12 +295,7 @@ export interface Attribute {
   namedType?: NamedType;
   states?: CodeLabel[];
 
-  // Spatna kompatibilita so starsim formatom atributu
-  name?: string;
-  type?: string;
-  nullable?: boolean;
-  description?: string;
-  entityRef?: ReferenceEntity;
+
 }
 
 export interface RelationshipRole {
@@ -324,9 +331,8 @@ export interface DomainFunction {
 
 export interface FunctionEffect {
   type: 'reads' | 'writes';
-  entityRef?: ReferenceEntity;
-  // Spatna kompatibilita s predoslou verziou editora
-  target?: string;
+  attributeRef?: ReferenceAttribute;
+ 
 }
 
 export interface EventGlossaryEntry {

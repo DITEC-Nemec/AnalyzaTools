@@ -29,33 +29,7 @@ import { displayType, displaySimpleTypeDefinition } from '../utils/displayType';
 const PRIMITIVE_TYPES = ['string', 'integer', 'decimal', 'double', 'boolean', 'date', 'time', 'dateTime'];
 const ATTRIBUTE_TYPES = ['entityRef', 'definition', 'typeRef'];
 const RELATIONSHIP_TYPES = ['references', 'depends', 'inherits'];
-const resolveDomainLabel = (path: string, fallback: string): string => {
-  const direct = rawLabel(`domain.${path}`, '');
-  if (direct) {
-    return direct;
-  }
-
-  const [section, ...restSegments] = path.split('.');
-  if (!section || restSegments.length === 0) {
-    return fallback;
-  }
-
-  const rest = restSegments.join('.');
-  const candidatePaths = rest.startsWith('columns.')
-    ? [`domain.${section}.columns.${rest.slice('columns.'.length)}`]
-    : [`domain.${section}.view.${rest}`, `domain.${section}.form.${rest}`];
-
-  for (const candidate of candidatePaths) {
-    const resolved = rawLabel(candidate, '');
-    if (resolved) {
-      return resolved;
-    }
-  }
-
-  return fallback;
-};
-
-const L = (path: string, fallback: string) => resolveDomainLabel(path, fallback);
+const L = (path: string, fallback: string) => rawLabel(`domain.${path}`, fallback);
 const DL = L;
 
 interface EditorProps {
@@ -1186,19 +1160,19 @@ const DomainModelEditor: React.FC<EditorProps> = ({
     return (
       <div className="role-block">
         <h5>{label}</h5>
-        <label>{L('relationships.role.name', 'Nazov roly')}</label>
+        <label>{L('relationships.form.role.name', 'Nazov roly')}</label>
         <input
           value={role.nazov ?? ''}
           onChange={(e) => updateRole(selectedRelationshipIndex, side, { nazov: e.target.value })}
         />
 
-        <label>{L('relationships.role.multiplicity', 'Multiplicity')}</label>
+        <label>{L('relationships.form.role.multiplicity', 'Multiplicity')}</label>
         <input
           value={role.multiplicity ?? ''}
           onChange={(e) => updateRole(selectedRelationshipIndex, side, { multiplicity: e.target.value })}
         />
 
-        <label>{L('relationships.role.entityRefNamespaceAlias', 'EntityRef namespaceAlias')}</label>
+        <label>{L('relationships.form.role.entityRefNamespaceAlias', 'EntityRef namespaceAlias')}</label>
         <select
           value={role.entityRef?.namespaceAlias ?? ''}
           onChange={(e) =>
@@ -1213,7 +1187,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           ))}
         </select>
 
-        <label>{L('relationships.role.entityRefEntity', 'EntityRef entity')}</label>
+        <label>{L('relationships.form.role.entityRefEntity', 'EntityRef entity')}</label>
         <select
           value={role.entityRef?.entity ?? ''}
           onChange={(e) =>
@@ -1228,7 +1202,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           ))}
         </select>
 
-        <label>{L('relationships.role.entityRefAttribute', 'EntityRef attribute')}</label>
+        <label>{L('relationships.form.role.entityRefAttribute', 'EntityRef attribute')}</label>
         <select
           value={role.entityRef?.attribute ?? ''}
           onChange={(e) =>
@@ -1243,7 +1217,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           ))}
         </select>
 
-        <label>{L('relationships.role.description', 'Popis roly')}</label>
+        <label>{L('relationships.form.role.description', 'Popis roly')}</label>
         <input
           value={role.description ?? ''}
           onChange={(e) => updateRole(selectedRelationshipIndex, side, { description: e.target.value })}
@@ -1303,8 +1277,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         {topTab === 'entities' && (
           <section className="panel">
             <div className="panel-head">
-              <h3>{DL('entities.title', 'Entity')}</h3>
-              <button onClick={addEntity}>{DL('entities.add', '+ Entita')}</button>
+              <h3>{DL('entities.view.title', 'Entity')}</h3>
+              <button onClick={addEntity}>{DL('entities.view.add', '+ Entita')}</button>
             </div>
 
             <table className="dm-table">
@@ -1338,18 +1312,18 @@ const DomainModelEditor: React.FC<EditorProps> = ({
               </tbody>
             </table>
 
-            {!selectedEntity && <p className="muted">{DL('entities.empty', 'Vyber entitu na editaciu.')}</p>}
+            {!selectedEntity && <p className="muted">{DL('entities.view.empty', 'Vyber entitu na editaciu.')}</p>}
 
             {selectedEntity && selectedEntityIndex !== null && (
               <div className="item-card">
-                <h4>{DL('entities.detail', 'Detail entity')}</h4>
-                <label>{DL('entities.name', 'Nazov entity')}</label>
+                <h4>{DL('entities.view.detail', 'Detail entity')}</h4>
+                <label>{DL('entities.form.name', 'Nazov entity')}</label>
                 <input value={selectedEntity.name} onChange={(e) => updateEntity(selectedEntityIndex, { name: e.target.value })} />
 
-                <label>{DL('entities.description', 'Popis')}</label>
+                <label>{DL('entities.form.description', 'Popis')}</label>
                 <textarea rows={3} value={selectedEntity.description ?? ''} onChange={(e) => updateEntity(selectedEntityIndex, { description: e.target.value })} />
 
-                <label>{DL('entities.status', 'Status')}</label>
+                <label>{DL('entities.form.status', 'Status')}</label>
                 <select
                   value={selectedEntity.status ?? 'active'}
                   onChange={(e) => updateEntity(selectedEntityIndex, { status: e.target.value as Entity['status'] })}
@@ -1360,21 +1334,21 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
                 <div className="tab-row sub">
                   <button className={entityTab === 'attributes' ? 'tab active' : 'tab'} onClick={() => setEntityTab('attributes')}>
-                    {DL('entities.subTabs.attributes', 'Atributy')}
+                    {DL('entities.view.subTabs.attributes', 'Atributy')}
                   </button>
                   <button className={entityTab === 'functions' ? 'tab active' : 'tab'} onClick={() => setEntityTab('functions')}>
-                    {DL('entities.subTabs.functions', 'Funkcie')}
+                    {DL('entities.view.subTabs.functions', 'Funkcie')}
                   </button>
                   <button className={entityTab === 'stateModel' ? 'tab active' : 'tab'} onClick={() => setEntityTab('stateModel')}>
-                    {DL('entities.subTabs.stateModel', 'stateModel')}
+                    {DL('entities.view.subTabs.stateModel', 'stateModel')}
                   </button>
                 </div>
 
                 {entityTab === 'attributes' && (
                   <section className="panel nested">
                     <div className="panel-head">
-                      <h4>{L('attributes.title', 'Atributy')}</h4>
-                      <button onClick={addAttribute}>{L('attributes.add', '+ Atribut')}</button>
+                      <h4>{L('attributes.view.title', 'Atributy')}</h4>
+                      <button onClick={addAttribute}>{L('attributes.view.add', '+ Atribut')}</button>
                     </div>
 
                     <table className="dm-table">
@@ -1408,8 +1382,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
                     {selectedAttribute && selectedAttributeIndex !== null && (
                       <div className="item-card compact">
-                        <h4>{L('attributes.detail', 'Detail atributu')}</h4>
-                        <label>{L('attributes.name', 'Nazov')}</label>
+                        <h4>{L('attributes.view.detail', 'Detail atributu')}</h4>
+                        <label>{L('attributes.form.name', 'Nazov')}</label>
                         <input
                           value={selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''}
                           onChange={(e) => updateAttribute(selectedAttributeIndex, {
@@ -1420,7 +1394,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                           })}
                         />
 
-                        <label>{L('attributes.type', 'Typ')}</label>
+                        <label>{L('attributes.form.type', 'Typ')}</label>
                         <select
                           value={selectedAttribute.namedType?.type ?? selectedAttribute.type ?? ''}
                           onChange={(e) => updateAttribute(selectedAttributeIndex, {
@@ -1438,7 +1412,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
                         {(selectedAttribute.namedType?.type ?? selectedAttribute.type ?? '') === 'entityRef' && (
                           <>
-                            <label>{L('attributes.entityRefNamespaceAlias', 'EntityRef namespaceAlias')}</label>
+                            <label>{L('attributes.form.entityRefNamespaceAlias', 'EntityRef namespaceAlias')}</label>
                             <select
                               value={selectedAttribute.namedType?.entityRef?.namespaceAlias ?? selectedAttribute.entityRef?.namespaceAlias ?? ''}
                               onChange={(e) => updateAttribute(selectedAttributeIndex, {
@@ -1457,7 +1431,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                               ))}
                             </select>
 
-                            <label>{L('attributes.entityRefEntity', 'EntityRef entity')}</label>
+                            <label>{L('attributes.form.entityRefEntity', 'EntityRef entity')}</label>
                             <select
                               value={selectedAttribute.namedType?.entityRef?.entity ?? selectedAttribute.entityRef?.entity ?? ''}
                               onChange={(e) => updateAttribute(selectedAttributeIndex, {
@@ -1476,7 +1450,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                               ))}
                             </select>
 
-                            <label>{L('attributes.entityRefAttribute', 'EntityRef attribute')}</label>
+                            <label>{L('attributes.form.entityRefAttribute', 'EntityRef attribute')}</label>
                             <select
                               value={selectedAttribute.namedType?.entityRef?.attribute ?? selectedAttribute.entityRef?.attribute ?? ''}
                               onChange={(e) => updateAttribute(selectedAttributeIndex, {
@@ -2128,19 +2102,19 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                               }
                             })}
                           />
-                          {L('attributes.nullable', 'Nullable')}
+                          {L('attributes.form.nullable', 'Nullable')}
                         </label>
 
                         <div className="panel-head compact">
                           <strong>States</strong>
-                          <button onClick={addAttributeState}>{L('attributes.statesAdd', '+ State')}</button>
+                          <button onClick={addAttributeState}>{L('attributes.form.statesAdd', '+ State')}</button>
                         </div>
 
                         <table className="dm-table">
                           <thead>
                             <tr>
-                              <th>{L('attributes.stateCode', 'Code')}</th>
-                              <th>{L('attributes.stateLabel', 'Label')}</th>
+                              <th>{L('attributes.form.stateCode', 'Code')}</th>
+                              <th>{L('attributes.form.stateLabel', 'Label')}</th>
                               <th>{L('attributes.columns.actions', 'Akcie')}</th>
                             </tr>
                           </thead>
@@ -2163,10 +2137,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
                         {selectedAttributeState && selectedAttributeStateIndex !== null && (
                           <div className="item-card compact">
-                            <h4>{L('attributes.stateDetail', 'Detail state')}</h4>
-                            <label>{L('attributes.stateCode', 'Code')}</label>
+                            <h4>{L('attributes.form.stateDetail', 'Detail state')}</h4>
+                            <label>{L('attributes.form.stateCode', 'Code')}</label>
                             <input value={selectedAttributeState.code} onChange={(e) => updateAttributeState(selectedAttributeStateIndex, { code: e.target.value })} />
-                            <label>{L('attributes.stateLabel', 'Label')}</label>
+                            <label>{L('attributes.form.stateLabel', 'Label')}</label>
                             <input value={selectedAttributeState.label ?? ''} onChange={(e) => updateAttributeState(selectedAttributeStateIndex, { label: e.target.value })} />
                           </div>
                         )}
@@ -2178,8 +2152,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         {entityTab === 'functions' && (
                   <section className="panel nested">
                     <div className="panel-head">
-                      <h4>{L('functions.title', 'Funkcie')}</h4>
-                      <button onClick={addFunction}>{L('functions.add', '+ Funkcia')}</button>
+                      <h4>{L('functions.view.title', 'Funkcie')}</h4>
+                      <button onClick={addFunction}>{L('functions.view.add', '+ Funkcia')}</button>
                     </div>
 
                     <table className="dm-table">
@@ -2211,29 +2185,29 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
                     {selectedFunction && selectedFunctionIndex !== null && (
                       <div className="item-card compact">
-                        <h4>{L('functions.detail', 'Detail funkcie')}</h4>
+                        <h4>{L('functions.view.detail', 'Detail funkcie')}</h4>
                         
                         <div className="tab-row sub">
                           <button className={functionTab === 'detail' ? 'tab active' : 'tab'} onClick={() => setFunctionTab('detail')}>
-                            {L('functions.tabs.detail', 'Detail')}
+                            {L('functions.view.tabs.detail', 'Detail')}
                           </button>
                           <button className={functionTab === 'parameters' ? 'tab active' : 'tab'} onClick={() => setFunctionTab('parameters')}>
-                            {L('functions.tabs.parameters', 'Parametre')}
+                            {L('functions.view.tabs.parameters', 'Parametre')}
                           </button>
                         </div>
 
                         {functionTab === 'detail' && (
                           <div style={{ marginTop: 12 }}>
-                            <label>{L('functions.name', 'Nazov')}</label>
+                            <label>{L('functions.form.name', 'Nazov')}</label>
                             <input value={selectedFunction.name} onChange={(e) => updateFunction(selectedFunctionIndex, { name: e.target.value })} />
 
-                            <label>{L('functions.description', 'Description')}</label>
+                            <label>{L('functions.form.description', 'Description')}</label>
                             <textarea rows={3} value={selectedFunction.behavior?.description ?? ''} onChange={(e) => updateFunctionBehavior(selectedFunctionIndex, { description: e.target.value })} />
 
-                            <label>{L('functions.preconditions', 'Preconditions')}</label>
+                            <label>{L('functions.form.preconditions', 'Preconditions')}</label>
                             <textarea rows={4} value={(selectedFunction.behavior?.preconditions ?? []).join('\n')} onChange={(e) => updateFunctionBehavior(selectedFunctionIndex, { preconditions: e.target.value.split('\n').filter(s => s.trim().length > 0) })} />
 
-                            <label>{L('functions.postconditions', 'Postconditions')}</label>
+                            <label>{L('functions.form.postconditions', 'Postconditions')}</label>
                             <textarea rows={4} value={(selectedFunction.behavior?.postconditions ?? []).join('\n')} onChange={(e) => updateFunctionBehavior(selectedFunctionIndex, { postconditions: e.target.value.split('\n').filter(s => s.trim().length > 0) })} />
 
                             <div style={{ marginTop: 16 }}>
@@ -2280,8 +2254,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                 {entityTab === 'stateModel' && (
                   <section className="panel nested">
                     <div className="panel-head">
-                      <h4>{L('stateModel.title', 'stateModel')}</h4>
-                      <button onClick={addEntityState}>{L('stateModel.add', '+ State')}</button>
+                      <h4>{L('stateModel.view.title', 'stateModel')}</h4>
+                      <button onClick={addEntityState}>{L('stateModel.view.add', '+ State')}</button>
                     </div>
 
                     <table className="dm-table">
@@ -2313,19 +2287,19 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
                     {selectedStateModel && selectedStateModelIndex !== null && (
                       <div className="item-card compact">
-                        <h4>{L('stateModel.detail', 'Detail state model')}</h4>
-                        <label>{L('stateModel.name', 'Name')}</label>
+                        <h4>{L('stateModel.view.detail', 'Detail state model')}</h4>
+                        <label>{L('stateModel.form.name', 'Name')}</label>
                         <input value={selectedStateModel.name} onChange={(e) => updateEntityState(selectedStateModelIndex, { name: e.target.value })} />
 
-                        <label>{L('stateModel.label', 'Label')}</label>
+                        <label>{L('stateModel.form.label', 'Label')}</label>
                         <input value={selectedStateModel.label ?? ''} onChange={(e) => updateEntityState(selectedStateModelIndex, { label: e.target.value })} />
 
-                        <label>{L('stateModel.description', 'Popis')}</label>
+                        <label>{L('stateModel.form.description', 'Popis')}</label>
                         <textarea rows={3} value={selectedStateModel.description ?? ''} onChange={(e) => updateEntityState(selectedStateModelIndex, { description: e.target.value })} />
 
                         <label className="check-row">
                           <input type="checkbox" checked={selectedStateModel.isFinal ?? false} onChange={(e) => updateEntityState(selectedStateModelIndex, { isFinal: e.target.checked })} />
-                          {L('stateModel.isFinal', 'isFinal')}
+                          {L('stateModel.form.isFinal', 'isFinal')}
                         </label>
                       </div>
                     )}
@@ -2794,8 +2768,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         {topTab === 'relationships' && (
           <section className="panel">
             <div className="panel-head">
-              <h3>{L('relationships.title', 'Relationships')}</h3>
-              <button onClick={addRelationship}>{L('relationships.add', '+ Relationship')}</button>
+              <h3>{L('relationships.view.title', 'Relationships')}</h3>
+              <button onClick={addRelationship}>{L('relationships.view.add', '+ Relationship')}</button>
             </div>
 
             <table className="dm-table">
@@ -2836,9 +2810,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
             {selectedRelationship && selectedRelationshipIndex !== null && (
               <div className="item-card">
-                <h4>{L('relationships.detail', 'Detail relationship')}</h4>
+                <h4>{L('relationships.view.detail', 'Detail relationship')}</h4>
 
-                <label>{L('relationships.type', 'Typ')}</label>
+                <label>{L('relationships.form.type', 'Typ')}</label>
                 <select
                   value={selectedRelationship.type ?? 'references'}
                   onChange={(e) => updateRelationship(selectedRelationshipIndex, { type: e.target.value as Relationship['type'] })}
@@ -2848,12 +2822,12 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                   ))}
                 </select>
 
-                <label>{L('relationships.description', 'Popis')}</label>
+                <label>{L('relationships.form.description', 'Popis')}</label>
                 <textarea rows={2} value={selectedRelationship.description ?? ''} onChange={(e) => updateRelationship(selectedRelationshipIndex, { description: e.target.value })} />
 
                 <div className="role-row">
-                  {renderRoleEditor(L('relationships.role.start', 'Start rola'), 'start_role')}
-                  {renderRoleEditor(L('relationships.role.end', 'End rola'), 'end_role')}
+                  {renderRoleEditor(L('relationships.form.role.start', 'Start rola'), 'start_role')}
+                  {renderRoleEditor(L('relationships.form.role.end', 'End rola'), 'end_role')}
                 </div>
               </div>
             )}
@@ -2863,8 +2837,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         {topTab === 'glossary' && (
           <section className="panel">
             <div className="panel-head">
-              <h3>{L('glossary.title', 'Glossary')}</h3>
-              <button onClick={addGlossary}>{L('glossary.add', '+ Pojem')}</button>
+              <h3>{L('glossary.view.title', 'Glossary')}</h3>
+              <button onClick={addGlossary}>{L('glossary.view.add', '+ Pojem')}</button>
             </div>
 
             <table className="dm-table">
@@ -2896,14 +2870,14 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
             {selectedGlossary && selectedGlossaryIndex !== null && (
               <div className="item-card">
-                <h4>{L('glossary.detail', 'Detail pojmu')}</h4>
-                <label>{L('glossary.term', 'Term')}</label>
+                <h4>{L('glossary.view.detail', 'Detail pojmu')}</h4>
+                <label>{L('glossary.form.term', 'Term')}</label>
                 <input value={selectedGlossary.term} onChange={(e) => updateGlossary(selectedGlossaryIndex, { term: e.target.value })} />
 
-                <label>{L('glossary.meaning', 'Meaning')}</label>
+                <label>{L('glossary.form.meaning', 'Meaning')}</label>
                 <textarea rows={4} value={selectedGlossary.meaning} onChange={(e) => updateGlossary(selectedGlossaryIndex, { meaning: e.target.value })} />
 
-                <label>{L('glossary.relatedEntity', 'Related entity')}</label>
+                <label>{L('glossary.form.relatedEntity', 'Related entity')}</label>
                 <input value={selectedGlossary.relatedEntity ?? ''} onChange={(e) => updateGlossary(selectedGlossaryIndex, { relatedEntity: e.target.value })} />
               </div>
             )}
@@ -2978,8 +2952,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         {topTab === 'actors' && (
           <section className="panel">
             <div className="panel-head">
-              <h3>{L('actors.title', 'Actors')}</h3>
-              <button onClick={addActor}>{L('actors.add', '+ Actor')}</button>
+              <h3>{L('actors.view.title', 'Actors')}</h3>
+              <button onClick={addActor}>{L('actors.view.add', '+ Actor')}</button>
             </div>
 
             <table className="dm-table">
@@ -3043,10 +3017,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         {topTab === 'namespaceRef' && (
           <section className="panel">
             <div className="panel-head">
-              <h3>{L('namespaceRef.title', 'namespaceRef')}</h3>
+              <h3>{L('namespaceRef.view.title', 'namespaceRef')}</h3>
               <div className="inline-actions">
                 <button onClick={() => vscodeApi.postMessage({ type: 'pickFile' })}>{L('namespaceRef.pickFile', 'Vyber súbor')}</button>
-                <button onClick={addNamespace}>{L('namespaceRef.add', '+ Namespace')}</button>
+                <button onClick={addNamespace}>{L('namespaceRef.view.add', '+ Namespace')}</button>
               </div>
             </div>
 
@@ -3079,8 +3053,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
             {selectedNamespace && selectedNamespaceIndex !== null && selectedNamespace.sourceType !== 'current' && (
               <div className="item-card">
-                <h4>{L('namespaceRef.detail', 'Detail namespace')}</h4>
-                <label>{L('namespaceRef.alias', 'Alias')}</label>
+                <h4>{L('namespaceRef.view.detail', 'Detail namespace')}</h4>
+                <label>{L('namespaceRef.form.alias', 'Alias')}</label>
                 <input value={selectedNamespace.alias} onChange={(e) => updateNamespace(selectedNamespaceIndex, { alias: e.target.value })} />
 
                 <label>{L('namespaceRef.sourceType', 'Source type')}</label>
@@ -3093,7 +3067,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                   <option value="current">current</option>
                 </select>
 
-                <label>{L('namespaceRef.filePath', 'File path')}</label>
+                <label>{L('namespaceRef.form.filePath', 'File path')}</label>
                 <input value={selectedNamespace.filePath} onChange={(e) => updateNamespace(selectedNamespaceIndex, { filePath: e.target.value })} />
               </div>
             )}

@@ -17,29 +17,10 @@ export const ActorRefsEditor: React.FC<Props> = ({
   onChange,
   prefix
 }) => {
-  const L = (path: string, fallback: string) => {
-    const direct = label(`${prefix}.${path}`, '');
-    if (direct) {
-      return direct;
-    }
-
-    if (!path.startsWith('actors.')) {
-      return fallback;
-    }
-
-    const rest = path.slice('actors.'.length);
-    const view = label(`${prefix}.actors.view.${rest}`, '');
-    if (view) {
-      return view;
-    }
-
-    const form = label(`${prefix}.actors.form.${rest}`, '');
-    if (form) {
-      return form;
-    }
-
-    return fallback;
-  };
+  const viewBase = prefix === 'domain' ? 'actors.view' : 'actors';
+  const formBase = prefix === 'domain' ? 'actors.form' : 'actors';
+  const LV = (key: string, fallback: string) => label(`${prefix}.${viewBase}.${key}`, fallback);
+  const LF = (key: string, fallback: string) => label(`${prefix}.${formBase}.${key}`, fallback);
 
   const addActorRef = () => {
     const defaultAlias = namespaceAliases.includes('local') ? 'local' : (namespaceAliases[0] ?? 'local');
@@ -60,12 +41,12 @@ export const ActorRefsEditor: React.FC<Props> = ({
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <strong>{L('actors.title', 'Actors')}</strong>
-        <button type="button" onClick={addActorRef}>{L('actors.add', '+ Actor')}</button>
+        <strong>{LV('title', 'Actors')}</strong>
+        <button type="button" onClick={addActorRef}>{LV('add', '+ Actor')}</button>
       </div>
 
       {(actorRefs ?? []).length === 0 && (
-        <p style={{ opacity: 0.75 }}>{L('actors.empty', 'No actors')}</p>
+        <p style={{ opacity: 0.75 }}>{LV('empty', 'No actors')}</p>
       )}
 
       {(actorRefs ?? []).map((item, index) => {
@@ -74,7 +55,7 @@ export const ActorRefsEditor: React.FC<Props> = ({
 
         return (
           <div key={`${item.namespaceAlias}-${item.actor}-${index}`} style={{ marginBottom: 16 }}>
-            <label>{L('actors.namespaceAlias', 'namespaceAlias')}</label>
+            <label>{LF('namespaceAlias', 'namespaceAlias')}</label>
             <select
               value={item.namespaceAlias}
               onChange={(e) => updateActorRef(index, { namespaceAlias: e.target.value, actor: '' })}
@@ -85,7 +66,7 @@ export const ActorRefsEditor: React.FC<Props> = ({
               ))}
             </select>
 
-            <label>{L('actors.actor', 'actor')}</label>
+            <label>{LF('actor', 'actor')}</label>
             {showSelect ? (
               <select
                 value={item.actor}
@@ -104,7 +85,7 @@ export const ActorRefsEditor: React.FC<Props> = ({
             )}
 
             <div style={{ marginTop: 8 }}>
-              <button type="button" onClick={() => removeActorRef(index)}>{L('common.delete', 'Delete')}</button>
+              <button type="button" onClick={() => removeActorRef(index)}>{label(`${prefix}.common.delete`, 'Delete')}</button>
             </div>
           </div>
         );

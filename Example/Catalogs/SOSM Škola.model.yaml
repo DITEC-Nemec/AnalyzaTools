@@ -2,20 +2,15 @@ domain:
   name: SOSM Škola
 entities:
   - name: SOSM Škola
-    label: ''
     attributes:
-      - name: atribut_1
-        label: ''
-        type: element
-        nullable: true
-        states: []
-        namedType:
+      - namedType:
           name: Kapacita
           nullable: true
           type: definition
           definition:
             restriction:
               base: integer
+        states: []
     functions: []
     stateModel: []
 namespaceRef:

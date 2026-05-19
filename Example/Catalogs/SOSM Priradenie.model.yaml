@@ -4,42 +4,30 @@ entities:
   - name: SOSM Priradenie
     label: ''
     attributes:
-      - name: atribut_1
-        label: ''
-        type: element
-        nullable: true
-        states: []
-        namedType:
+      - namedType:
           name: Preferencia študenta
           nullable: false
           type: definition
           definition:
             restriction:
               base: integer
-      - name: atribut_2
-        label: ''
-        type: element
-        nullable: true
         states: []
-        namedType:
+      - namedType:
           name: Preferencia školy
           nullable: false
           type: definition
           definition:
             restriction:
               base: integer
-      - name: atribut_3
-        label: ''
-        type: element
-        nullable: true
         states: []
-        namedType:
+      - namedType:
           name: Preferencia školy po automate
           nullable: true
           type: definition
           definition:
             restriction:
               base: integer
+        states: []
     functions:
       - name: funkcia_1
         parameters:
@@ -47,19 +35,12 @@ entities:
             namedType:
               name: pokus
               type: definition
-              entityRef:
-                namespaceAlias: ''
-                entity: ''
-                attribute: ''
-              typeRef:
-                namespaceAlias: local
-                simpleType: ''
-              definition:
-                restriction:
-                  base: string
               nullable: false
               readOnly: false
               multiplicity: ''
+              definition:
+                restriction:
+                  base: string
         behavior:
           description: ''
           preconditions: []

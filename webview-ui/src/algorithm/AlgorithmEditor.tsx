@@ -1,9 +1,92 @@
 import React, { useEffect, useState } from 'react';
 import * as yaml from 'js-yaml';
 import { NarrativePanel } from './NarrativePanel';
-import type { SqdAlgorithm } from '../types/sqd';
+import type { ReferenceEntity, ReferenceEvent, ReferenceOperation, SqdAlgorithm, SqdStep } from '../types/sqd';
 import { vscodeApi } from './main';
 import { label } from '../ui-labels';
+
+type AnyObject = Record<string, unknown>;
+
+const sanitizeMapRef = (ref: AnyObject): AnyObject => {
+  const { mapInput: _mi, mapOutput: _mo, ...clean } = ref;
+  return clean;
+};
+
+const sanitizeRefOperation = (op: AnyObject): AnyObject => {
+  const cleaned: AnyObject = { kind: op.kind };
+  if (op.stepRef !== undefined) cleaned.stepRef = op.stepRef;
+  if (op.entityFunctionRef) cleaned.entityFunctionRef = sanitizeMapRef(op.entityFunctionRef as AnyObject);
+  if (op.sqdRef) cleaned.sqdRef = sanitizeMapRef(op.sqdRef as AnyObject);
+  if (op.eventRef) cleaned.eventRef = sanitizeMapRef(op.eventRef as AnyObject);
+  return cleaned;
+};
+
+const sanitizeEntityRef = (ref: AnyObject): AnyObject => {
+  const cleaned: AnyObject = {};
+  if (ref.namespaceAlias !== undefined) cleaned.namespaceAlias = ref.namespaceAlias;
+  if (ref.entity !== undefined) cleaned.entity = ref.entity;
+  if (ref.attribute !== undefined) cleaned.attribute = ref.attribute;
+  return cleaned;
+};
+
+const sanitizeStep = (step: SqdStep): SqdStep => {
+  const s = step as SqdStep & AnyObject;
+
+  // migrate legacy steps -> body
+  const legacySteps = s.steps as SqdStep[] | undefined;
+  const childSteps = (s.body ?? legacySteps ?? []).map(sanitizeStep);
+
+  const result: SqdStep = { id: s.id, type: s.type, text: s.text };
+
+  if (s.legacyId) result.legacyId = s.legacyId;
+  if (s.collection !== undefined) result.collection = s.collection;
+  if (s.item !== undefined) result.item = s.item;
+
+  if (s.operation !== undefined) {
+    result.operation =
+      typeof s.operation === 'object' && s.operation !== null
+        ? (sanitizeRefOperation(s.operation as AnyObject) as ReferenceOperation)
+        : (s.operation as string);
+  }
+
+  if (s.condition) {
+    const cond = s.condition;
+    result.condition = {
+      ...cond,
+      entityRef: cond.entityRef
+        ? (sanitizeEntityRef(cond.entityRef as unknown as AnyObject) as ReferenceEntity)
+        : undefined,
+      operationRef: cond.operationRef
+        ? (sanitizeRefOperation(cond.operationRef as unknown as AnyObject) as ReferenceOperation)
+        : undefined,
+      waitEvent: cond.waitEvent
+        ? {
+            ...cond.waitEvent,
+            eventRef: cond.waitEvent.eventRef
+              ? (sanitizeMapRef(cond.waitEvent.eventRef as unknown as AnyObject) as ReferenceEvent)
+              : cond.waitEvent.eventRef,
+          }
+        : undefined,
+    };
+  }
+
+  if (s.branches) {
+    result.branches = s.branches.map(branch => ({
+      ...branch,
+      then: (branch.then ?? []).map(sanitizeStep),
+    }));
+  }
+
+  if (childSteps.length > 0) result.body = childSteps;
+  if (s.behavior) result.behavior = s.behavior;
+
+  return result;
+};
+
+const sanitizeAlgorithmForSave = (model: SqdAlgorithm): SqdAlgorithm => ({
+  ...model,
+  steps: (model.steps ?? []).map(sanitizeStep),
+});
 
 export const AlgorithmEditor: React.FC = () => {
   const L = (path: string, fallback: string) => label(`algorithm.${path}`, fallback);
@@ -63,7 +146,8 @@ export const AlgorithmEditor: React.FC = () => {
   // Pošli zmenu späť do extension hosta
   const handleModelChange = (updated: SqdAlgorithm) => {
     setModel(updated);
-    const newYaml = yaml.dump(updated, { lineWidth: 120 });
+    const sanitized = sanitizeAlgorithmForSave(updated);
+    const newYaml = yaml.dump(sanitized, { lineWidth: 120 });
     setRawYaml(newYaml);
     vscodeApi.postMessage({ type: 'edit', content: newYaml });
   };

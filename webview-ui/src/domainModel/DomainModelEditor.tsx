@@ -534,8 +534,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           postconditions: [],
           affectedEntities: [],
           actors: []
-        },
-        effects: []
+        }
       }
     ];
 
@@ -1084,7 +1083,6 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         ...(current.entities ?? []),
         {
           name: `entita_${(current.entities ?? []).length + 1}`,
-          label: '',
           attributes: [],
           functions: [],
           stateModel: []
@@ -1143,13 +1141,20 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
+    const nextName = `atribut_${(selectedEntity.attributes ?? []).length + 1}`;
     const attributes = [
       ...(selectedEntity.attributes ?? []),
       {
-        name: `atribut_${(selectedEntity.attributes ?? []).length + 1}`,
-        label: '',
-        type: 'element',
-        nullable: true,
+        namedType: {
+          name: nextName,
+          type: 'definition' as const,
+          definition: {
+            restriction: {
+              base: 'string'
+            }
+          },
+          nullable: true
+        },
         states: []
       }
     ];

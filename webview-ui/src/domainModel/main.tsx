@@ -15,6 +15,153 @@ interface AppState {
   error: string | null;
 }
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const deepPrune = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    const next = value
+      .map(item => deepPrune(item))
+      .filter(item => item !== undefined);
+    return next.length > 0 ? next : undefined;
+  }
+
+  if (isPlainObject(value)) {
+    const next: Record<string, unknown> = {};
+    Object.entries(value).forEach(([key, val]) => {
+      const pruned = deepPrune(val);
+      if (pruned !== undefined) {
+        next[key] = pruned;
+      }
+    });
+    return Object.keys(next).length > 0 ? next : undefined;
+  }
+
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value === 'string' && value.trim() === '') {
+    return undefined;
+  }
+
+  return value;
+};
+
+const sanitizeNamedType = (namedType: unknown): unknown => {
+  if (!isPlainObject(namedType)) {
+    return namedType;
+  }
+
+  const cleaned: Record<string, unknown> = {};
+  Object.entries(namedType).forEach(([key, val]) => {
+    if (key === 'entityRef' || key === 'typeRef' || key === 'definition') {
+      return;
+    }
+    const nextVal = sanitizeModelForSave(val);
+    if (nextVal !== undefined) {
+      cleaned[key] = nextVal;
+    }
+  });
+
+  const type = typeof cleaned.type === 'string' ? cleaned.type : undefined;
+  const entityRef = deepPrune(sanitizeModelForSave(namedType.entityRef));
+  const typeRef = deepPrune(sanitizeModelForSave(namedType.typeRef));
+  const definition = deepPrune(sanitizeModelForSave(namedType.definition));
+
+  if (type === 'entityRef' && entityRef) {
+    cleaned.entityRef = entityRef;
+  } else if (type === 'typeRef' && typeRef) {
+    cleaned.typeRef = typeRef;
+  } else if (type === 'definition' && definition) {
+    cleaned.definition = definition;
+  } else if (!type) {
+    if (entityRef) {
+      cleaned.entityRef = entityRef;
+    } else if (typeRef) {
+      cleaned.typeRef = typeRef;
+    } else if (definition) {
+      cleaned.definition = definition;
+    }
+  }
+
+  return cleaned;
+};
+
+const FUNCTION_ALLOWED_KEYS = new Set(['name', 'parameters', 'behavior']);
+
+const sanitizeFunction = (fn: unknown): unknown => {
+  if (!isPlainObject(fn)) return fn;
+  const cleaned: Record<string, unknown> = {};
+  Object.entries(fn).forEach(([key, val]) => {
+    if (!FUNCTION_ALLOWED_KEYS.has(key)) return;
+    const next = sanitizeModelForSave(val);
+    if (next !== undefined) cleaned[key] = next;
+  });
+  return cleaned;
+};
+
+const sanitizeAttribute = (attribute: unknown): unknown => {
+  if (!isPlainObject(attribute)) {
+    return attribute;
+  }
+
+  const namedType = sanitizeNamedType(attribute.namedType);
+  const states = sanitizeModelForSave(attribute.states);
+
+  const cleaned: Record<string, unknown> = {};
+  if (namedType !== undefined) {
+    cleaned.namedType = namedType;
+  }
+  if (states !== undefined) {
+    cleaned.states = states;
+  }
+
+  return cleaned;
+};
+
+const sanitizeModelForSave = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(item => sanitizeModelForSave(item));
+  }
+
+  if (!isPlainObject(value)) {
+    return value;
+  }
+
+  if ('attributes' in value && Array.isArray(value.attributes)) {
+    const entityLike: Record<string, unknown> = {};
+
+    Object.entries(value).forEach(([key, val]) => {
+      if (key === 'label') return; // not in entity schema
+      if (key === 'attributes') {
+        entityLike.attributes = val.map(item => sanitizeAttribute(item));
+        return;
+      }
+      if (key === 'functions' && Array.isArray(val)) {
+        entityLike.functions = val.map(fn => sanitizeFunction(fn));
+        return;
+      }
+
+      entityLike[key] = sanitizeModelForSave(val);
+    });
+
+    return entityLike;
+  }
+
+  const next: Record<string, unknown> = {};
+  Object.entries(value).forEach(([key, val]) => {
+    if (key === 'namedType') {
+      next[key] = sanitizeNamedType(val);
+      return;
+    }
+
+    next[key] = sanitizeModelForSave(val);
+  });
+
+  return next;
+};
+
 function App() {
   const [state, setState] = useState<AppState>({
     model: null,
@@ -52,7 +199,8 @@ function App() {
 
   const handleChange = (model: DomainModel) => {
     setState(prev => ({ ...prev, model }));
-    const yaml_str = yaml.dump(model);
+    const sanitized = sanitizeModelForSave(model) as DomainModel;
+    const yaml_str = yaml.dump(sanitized);
     vscodeApi.postMessage({
       type: 'edit',
       content: yaml_str

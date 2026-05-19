@@ -22,6 +22,7 @@ import type {
 import { label as L } from '../ui-labels';
 import { ParametersEditor } from '../components/ParametersEditor';
 import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
+import { displayType, displaySimpleTypeDefinition } from '../utils/displayType';
 
 const PRIMITIVE_TYPES = ['string', 'integer', 'decimal', 'double', 'boolean', 'date', 'time', 'dateTime'];
 const ATTRIBUTE_TYPES = ['entityRef', 'definition', 'typeRef'];
@@ -130,12 +131,7 @@ const normalizeFunctionParameters = (fn: DomainFunction | null | undefined): Par
     direction: 'in' as const
   }));
 
-  const legacyOutputs = normalizeVariableArray(fn.outputs as Array<Variable | string> | undefined).map((item) => ({
-    ...item,
-    direction: 'out' as const
-  }));
-
-  return [...legacyInputs, ...legacyOutputs];
+  return legacyInputs;
 };
 
 const simpleTypeRefToText = (ref: SimpleTypeRef): string => `${ref.namespaceAlias}:${ref.simpleType}`;
@@ -535,7 +531,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    updateFunction(selectedFunctionIndex, { name });
+    const effects = [...(selectedFunction.effects ?? [])];
+    effects[effectIndex] = { ...effects[effectIndex], ...patch };
+    updateFunction(selectedFunctionIndex, { effects });
   };
 
   const updateEntityState = (stateIndex: number, patch: Partial<StateEntry>) => {
@@ -1258,7 +1256,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                         {(selectedEntity.attributes ?? []).map((attr, i) => (
                           <tr key={(attr.namedType?.name ?? attr.name ?? 'attr') + i} className={selectedAttributeIndex === i ? 'selected' : ''} onClick={() => { setSelectedAttributeIndex(i); setSelectedAttributeStateIndex(null); }}>
                             <td>{attr.namedType?.name ?? attr.name ?? '-'}</td>
-                            <td>{attr.namedType?.type ?? attr.type ?? '-'}</td>
+                            <td>{displayType(attr.namedType)}</td>
                             <td>{(attr.namedType?.nullable ?? attr.nullable ?? true) ? 'true' : 'false'}</td>
                             <td>{attr.states?.length ?? 0}</td>
                             <td>
@@ -2117,8 +2115,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                               value={normalizeFunctionParameters(selectedFunction)}
                               onChange={(parameters) => updateFunction(selectedFunctionIndex, {
                                 parameters,
-                                inputs: undefined,
-                                outputs: undefined
+                                inputs: undefined
                               })}
                               useSelectsForRefs
                               namespaceAliases={getNamespaceAliases()}
@@ -2212,11 +2209,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
               <tbody>
                 {simpleTypes.map((item, i) => {
                   const definition = normalizeSimpleTypeDefinition(item.definition);
-                  const kind = definition.restriction ? 'restriction' : definition.list ? 'list' : 'union';
                   return (
                     <tr key={`${item.name}-${i}`} className={selectedSimpleTypeIndex === i ? 'selected' : ''} onClick={() => setSelectedSimpleTypeIndex(i)}>
                       <td>{item.name || '-'}</td>
-                      <td>{kind}</td>
+                      <td>{displaySimpleTypeDefinition(definition)}</td>
                       <td>
                         <div className="inline-actions">
                           <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveSimpleType(i, -1); }}>↑</button>

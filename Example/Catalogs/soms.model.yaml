@@ -7,12 +7,16 @@ entities:
         namedType:
           name: DatumZaciatkuVypoctu
           nullable: true
+          type: entityRef
           definition:
             list:
               itemType:
                 namespaceAlias: rtrty
                 simpleType: ''
-          type: entityRef
+          entityRef:
+            namespaceAlias: ziak
+            entity: Spracovanie žiaka
+            attribute: ''
         states: []
       - name: DatumUkonceniaVypoctu
         type: date
@@ -128,7 +132,7 @@ namespaceRef:
 simpleTypes:
   - name: simpleType_1
     definition:
-      list:
-        itemType:
-          namespaceAlias: ''
-          simpleType: ''
+      restriction:
+        base:
+          namespaceAlias: ziak
+          simpleType: simpleType_1

@@ -1,5 +1,6 @@
 import React from 'react';
 import type { NamedType, ParameterDirection, RestrictionDefinition, SimpleTypeDefinition, SimpleTypeRef, Variable } from '../types/sqd';
+import { displayType } from '../utils/displayType';
 
 type VariableItem = Variable & { direction?: ParameterDirection };
 
@@ -252,7 +253,7 @@ export const VariableList: React.FC<Props> = ({
               onClick={() => setSelectedIndex(idx)}
             >
               <td>{item.namedType?.name ?? ''}</td>
-              <td>{item.namedType?.type ?? ''}</td>
+              <td>{displayType(item.namedType)}</td>
               {showDirection && <td>{item.direction ?? 'in'}</td>}
               <td>{item.namedType?.multiplicity ?? ''}</td>
               <td>

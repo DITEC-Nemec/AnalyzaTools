@@ -95,7 +95,7 @@
             "loop",
             "foreach",
             "operation",
-            "event",
+            "waitEvent",
             "return",
             "stop",
             "block"
@@ -129,8 +129,8 @@
         "body": {
           "$ref": "#/$defs/body"
         },
-        "event": {
-          "$ref": "#/$defs/event"
+        "waitEvent": {
+          "$ref": "#/$defs/waitEvent"
         },
         "behavior": {
           "$ref": "#/$defs/behavior"
@@ -201,13 +201,13 @@
           "if": {
             "properties": {
               "type": {
-                "const": "event"
+                "const": "waitEvent"
               }
             }
           },
           "then": {
             "required": [
-              "event"
+              "waitEvent"
             ]
           }
         },
@@ -1124,11 +1124,12 @@
       },
       "minItems": 1
     },
-    "event": {
+    "waitEvent": {
       "type": "object",
       "properties": {
         "eventRef": {
-          "$ref": "#/$defs/referenceOperation"
+          "$ref": "#/$defs/referenceEvent"
+       
         },
         "code": {
           "type": "string"

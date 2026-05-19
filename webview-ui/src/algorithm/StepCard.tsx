@@ -35,7 +35,7 @@ const TYPE_LABELS: Record<string, string> = {
   decision:  label('algorithm.stepTypeLabels.decision', 'Rozhodnutie'),
   loop:      label('algorithm.stepTypeLabels.loop', 'Smycka'),
   foreach:   label('algorithm.stepTypeLabels.foreach', 'Pre kazde'),
-  event:     label('algorithm.stepTypeLabels.event', 'Udalost'),
+  waitEvent: label('algorithm.stepTypeLabels.waitEvent', 'Cakanie na udalost'),
   return:    label('algorithm.stepTypeLabels.return', 'Navrat'),
   stop:      label('algorithm.stepTypeLabels.stop', 'Zastavenie'),
   block:     label('algorithm.stepTypeLabels.block', 'Blok'),
@@ -93,6 +93,13 @@ const summaryCondition = (condition: StepCondition | undefined): string => {
   return `${kind} | ${check}${desc ? ` | ${desc}` : ''}`;
 };
 
+const summaryEventRef = (eventRef: ReferenceEvent | null): string => {
+  if (!eventRef) {
+    return label('algorithm.steps.eventRefNone', 'nepridany');
+  }
+  return `event:${eventRef.namespaceAlias ?? '-'}:${eventRef.event ?? '-'}`;
+};
+
 const normalizeParameterMap = (
   ref?: { mapParameters?: ParameterMap[]; mapInput?: ParameterMap[]; mapOutput?: ParameterMap[] }
 ): ParameterMap[] => {
@@ -144,7 +151,7 @@ export const StepCard: React.FC<Props> = ({
 
   const condition = useMemo(() => step.condition ?? defaultCondition(), [step.condition]);
   const operation = useMemo(() => normalizeOperation(step), [step]);
-  const eventRef = useMemo(() => step.event?.eventRef ?? null, [step.event]);
+  const eventRef = useMemo(() => step.waitEvent?.eventRef ?? null, [step.waitEvent]);
 
   const upsertOperationObject = (patch: Partial<ReferenceOperation>) => {
     const next: ReferenceOperation = {
@@ -175,37 +182,15 @@ export const StepCard: React.FC<Props> = ({
   };
 
 
-  const upsertEventRef = (patch: Partial<ReferenceOperation>) => {
-    const next: ReferenceOperation = {
-      kind: eventRef?.kind ?? 'step',
+  const upsertEventRef = (patch: Partial<ReferenceEvent>) => {
+    const next: ReferenceEvent = {
       ...eventRef,
       ...patch
     };
     onChange({
       ...step,
-      event: {
-        ...step.event,
-        eventRef: next
-      }
-    });
-  };
-
-  const setEventRefKind = (kind: string) => {
-    const resolvedKind = kind as ReferenceOperation['kind'];
-    const next: ReferenceOperation = {
-      kind: resolvedKind,
-      ...(resolvedKind === 'step' ? { stepRef: eventRef?.stepRef ?? '' } : {}),
-      ...(resolvedKind === 'entityFunction'
-        ? { entityFunctionRef: eventRef?.entityFunctionRef ?? { namespaceAlias: '', entity: '', function: '' } }
-        : {}),
-      ...(resolvedKind === 'sqd' ? { sqdRef: eventRef?.sqdRef ?? { namespaceAlias: '' } } : {}),
-      ...(resolvedKind === 'event' ? { eventRef: eventRef?.eventRef ?? { namespaceAlias: '', event: '' } } : {})
-    };
-
-    onChange({
-      ...step,
-      event: {
-        ...step.event,
+      waitEvent: {
+        ...step.waitEvent,
         eventRef: next
       }
     });
@@ -279,37 +264,37 @@ export const StepCard: React.FC<Props> = ({
             </div>
           )}
 
-          {step.type === 'event' && (
+          {step.type === 'waitEvent' && (
             <div className="step-meta">
               <label className="field-label">{L('steps.eventCode', 'Kod udalosti:')}</label>
               <input
                 className="field-input"
-                value={step.event?.code ?? ''}
+                value={step.waitEvent?.code ?? ''}
                 onChange={e => onChange({ 
                   ...step, 
-                  event: { ...step.event, code: e.target.value } 
+                  waitEvent: { ...step.waitEvent, code: e.target.value } 
                 })}
                 placeholder="EVT_001"
               />
               <label className="field-label">{L('steps.eventTitle', 'Nazov udalosti:')}</label>
               <input
                 className="field-input"
-                value={step.event?.title ?? ''}
+                value={step.waitEvent?.title ?? ''}
                 onChange={e => onChange({
                   ...step,
-                  event: { ...step.event, title: e.target.value }
+                  waitEvent: { ...step.waitEvent, title: e.target.value }
                 })}
                 placeholder="Názov udalosti"
               />
               <label className="field-label">{L('steps.eventSeverity', 'Severity:')}</label>
               <select
                 className="field-input"
-                value={step.event?.severity ?? 'info'}
+                value={step.waitEvent?.severity ?? 'info'}
                 onChange={e => onChange({
                   ...step,
-                  event: {
-                    ...step.event,
-                    severity: e.target.value as NonNullable<SqdStep['event']>['severity']
+                  waitEvent: {
+                    ...step.waitEvent,
+                    severity: e.target.value as NonNullable<SqdStep['waitEvent']>['severity']
                   }
                 })}
               >
@@ -320,16 +305,16 @@ export const StepCard: React.FC<Props> = ({
               <label className="field-label">{L('steps.eventDescription', 'Popis udalosti:')}</label>
               <input
                 className="field-input"
-                value={step.event?.text ?? step.event?.description ?? ''}
+                value={step.waitEvent?.text ?? step.waitEvent?.description ?? ''}
                 onChange={e => onChange({ 
                   ...step, 
-                  event: { ...step.event, text: e.target.value, description: e.target.value }
+                  waitEvent: { ...step.waitEvent, text: e.target.value, description: e.target.value }
                 })}
                 placeholder="Popis udalosti…"
               />
 
               <div className="condition-summary">
-                {L('steps.eventRef', 'eventRef')}: {eventRef ? summaryOperation(eventRef) : L('steps.eventRefNone', 'nepridany')}
+                {L('steps.eventRef', 'eventRef')}: {summaryEventRef(eventRef)}
                 <button className="btn-link" onClick={() => setShowEventRefDialog(true)}>
                   [{eventRef ? ` ${L('steps.editEventRef', 'Upravit eventRef...')} ` : ` ${L('steps.addEventRef', 'Pridat eventRef...')} `}]
                 </button>
@@ -338,8 +323,8 @@ export const StepCard: React.FC<Props> = ({
                     className="btn-link"
                     onClick={() => onChange({
                       ...step,
-                      event: {
-                        ...step.event,
+                      waitEvent: {
+                        ...step.waitEvent,
                         eventRef: undefined
                       }
                     })}
@@ -969,170 +954,37 @@ export const StepCard: React.FC<Props> = ({
           <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
             <h4>{L('dialogs.eventRef', 'EventRef detail')}</h4>
 
-            <label className="field-label">{L('dialogs.kind', 'Kind')}</label>
+            <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
             <select
               className="field-input"
-              value={eventRef?.kind ?? 'step'}
-              onChange={(e) => setEventRefKind(e.target.value)}
+              value={eventRef?.namespaceAlias ?? ''}
+              onChange={(e) => upsertEventRef({ namespaceAlias: e.target.value, event: '' })}
             >
-              {OPERATION_KINDS.map(kind => (
-                <option key={kind} value={kind}>
-                  {kind}
-                </option>
+              <option value="">—</option>
+              {modelAliases.map(alias => (
+                <option key={alias} value={alias}>{alias}</option>
               ))}
             </select>
-
-            {(eventRef?.kind ?? 'step') === 'step' && (
-              <>
-                <label className="field-label">{L('dialogs.stepRef', 'Step ref')}</label>
-                <input
-                  className="field-input"
-                  value={eventRef?.stepRef ?? ''}
-                  onChange={(e) => upsertEventRef({ kind: 'step', stepRef: e.target.value })}
-                />
-              </>
-            )}
-
-            {(eventRef?.kind ?? 'step') === 'entityFunction' && (
-              <>
-                <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
-                <select
-                  className="field-input"
-                  value={eventRef?.entityFunctionRef?.namespaceAlias ?? ''}
-                  onChange={(e) => upsertEventRef({
-                    kind: 'entityFunction',
-                    entityFunctionRef: { ...(eventRef?.entityFunctionRef ?? {}), namespaceAlias: e.target.value, entity: '', function: '' }
-                  })}
-                >
-                  <option value="">—</option>
-                  {modelAliases.map(alias => (
-                    <option key={alias} value={alias}>{alias}</option>
-                  ))}
-                </select>
-                <label className="field-label">{L('dialogs.entity', 'Entity')}</label>
-                <select
-                  className="field-input"
-                  value={eventRef?.entityFunctionRef?.entity ?? ''}
-                  onChange={(e) => upsertEventRef({
-                    kind: 'entityFunction',
-                    entityFunctionRef: { ...(eventRef?.entityFunctionRef ?? {}), entity: e.target.value, function: '' }
-                  })}
-                >
-                  <option value="">—</option>
-                  {getEntitiesForAlias(eventRef?.entityFunctionRef?.namespaceAlias ?? '').map(entity => (
-                    <option key={entity} value={entity}>{entity}</option>
-                  ))}
-                </select>
-                <label className="field-label">{L('dialogs.function', 'Function')}</label>
-                <select
-                  className="field-input"
-                  value={eventRef?.entityFunctionRef?.function ?? ''}
-                  onChange={(e) => upsertEventRef({
-                    kind: 'entityFunction',
-                    entityFunctionRef: { ...(eventRef?.entityFunctionRef ?? {}), function: e.target.value }
-                  })}
-                >
-                  <option value="">—</option>
-                  {getFunctionsForEntity(
-                    eventRef?.entityFunctionRef?.namespaceAlias ?? '',
-                    eventRef?.entityFunctionRef?.entity ?? ''
-                  ).map(fn => (
-                    <option key={fn} value={fn}>{fn}</option>
-                  ))}
-                </select>
-                <label className="field-label">parameterMap</label>
-                <VariableAssignList
-                  value={normalizeParameterMap(eventRef?.entityFunctionRef)}
-                  onChange={(mapParameters) => upsertEventRef({
-                    kind: 'entityFunction',
-                    entityFunctionRef: {
-                      ...(eventRef?.entityFunctionRef ?? {}),
-                      mapParameters,
-                      mapInput: undefined,
-                      mapOutput: undefined
-                    }
-                  })}
-                />
-              </>
-            )}
-
-            {(eventRef?.kind ?? 'step') === 'sqd' && (
-              <>
-                <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
-                <select
-                  className="field-input"
-                  value={eventRef?.sqdRef?.namespaceAlias ?? ''}
-                  onChange={(e) => upsertEventRef({
-                    kind: 'sqd',
-                    sqdRef: { ...(eventRef?.sqdRef ?? {}), namespaceAlias: e.target.value }
-                  })}
-                >
-                  <option value="">—</option>
-                  {sqdAliases.map(alias => (
-                    <option key={alias} value={alias}>{alias}</option>
-                  ))}
-                </select>
-                <label className="field-label">parameterMap</label>
-                <VariableAssignList
-                  value={normalizeParameterMap(eventRef?.sqdRef)}
-                  onChange={(mapParameters) => upsertEventRef({
-                    kind: 'sqd',
-                    sqdRef: {
-                      ...(eventRef?.sqdRef ?? {}),
-                      mapParameters,
-                      mapInput: undefined,
-                      mapOutput: undefined
-                    }
-                  })}
-                />
-              </>
-            )}
-
-            {(eventRef?.kind ?? 'step') === 'event' && (
-              <>
-                <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
-                <select
-                  className="field-input"
-                  value={eventRef?.eventRef?.namespaceAlias ?? ''}
-                  onChange={(e) => upsertEventRef({
-                    kind: 'event',
-                    eventRef: { ...(eventRef?.eventRef ?? {}), namespaceAlias: e.target.value, event: '' }
-                  })}
-                >
-                  <option value="">—</option>
-                  {modelAliases.map(alias => (
-                    <option key={alias} value={alias}>{alias}</option>
-                  ))}
-                </select>
-                <label className="field-label">{L('dialogs.event', 'Event')}</label>
-                <select
-                  className="field-input"
-                  value={eventRef?.eventRef?.event ?? ''}
-                  onChange={(e) => upsertEventRef({
-                    kind: 'event',
-                    eventRef: { ...(eventRef?.eventRef ?? {}), event: e.target.value }
-                  })}
-                >
-                  <option value="">—</option>
-                  {getEventsForAlias(eventRef?.eventRef?.namespaceAlias ?? '').map(event => (
-                    <option key={event} value={event}>{event}</option>
-                  ))}
-                </select>
-                <label className="field-label">parameterMap</label>
-                <VariableAssignList
-                  value={normalizeParameterMap(eventRef?.eventRef)}
-                  onChange={(mapParameters) => upsertEventRef({
-                    kind: 'event',
-                    eventRef: {
-                      ...(eventRef?.eventRef ?? {}),
-                      mapParameters,
-                      mapInput: undefined,
-                      mapOutput: undefined
-                    }
-                  })}
-                />
-              </>
-            )}
+            <label className="field-label">{L('dialogs.event', 'Event')}</label>
+            <select
+              className="field-input"
+              value={eventRef?.event ?? ''}
+              onChange={(e) => upsertEventRef({ event: e.target.value })}
+            >
+              <option value="">—</option>
+              {getEventsForAlias(eventRef?.namespaceAlias ?? '').map(event => (
+                <option key={event} value={event}>{event}</option>
+              ))}
+            </select>
+            <label className="field-label">parameterMap</label>
+            <VariableAssignList
+              value={normalizeParameterMap(eventRef ?? undefined)}
+              onChange={(mapParameters) => upsertEventRef({
+                mapParameters,
+                mapInput: undefined,
+                mapOutput: undefined
+              })}
+            />
 
             <div className="dialog-actions">
               <button className="icon-btn" onClick={() => setShowEventRefDialog(false)}>{L('actions.close', 'Zavriet')}</button>

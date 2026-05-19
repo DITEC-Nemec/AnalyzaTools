@@ -47,13 +47,13 @@ const AddMenu: React.FC<AddMenuProps> = ({ onAdd }) => {
     decision: label('algorithm.stepTypeLabels.decision', 'Rozhodnutie'),
     loop: label('algorithm.stepTypeLabels.loop', 'Smycka'),
     foreach: label('algorithm.stepTypeLabels.foreach', 'Pre kazde'),
-    event: label('algorithm.stepTypeLabels.event', 'Udalost'),
+    waitEvent: label('algorithm.stepTypeLabels.waitEvent', 'Cakanie na udalost'),
     return: label('algorithm.stepTypeLabels.return', 'Navrat'),
     stop: label('algorithm.stepTypeLabels.stop', 'Zastavenie'),
     block: label('algorithm.stepTypeLabels.block', 'Blok')
   };
 
-  const allTypes: StepType[] = ['step', 'operation', 'decision', 'loop', 'foreach', 'event', 'return', 'stop', 'block'];
+  const allTypes: StepType[] = ['step', 'operation', 'decision', 'loop', 'foreach', 'waitEvent', 'return', 'stop', 'block'];
 
   return (
     <div className="add-menu">
@@ -173,8 +173,8 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
       return { ...base, operation: '' };
     }
 
-    if (type === 'event') {
-      return { ...base, event: { code: '', text: '', severity: 'info' } };
+    if (type === 'waitEvent') {
+      return { ...base, waitEvent: { code: '', text: '', severity: 'info' } };
     }
 
     if (type === 'block') {

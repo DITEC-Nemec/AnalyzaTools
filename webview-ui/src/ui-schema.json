@@ -13,7 +13,7 @@
       "decision": "Rozhodnutie",
       "loop": "Cyklus",
       "foreach": "Pre každé",
-      "event": "Udalosť",
+      "waitEvent": "Čakanie na udalosť",
       "return": "Návrat",
       "stop": "Zastavenie",
       "block": "Blok"

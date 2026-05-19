@@ -54,7 +54,7 @@ export type StepType =
   | 'decision'
   | 'loop'
   | 'foreach'
-  | 'event'
+  | 'waitEvent'
   | 'return'
   | 'stop'
   | 'block';
@@ -72,7 +72,7 @@ export interface SqdStep {
   condition?: StepCondition;
   branches?: Branch[];
   body?: SqdStep[];
-  event?: StepEvent;
+  waitEvent?: StepEvent;
   behavior?: Behavior;
 
   // Spatna kompatibilita so starsimi datami/editorom
@@ -147,7 +147,7 @@ export interface Branch {
 }
 
 export interface StepEvent {
-  eventRef?: ReferenceOperation;
+  eventRef?: ReferenceEvent;
   code?: string;
   title?: string;
   severity?: 'info' | 'warning' | 'error';

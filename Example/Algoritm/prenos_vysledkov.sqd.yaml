@@ -79,14 +79,13 @@ steps:
         then:
           - id: 2.2.1
             legacyId: '*2.2.1*'
-            type: event
+            type: waitEvent
             text: Neexistujú dáta na prenos pre vstupné parametre.
-            event:
+            waitEvent:
               code: sosm-11
               eventRef:
-                kind: sqd
-                sqdRef:
-                  namespaceAlias: ''
+                namespaceAlias: ''
+                event: ''
           - id: 2.2.2
             legacyId: '*2.2.2*'
             type: return
@@ -111,16 +110,13 @@ steps:
               - when: 'true'
                 then:
                   - id: 2.2.3.1
-                    type: event
+                    type: waitEvent
                     text: Výpočet ešte beží.
-                    event:
+                    waitEvent:
                       code: sosm-12
                       eventRef:
-                        kind: entityFunction
-                        entityFunctionRef:
-                          namespaceAlias: ''
-                          entity: ''
-                          function: ''
+                        namespaceAlias: ''
+                        event: ''
                   - id: 2.2.3.2
                     type: return
                     text: NAVRAT
@@ -143,9 +139,9 @@ steps:
                       - when: 'true'
                         then:
                           - id: 2.2.5.1
-                            type: event
+                            type: waitEvent
                             text: Výpočet skončil s chybou – neprenášam výsledky.
-                            event:
+                            waitEvent:
                               code: sosm-21
                           - id: 2.2.5.2
                             type: return
@@ -182,9 +178,9 @@ steps:
                                       - when: 'true'
                                         then:
                                           - id: 2.2.7.1.1
-                                            type: event
+                                            type: waitEvent
                                             text: Prenos ešte beží.
-                                            event:
+                                            waitEvent:
                                               code: sosm-13
                                           - id: 2.2.7.1.2
                                             type: return
@@ -221,9 +217,9 @@ steps:
                                                       - when: 'true'
                                                         then:
                                                           - id: 2.2.7.2.1.1
-                                                            type: event
+                                                            type: waitEvent
                                                             text: Prenos už bežal a skončil s chybou.
-                                                            event:
+                                                            waitEvent:
                                                               code: sosm-23
                                                           - id: 2.2.7.2.1.2
                                                             type: return
@@ -231,9 +227,9 @@ steps:
                                                       - when: 'false'
                                                         then:
                                                           - id: 2.2.7.2.2
-                                                            type: event
+                                                            type: waitEvent
                                                             text: Prenos už bežal a skončil bez chýb.
-                                                            event:
+                                                            waitEvent:
                                                               code: sosm-03
                                                           - id: 2.2.7.2.3
                                                             type: return
@@ -273,9 +269,9 @@ steps:
         operation: SasZPrihlasky.NastavVysledokPoAutomate(priradenie)
   - id: '3.3'
     legacyId: '*3.3*'
-    type: event
+    type: waitEvent
     text: Spracované bez chýb.
-    event:
+    waitEvent:
       code: sosm-00
   - id: '3.4'
     legacyId: '*3.4*'
@@ -299,9 +295,9 @@ steps:
       - when: 'true'
         then:
           - id: 4.1.1
-            type: event
+            type: waitEvent
             text: Neočakávaná chyba.
-            event:
+            waitEvent:
               code: sosm-99
           - id: 4.1.2
             type: operation

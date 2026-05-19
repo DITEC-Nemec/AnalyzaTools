@@ -17,7 +17,29 @@ export const ActorRefsEditor: React.FC<Props> = ({
   onChange,
   prefix
 }) => {
-  const L = (path: string, fallback: string) => label(`${prefix}.${path}`, fallback);
+  const L = (path: string, fallback: string) => {
+    const direct = label(`${prefix}.${path}`, '');
+    if (direct) {
+      return direct;
+    }
+
+    if (!path.startsWith('actors.')) {
+      return fallback;
+    }
+
+    const rest = path.slice('actors.'.length);
+    const view = label(`${prefix}.actors.view.${rest}`, '');
+    if (view) {
+      return view;
+    }
+
+    const form = label(`${prefix}.actors.form.${rest}`, '');
+    if (form) {
+      return form;
+    }
+
+    return fallback;
+  };
 
   const addActorRef = () => {
     const defaultAlias = namespaceAliases.includes('local') ? 'local' : (namespaceAliases[0] ?? 'local');

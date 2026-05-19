@@ -20,7 +20,7 @@ import type {
   EventGlossaryEntry,
   ActorRef
 } from '../types/sqd';
-import { label as L } from '../ui-labels';
+import { label as rawLabel } from '../ui-labels';
 import { ParametersEditor } from '../components/ParametersEditor';
 import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
 import { ActorRefsEditor } from '../components/ActorRefsEditor';
@@ -29,6 +29,34 @@ import { displayType, displaySimpleTypeDefinition } from '../utils/displayType';
 const PRIMITIVE_TYPES = ['string', 'integer', 'decimal', 'double', 'boolean', 'date', 'time', 'dateTime'];
 const ATTRIBUTE_TYPES = ['entityRef', 'definition', 'typeRef'];
 const RELATIONSHIP_TYPES = ['references', 'depends', 'inherits'];
+const resolveDomainLabel = (path: string, fallback: string): string => {
+  const direct = rawLabel(`domain.${path}`, '');
+  if (direct) {
+    return direct;
+  }
+
+  const [section, ...restSegments] = path.split('.');
+  if (!section || restSegments.length === 0) {
+    return fallback;
+  }
+
+  const rest = restSegments.join('.');
+  const candidatePaths = rest.startsWith('columns.')
+    ? [`domain.${section}.columns.${rest.slice('columns.'.length)}`]
+    : [`domain.${section}.view.${rest}`, `domain.${section}.form.${rest}`];
+
+  for (const candidate of candidatePaths) {
+    const resolved = rawLabel(candidate, '');
+    if (resolved) {
+      return resolved;
+    }
+  }
+
+  return fallback;
+};
+
+const L = (path: string, fallback: string) => resolveDomainLabel(path, fallback);
+const DL = L;
 
 interface EditorProps {
   value: DomainModel;
@@ -1235,7 +1263,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         </div>
         {availableModels.length > 1 && (
           <div className="model-selector">
-            <label>{L('header.model', 'Model')}:</label>
+            <label>{DL('header.model', 'Model')}:</label>
             <select value={currentModelPath} onChange={(e) => handleModelSwitch(e.target.value)}>
               {availableModels.map(item => (
                 <option key={item.path} value={item.path}>
@@ -1250,44 +1278,44 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       <main className="dm-detail">
         <div className="tab-row">
           <button className={topTab === 'entities' ? 'tab active' : 'tab'} onClick={() => setTopTab('entities')}>
-            {L('topTabs.entities', 'Entity')}
+            {DL('topTabs.entities', 'Entity')}
           </button>
           <button className={topTab === 'simpleTypes' ? 'tab active' : 'tab'} onClick={() => setTopTab('simpleTypes')}>
-            {L('topTabs.simpleTypes', 'simpleTypes')}
+            {DL('topTabs.simpleTypes', 'simpleTypes')}
           </button>
           <button className={topTab === 'relationships' ? 'tab active' : 'tab'} onClick={() => setTopTab('relationships')}>
-            {L('topTabs.relationships', 'Relationships')}
+            {DL('topTabs.relationships', 'Relationships')}
           </button>
           <button className={topTab === 'glossary' ? 'tab active' : 'tab'} onClick={() => setTopTab('glossary')}>
-            {L('topTabs.glossary', 'Glossary')}
+            {DL('topTabs.glossary', 'Glossary')}
           </button>
           <button className={topTab === 'eventGlossary' ? 'tab active' : 'tab'} onClick={() => setTopTab('eventGlossary')}>
-            {L('topTabs.eventGlossary', 'eventGlossary')}
+            {DL('topTabs.eventGlossary', 'eventGlossary')}
           </button>
           <button className={topTab === 'actors' ? 'tab active' : 'tab'} onClick={() => setTopTab('actors')}>
-            {L('topTabs.actors', 'Actors')}
+            {DL('topTabs.actors', 'Actors')}
           </button>
           <button className={topTab === 'namespaceRef' ? 'tab active' : 'tab'} onClick={() => setTopTab('namespaceRef')}>
-            {L('topTabs.namespaceRef', 'namespaceRef')}
+            {DL('topTabs.namespaceRef', 'namespaceRef')}
           </button>
         </div>
 
         {topTab === 'entities' && (
           <section className="panel">
             <div className="panel-head">
-              <h3>{L('entities.title', 'Entity')}</h3>
-              <button onClick={addEntity}>{L('entities.add', '+ Entita')}</button>
+              <h3>{DL('entities.title', 'Entity')}</h3>
+              <button onClick={addEntity}>{DL('entities.add', '+ Entita')}</button>
             </div>
 
             <table className="dm-table">
               <thead>
                 <tr>
-                  <th>{L('entities.columns.name', 'Nazov')}</th>
-                  <th>{L('entities.columns.description', 'Popis')}</th>
-                  <th>{L('entities.columns.attributes', 'Atributy')}</th>
-                  <th>{L('entities.columns.functions', 'Funkcie')}</th>
-                  <th>{L('entities.columns.stateModel', 'StateModel')}</th>
-                  <th>{L('entities.columns.actions', 'Akcie')}</th>
+                  <th>{DL('entities.columns.name', 'Nazov')}</th>
+                  <th>{DL('entities.columns.description', 'Popis')}</th>
+                  <th>{DL('entities.columns.attributes', 'Atributy')}</th>
+                  <th>{DL('entities.columns.functions', 'Funkcie')}</th>
+                  <th>{DL('entities.columns.stateModel', 'StateModel')}</th>
+                  <th>{DL('entities.columns.actions', 'Akcie')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1310,18 +1338,18 @@ const DomainModelEditor: React.FC<EditorProps> = ({
               </tbody>
             </table>
 
-            {!selectedEntity && <p className="muted">{L('entities.empty', 'Vyber entitu na editaciu.')}</p>}
+            {!selectedEntity && <p className="muted">{DL('entities.empty', 'Vyber entitu na editaciu.')}</p>}
 
             {selectedEntity && selectedEntityIndex !== null && (
               <div className="item-card">
-                <h4>{L('entities.detail', 'Detail entity')}</h4>
-                <label>{L('entities.name', 'Nazov entity')}</label>
+                <h4>{DL('entities.detail', 'Detail entity')}</h4>
+                <label>{DL('entities.name', 'Nazov entity')}</label>
                 <input value={selectedEntity.name} onChange={(e) => updateEntity(selectedEntityIndex, { name: e.target.value })} />
 
-                <label>{L('entities.description', 'Popis')}</label>
+                <label>{DL('entities.description', 'Popis')}</label>
                 <textarea rows={3} value={selectedEntity.description ?? ''} onChange={(e) => updateEntity(selectedEntityIndex, { description: e.target.value })} />
 
-                <label>{L('entities.status', 'Status')}</label>
+                <label>{DL('entities.status', 'Status')}</label>
                 <select
                   value={selectedEntity.status ?? 'active'}
                   onChange={(e) => updateEntity(selectedEntityIndex, { status: e.target.value as Entity['status'] })}
@@ -1332,13 +1360,13 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
                 <div className="tab-row sub">
                   <button className={entityTab === 'attributes' ? 'tab active' : 'tab'} onClick={() => setEntityTab('attributes')}>
-                    {L('entities.subTabs.attributes', 'Atributy')}
+                    {DL('entities.subTabs.attributes', 'Atributy')}
                   </button>
                   <button className={entityTab === 'functions' ? 'tab active' : 'tab'} onClick={() => setEntityTab('functions')}>
-                    {L('entities.subTabs.functions', 'Funkcie')}
+                    {DL('entities.subTabs.functions', 'Funkcie')}
                   </button>
                   <button className={entityTab === 'stateModel' ? 'tab active' : 'tab'} onClick={() => setEntityTab('stateModel')}>
-                    {L('entities.subTabs.stateModel', 'stateModel')}
+                    {DL('entities.subTabs.stateModel', 'stateModel')}
                   </button>
                 </div>
 
@@ -2885,18 +2913,18 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         {topTab === 'eventGlossary' && (
           <section className="panel">
             <div className="panel-head">
-              <h3>{L('eventGlossary.title', 'eventGlossary')}</h3>
-              <button onClick={addEventGlossary}>{L('eventGlossary.add', '+ Event')}</button>
+              <h3>{DL('eventGlossary.view.title', 'eventGlossary')}</h3>
+              <button onClick={addEventGlossary}>{DL('eventGlossary.view.add', '+ Event')}</button>
             </div>
 
             <table className="dm-table">
               <thead>
                 <tr>
-                  <th>{L('eventGlossary.columns.code', 'Code')}</th>
-                  <th>{L('eventGlossary.columns.title', 'Title')}</th>
-                  <th>{L('eventGlossary.columns.severity', 'Severity')}</th>
-                  <th>{L('eventGlossary.columns.meaning', 'Meaning')}</th>
-                  <th>{L('eventGlossary.columns.actions', 'Akcie')}</th>
+                  <th>{DL('eventGlossary.columns.code', 'Code')}</th>
+                  <th>{DL('eventGlossary.columns.title', 'Title')}</th>
+                  <th>{DL('eventGlossary.columns.severity', 'Severity')}</th>
+                  <th>{DL('eventGlossary.columns.meaning', 'Meaning')}</th>
+                  <th>{DL('eventGlossary.columns.actions', 'Akcie')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -2920,14 +2948,14 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
             {selectedEventGlossary && selectedEventGlossaryIndex !== null && (
               <div className="item-card">
-                <h4>{L('eventGlossary.detail', 'Detail event glossary')}</h4>
-                <label>{L('eventGlossary.code', 'Code')}</label>
+                <h4>{DL('eventGlossary.view.detail', 'Detail event glossary')}</h4>
+                <label>{DL('eventGlossary.form.code', 'Code')}</label>
                 <input value={selectedEventGlossary.code} onChange={(e) => updateEventGlossary(selectedEventGlossaryIndex, { code: e.target.value })} />
 
-                <label>{L('eventGlossary.title', 'Title')}</label>
+                <label>{DL('eventGlossary.form.title', 'Title')}</label>
                 <input value={selectedEventGlossary.title ?? ''} onChange={(e) => updateEventGlossary(selectedEventGlossaryIndex, { title: e.target.value })} />
 
-                <label>{L('eventGlossary.severity', 'Severity')}</label>
+                <label>{DL('eventGlossary.form.severity', 'Severity')}</label>
                 <select
                   value={selectedEventGlossary.severity ?? 'info'}
                   onChange={(e) => updateEventGlossary(selectedEventGlossaryIndex, { severity: e.target.value as EventGlossaryEntry['severity'] })}
@@ -2937,10 +2965,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                   <option value="error">error</option>
                 </select>
 
-                <label>{L('eventGlossary.meaning', 'Meaning')}</label>
+                <label>{DL('eventGlossary.form.meaning', 'Meaning')}</label>
                 <textarea rows={3} value={selectedEventGlossary.meaning} onChange={(e) => updateEventGlossary(selectedEventGlossaryIndex, { meaning: e.target.value })} />
 
-                <label>{L('eventGlossary.recommendedAction', 'Recommended action')}</label>
+                <label>{DL('eventGlossary.form.recommendedAction', 'Recommended action')}</label>
                 <textarea rows={3} value={selectedEventGlossary.recommendedAction ?? ''} onChange={(e) => updateEventGlossary(selectedEventGlossaryIndex, { recommendedAction: e.target.value })} />
               </div>
             )}

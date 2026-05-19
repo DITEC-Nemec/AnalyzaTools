@@ -140,3 +140,9 @@ simpleTypes:
         base:
           namespaceAlias: ziak
           simpleType: simpleType_1
+actors:
+  - code: actor_1
+    title: ''
+    type: user
+    meaning: ''
+    responsibilities: []

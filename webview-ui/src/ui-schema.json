@@ -126,12 +126,17 @@
       "model": "Model"
     },
     "entities": {
-      "title": "Entity",
-      "add": "+ Entita",
-      "detail": "Detail entity",
-      "name": "Názov entity",
-      "description": "Popis",
-      "status": "Status",
+      "view": {
+        "title": "Entity",
+        "add": "+ Entita",
+        "detail": "Detail entity",
+        "empty": "Vyber entitu na editaciu.",
+        "subTabs": {
+          "attributes": "Atribúty",
+          "functions": "Funkcie",
+          "stateModel": "Stavový model"
+        }
+      },
       "columns": {
         "name": "Názov",
         "description": "Popis",
@@ -140,17 +145,18 @@
         "stateModel": "StateModel",
         "actions": "Akcie"
       },
-      "empty": "Vyber entitu na editaciu.",
-      "subTabs": {
-        "attributes": "Atribúty",
-        "functions": "Funkcie",
-        "stateModel": "Stavový model"
+      "form": {
+        "name": "Názov entity",
+        "description": "Popis",
+        "status": "Status"
       }
     },
     "attributes": {
-      "title": "Atribúty",
-      "add": "+ Atribút",
-      "detail": "Detail atribútu",
+      "view": {
+        "title": "Atribúty",
+        "add": "+ Atribút",
+        "detail": "Detail atribútu"
+      },
       "columns": {
         "name": "Názov",
         "type": "Typ",
@@ -158,23 +164,31 @@
         "states": "Stavy",
         "actions": "Akcie"
       },
-      "name": "Názov",
-      "type": "Typ",
-      "nullable": "Nullable",
-      "description": "Popis",
-      "entityRefNamespaceAlias": "EntityRef namespaceAlias",
-      "entityRefEntity": "EntityRef entity",
-      "entityRefAttribute": "EntityRef attribute",
-      "statesTitle": "Stavy",
-      "statesAdd": "+ Stav",
-      "stateDetail": "Detail stavu",
-      "stateCode": "Kód",
-      "stateLabel": "Label"
+      "form": {
+        "name": "Názov",
+        "type": "Typ",
+        "nullable": "Nullable",
+        "description": "Popis",
+        "entityRefNamespaceAlias": "EntityRef namespaceAlias",
+        "entityRefEntity": "EntityRef entity",
+        "entityRefAttribute": "EntityRef attribute",
+        "statesTitle": "Stavy",
+        "statesAdd": "+ Stav",
+        "stateDetail": "Detail stavu",
+        "stateCode": "Kód",
+        "stateLabel": "Label"
+      }
     },
     "functions": {
-      "title": "Funkcie",
-      "add": "+ Funkcia",
-      "detail": "Detail funkcie",
+      "view": {
+        "title": "Funkcie",
+        "add": "+ Funkcia",
+        "detail": "Detail funkcie",
+        "tabs": {
+          "detail": "Detail",
+          "parameters": "Parametre"
+        }
+      },
       "columns": {
         "name": "Názov",
         "description": "Popis",
@@ -183,44 +197,46 @@
         "outputs": "Výstupy",
         "actions": "Akcie"
       },
-      "tabs": {
-        "detail": "Detail",
-        "parameters": "Parametre"
-      },
-      "name": "Názov",
-      "description": "Popis",
-      "preconditions": "Predpodmienky (oddelene čiarkou)",
-      "postconditions": "Postpodmienky (oddelene čiarkou)",
-      "direction": "Smer",
-      "inputs": "Vstupy (oddelene čiarkou)",
-      "outputs": "ýstupy (oddelene čiarkou)",
-      "effectsTitle": "Efekty",
-      "effectsAdd": "+ Efekt",
-      "effectNamespaceAlias": "Alias menného priestoru",
-      "effectEntity": "Entita",
-      "effectAttribute": "Atribút"
+      "form": {
+        "name": "Názov",
+        "description": "Popis",
+        "preconditions": "Predpodmienky (oddelene čiarkou)",
+        "postconditions": "Postpodmienky (oddelene čiarkou)",
+        "direction": "Smer",
+        "inputs": "Vstupy (oddelene čiarkou)",
+        "outputs": "ýstupy (oddelene čiarkou)",
+        "effectsTitle": "Efekty",
+        "effectsAdd": "+ Efekt",
+        "effectNamespaceAlias": "Alias menného priestoru",
+        "effectEntity": "Entita",
+        "effectAttribute": "Atribút"
+      }
     },
     "stateModel": {
-      "title": "Stavový model",
-      "add": "+ Stav",
-      "detail": "Detail stavového modelu",
+      "view": {
+        "title": "Stavový model",
+        "add": "+ Stav",
+        "detail": "Detail stavového modelu"
+      },
       "columns": {
         "name": "Názov",
         "label": "Label",
         "final": "Konečný",
         "actions": "Akcie"
       },
-      "name": "Názov",
-      "label": "Label",
-      "description": "Popis",
-      "isFinal": "Konečný"
+      "form": {
+        "name": "Názov",
+        "label": "Label",
+        "description": "Popis",
+        "isFinal": "Konečný"
+      }
     },
     "relationships": {
-      "title": "Vzťahy",
-      "add": "+ Vzťah",
-      "detail": "Detail vzťahu",
-      "type": "Typ",
-      "description": "Popis",
+      "view": {
+        "title": "Vzťahy",
+        "add": "+ Vzťah",
+        "detail": "Detail vzťahu"
+      },
       "columns": {
         "startEntity": "Začiatok relácie",
         "startRole": "Počiatočná rola",
@@ -229,35 +245,45 @@
         "type": "Typ",
         "actions": "Akcie"
       },
-      "role": {
-        "start": "Počiatočná rola",
-        "end": "Koncová rola",
-        "name": "Názov roly",
-        "multiplicity": "Multiplicita",
-        "entityRefNamespaceAlias": "EntityRef alias menného priestoru",
-        "entityRefEntity": "Entita",
-        "entityRefAttribute": "Atribút entity",
-        "description": "Popis roly"
+      "form": {
+        "type": "Typ",
+        "description": "Popis",
+        "role": {
+          "start": "Počiatočná rola",
+          "end": "Koncová rola",
+          "name": "Názov roly",
+          "multiplicity": "Multiplicita",
+          "entityRefNamespaceAlias": "EntityRef alias menného priestoru",
+          "entityRefEntity": "Entita",
+          "entityRefAttribute": "Atribút entity",
+          "description": "Popis roly"
+        }
       }
     },
     "glossary": {
-      "title": "Glosár",
-      "add": "+ Pojem",
-      "detail": "Detail pojmu",
+      "view": {
+        "title": "Glosár",
+        "add": "+ Pojem",
+        "detail": "Detail pojmu"
+      },
       "columns": {
         "term": "Pojem",
         "meaning": "Význam",
         "relatedEntity": "Súvisiaca entita",
         "actions": "Akcie"
       },
-      "term": "Pojem",
-      "meaning": "Význam",
-      "relatedEntity": "Súvisiaca entita"
+      "form": {
+        "term": "Pojem",
+        "meaning": "Význam",
+        "relatedEntity": "Súvisiaca entita"
+      }
     },
     "eventGlossary": {
-      "title": "Glosár udalostí",
-      "add": "+ Udalosť",
-      "detail": "Detail glosára udalostí",
+      "view": {
+        "title": "Glosár udalostí",
+        "add": "+ Udalosť",
+        "detail": "Detail glosára udalostí"
+      },
       "columns": {
         "code": "Kód",
         "title": "Názov",
@@ -265,30 +291,40 @@
         "meaning": "Význam",
         "actions": "Akcie"
       },
-      "code": "Kód",
-      "title": "Názov",
-      "severity": "Závažnosť",
-      "meaning": "Význam",
-      "recommendedAction": "Odporúčaná akcia"
+      "form": {
+        "code": "Kód",
+        "title": "Názov",
+        "severity": "Závažnosť",
+        "meaning": "Význam",
+        "recommendedAction": "Odporúčaná akcia"
+      }
     },
     "namespaceRef": {
-      "title": "Odkaz na menný priestor",
-      "add": "+ Namespace",
-      "detail": "Detail namespace",
+      "view": {
+        "title": "Odkaz na menný priestor",
+        "add": "+ Namespace",
+        "detail": "Detail namespace"
+      },
       "columns": {
         "alias": "Alias",
         "filePath": "Cesta k súboru",
         "actions": "Akcie"
       },
-      "alias": "Alias",
-      "filePath": "Cesta k súboru"
+      "form": {
+        "alias": "Alias",
+        "filePath": "Cesta k súboru"
+      }
     },
     "actors": {
-      "title": "Aktéri",
-      "add": "+ Aktér",
-      "empty": "Žiadni aktéri",
-      "namespaceAlias": "namespaceAlias",
-      "actor": "aktér"
+      "view": {
+        "title": "Aktéri",
+        "add": "+ Aktér",
+        "empty": "Žiadni aktéri"
+      },
+      "form": {
+        "namespaceAlias": "namespaceAlias",
+        "actor": "aktér"
+      }
     },
     "common": {
       "up": "↑",

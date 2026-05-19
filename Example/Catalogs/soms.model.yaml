@@ -83,6 +83,10 @@ entities:
         outputs:
           - variable: ''
             description: ''
+        behavior:
+          actors:
+            - namespaceAlias: ziak
+              actor: actor_1
       - name: OznacZaciatokPrenosu
         detail:
           description: Nastaví dátum začiatku prenosu výsledkov.

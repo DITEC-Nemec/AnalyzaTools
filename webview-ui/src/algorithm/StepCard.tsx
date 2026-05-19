@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { VariableAssignList } from './VariableAssignList';
 import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
+import { ActorRefsEditor } from '../components/ActorRefsEditor';
 import type {
+  ActorRef,
   EntityImpact,
   ParameterMap,
   ReferenceEntity,
@@ -23,6 +25,7 @@ interface Props {
   getEntitiesForAlias?: (alias: string) => string[];
   getFunctionsForEntity?: (alias: string, entity: string) => string[];
   getEventsForAlias?: (alias: string) => string[];
+  getActorsForAlias?: (alias: string) => string[];
   onChange: (updated: SqdStep) => void;
 }
 
@@ -113,6 +116,13 @@ const normalizeParameterMap = (
   }));
 };
 
+const normalizeActorRefs = (items: ActorRef[] | undefined): ActorRef[] => {
+  return (items ?? []).map((item) => ({
+    namespaceAlias: item.namespaceAlias ?? 'local',
+    actor: item.actor ?? ''
+  }));
+};
+
 export const StepCard: React.FC<Props> = ({
   step,
   depth = 0,
@@ -122,6 +132,7 @@ export const StepCard: React.FC<Props> = ({
   getEntitiesForAlias = () => [],
   getFunctionsForEntity = () => [],
   getEventsForAlias = () => [],
+  getActorsForAlias = () => [],
   onChange
 }) => {
   const L = (path: string, fallback: string) => label(`algorithm.${path}`, fallback);
@@ -196,6 +207,16 @@ export const StepCard: React.FC<Props> = ({
       event: {
         ...step.event,
         eventRef: next
+      }
+    });
+  };
+
+  const updateBehavior = (patch: Partial<NonNullable<SqdStep['behavior']>>) => {
+    onChange({
+      ...step,
+      behavior: {
+        ...(step.behavior ?? {}),
+        ...patch
       }
     });
   };
@@ -379,15 +400,67 @@ export const StepCard: React.FC<Props> = ({
           )}
 
 
-          <div className="step-meta">
-            <AffectedEntitiesEditor
-              affectedEntities={step.affectedEntities ?? []}
-              modelAliases={modelAliases}
-              sqdAliases={sqdAliases}
-              getEntitiesForAlias={getEntitiesForAlias}
-              onChange={entities => onChange({ ...step, affectedEntities: entities })}
-            />
-          </div>
+          {step.behavior && (
+            <div className="step-meta">
+              <label className="field-label">{L('steps.behaviorDescription', 'Behavior description')}</label>
+              <textarea
+                className="step-text"
+                rows={2}
+                value={step.behavior.description ?? ''}
+                onChange={(e) => updateBehavior({ description: e.target.value })}
+              />
+
+              <label className="field-label">{L('steps.preconditions', 'Preconditions')}</label>
+              <textarea
+                className="field-input"
+                rows={3}
+                value={(step.behavior.preconditions ?? []).join('\n')}
+                onChange={(e) => updateBehavior({ preconditions: e.target.value.split('\n').filter(s => s.trim().length > 0) })}
+              />
+
+              <label className="field-label">{L('steps.postconditions', 'Postconditions')}</label>
+              <textarea
+                className="field-input"
+                rows={3}
+                value={(step.behavior.postconditions ?? []).join('\n')}
+                onChange={(e) => updateBehavior({ postconditions: e.target.value.split('\n').filter(s => s.trim().length > 0) })}
+              />
+
+              <AffectedEntitiesEditor
+                affectedEntities={step.behavior.affectedEntities ?? []}
+                modelAliases={modelAliases}
+                sqdAliases={sqdAliases}
+                getEntitiesForAlias={getEntitiesForAlias}
+                onChange={affectedEntities => updateBehavior({ affectedEntities })}
+              />
+
+              <ActorRefsEditor
+                actorRefs={normalizeActorRefs(step.behavior.actors)}
+                namespaceAliases={Array.from(new Set(['local', ...modelAliases, ...sqdAliases]))}
+                getAvailableActors={getActorsForAlias}
+                onChange={(actors) => updateBehavior({ actors })}
+                prefix="algorithm"
+              />
+
+              <button
+                type="button"
+                className="btn-link"
+                onClick={() => {
+                  const hasContent = (step.behavior?.description ?? '').trim().length > 0
+                    || (step.behavior?.preconditions?.length ?? 0) > 0
+                    || (step.behavior?.postconditions?.length ?? 0) > 0
+                    || (step.behavior?.affectedEntities?.length ?? 0) > 0
+                    || (step.behavior?.actors?.length ?? 0) > 0;
+
+                  if (!hasContent) {
+                    onChange({ ...step, behavior: undefined });
+                  }
+                }}
+              >
+                {L('steps.removeEmptyBehavior', 'Remove empty behavior')}
+              </button>
+            </div>
+          )}
 
           {step.type === 'foreach' && (
             <div className="step-meta">

@@ -34,6 +34,14 @@ steps:
       Výstup:
       NávratovýKód: Reťazec2
       NávratovýText: Reťazec2047
+    behavior:
+      description: ''
+      preconditions: []
+      postconditions: []
+      affectedEntities: []
+      actors:
+        - namespaceAlias: ziak
+          actor: actor_1
   - id: '2'
     legacyId: '*2*'
     type: step

@@ -18,6 +18,13 @@
       },
       "minItems": 1
     },
+    "actors": {
+      "type": "array",
+      "description": "Katalóg aktérov dostupných pre algoritmus",
+      "items": {
+        "$ref": "#/$defs/actorEntry"
+      }
+    },
     "namespaceRef": {
       "type": "array",
       "description": "Katalóg namespacov pre definiciu referencii na entityty/funkcie, sqd, eventy definované v iných modeloch  ",
@@ -52,9 +59,6 @@
         "name": {
           "type": "string"
         },
-        "description": {
-          "type": "string"
-        },
         "version": {
           "type": "string"
         },
@@ -63,6 +67,9 @@
           "items": {
             "$ref": "#/$defs/parameter"
           }
+        },
+        "behavior": {
+          "$ref": "#/$defs/behavior"
         }
       }
     },
@@ -125,8 +132,8 @@
         "event": {
           "$ref": "#/$defs/event"
         },
-        "affectedEntities": {
-          "$ref": "#/$defs/affectedEntities"
+        "behavior": {
+          "$ref": "#/$defs/behavior"
         }
       },
       "allOf": [
@@ -1153,6 +1160,88 @@
           ]
         }
       ]
+    },
+    "actorEntry": {
+      "type": "object",
+      "required": [
+        "code",
+        "meaning"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "user",
+            "system",
+            "external_system"
+          ]
+        },
+        "meaning": {
+          "type": "string"
+        },
+        "responsibilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "actorRef": {
+      "type": "object",
+      "required": [
+        "namespaceAlias",
+        "actor"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "namespaceAlias": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Alias namespace zo namespaceRef. Pre aktuálny súbor použi hodnotu local."
+        },
+        "actor": {
+          "type": "string",
+          "description": "Kód aktéra v danom namespace"
+        }
+      }
+    },
+    "behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "postconditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "affectedEntities": {
+          "$ref": "#/$defs/affectedEntities"
+        },
+        "actors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/actorRef"
+          }
+        }
+      }
     },
     "namespaceEntity": {
       "type": "object",

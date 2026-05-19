@@ -1,7 +1,9 @@
 import React from 'react';
 import * as yaml from 'js-yaml';
 import { ParametersEditor } from '../components/ParametersEditor';
-import type { AlgorithmMeta, NamespaceEntity, Parameter, SqdAlgorithm, SqdStep, StepCondition, Variable } from '../types/sqd';
+import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
+import { ActorRefsEditor } from '../components/ActorRefsEditor';
+import type { ActorRef, AlgorithmMeta, NamespaceEntity, Parameter, SqdAlgorithm, SqdStep, StepCondition } from '../types/sqd';
 import { StepCard } from './StepCard';
 import { label } from '../ui-labels';
 import { vscodeApi } from './main';
@@ -28,6 +30,7 @@ interface AddMenuProps {
 type NamespaceReferencedModel = {
   entities?: Array<{ name?: string; functions?: Array<{ name?: string }> }>;
   eventGlossary?: Array<{ code?: string; title?: string }>;
+  actors?: Array<{ code?: string }>;
 };
 
 const AddMenu: React.FC<AddMenuProps> = ({ onAdd }) => {
@@ -81,48 +84,22 @@ const setStepChildren = (step: SqdStep, children: SqdStep[]): SqdStep => {
   return { ...step, body: children };
 };
 
-const normalizeVariableArray = (items?: Array<Variable | string>): Variable[] =>
-  (items ?? []).map((item) => {
-    if (typeof item === 'string') {
-      return { namedType: { name: item } };
-    }
-    return {
-      namedType: {
-        name: item.namedType?.name ?? '',
-        type: item.namedType?.type,
-        entityRef: item.namedType?.entityRef,
-        typeRef: item.namedType?.typeRef,
-        definition: item.namedType?.definition,
-        nullable: item.namedType?.nullable,
-        readOnly: item.namedType?.readOnly,
-        multiplicity: item.namedType?.multiplicity
-      }
-    };
-  });
-
 const normalizeAlgorithmParameters = (algorithm: AlgorithmMeta | undefined): Parameter[] => {
   if (!algorithm) {
     return [];
   }
 
-  if (algorithm.parameters && algorithm.parameters.length > 0) {
-    return algorithm.parameters.map((param) => ({
-      ...param,
-      direction: param.direction ?? 'in'
-    }));
-  }
-
-  const legacyInputs = normalizeVariableArray(algorithm.inputs as Array<Variable | string> | undefined).map((item) => ({
-    ...item,
-    direction: 'in' as const
+  return (algorithm.parameters ?? []).map((param) => ({
+    ...param,
+    direction: param.direction ?? 'in'
   }));
+};
 
-  const legacyOutputs = normalizeVariableArray(algorithm.outputs as Array<Variable | string> | undefined).map((item) => ({
-    ...item,
-    direction: 'out' as const
+const normalizeActorRefs = (items: ActorRef[] | undefined): ActorRef[] => {
+  return (items ?? []).map((item) => ({
+    namespaceAlias: item.namespaceAlias ?? 'local',
+    actor: item.actor ?? ''
   }));
-
-  return [...legacyInputs, ...legacyOutputs];
 };
 
 export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
@@ -340,6 +317,16 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
       .filter((event): event is string => Boolean(event));
   }, [namespaceModels]);
 
+  const getActorsForAlias = React.useCallback((alias: string): string[] => {
+    if (alias === 'local') {
+      return (model.actors ?? []).map(actor => actor.code).filter((code): code is string => Boolean(code));
+    }
+
+    return (namespaceModels[alias]?.actors ?? [])
+      .map(actor => actor.code)
+      .filter((code): code is string => Boolean(code));
+  }, [model.actors, namespaceModels]);
+
   const renderStepList = (
     items: SqdStep[],
     setItems: (updated: SqdStep[]) => void,
@@ -411,10 +398,17 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
                 getEntitiesForAlias={getEntitiesForAlias}
                 getFunctionsForEntity={getFunctionsForEntity}
                 getEventsForAlias={getEventsForAlias}
+                getActorsForAlias={getActorsForAlias}
                 onChange={updateCurrent}
                 actions={(
                   <>
                     <AddMenu onAdd={insertAfter} />
+                    {!step.behavior && (
+                      <button className="icon-btn" title={L('actions.addBehavior', 'Pridat behavior')} onClick={() => updateCurrent({ ...step, behavior: { description: '', preconditions: [], postconditions: [], affectedEntities: [], actors: [] } })}>💬</button>
+                    )}
+                    {step.behavior && (
+                      <button className="icon-btn" title={L('actions.removeBehavior', 'Odstranit behavior')} onClick={() => { const { behavior, ...rest } = step; updateCurrent(rest); }}>✕</button>
+                    )}
                     <button className="icon-btn" title={L('actions.deleteBranch', 'Vymazat vetvu')} onClick={deleteCurrent}>🗑</button>
                     <button className="icon-btn" title={L('actions.moveUpLevel', 'Posun o uroven vyssie')} onClick={moveLeft}>{'<<'}</button>
                     <button className="icon-btn" title={L('actions.moveDownLevel', 'Posun o uroven nizsie')} onClick={moveRight}>{'>>'}</button>
@@ -527,8 +521,67 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
                 <textarea
                   className="step-text"
                   rows={4}
-                  value={model.algorithm?.description ?? ''}
-                  onChange={(e) => updateAlgorithm({ description: e.target.value })}
+                  value={model.algorithm?.behavior?.description ?? ''}
+                  onChange={(e) => updateAlgorithm({
+                    behavior: {
+                      ...(model.algorithm?.behavior ?? {}),
+                      description: e.target.value
+                    }
+                  })}
+                />
+
+                <label className="field-label">{L('algorithmForm.preconditions', 'Preconditions')}</label>
+                <textarea
+                  className="field-input"
+                  rows={4}
+                  value={(model.algorithm?.behavior?.preconditions ?? []).join('\n')}
+                  onChange={(e) => updateAlgorithm({
+                    behavior: {
+                      ...(model.algorithm?.behavior ?? {}),
+                      preconditions: e.target.value.split('\n').filter(s => s.trim().length > 0)
+                    }
+                  })}
+                />
+
+                <label className="field-label">{L('algorithmForm.postconditions', 'Postconditions')}</label>
+                <textarea
+                  className="field-input"
+                  rows={4}
+                  value={(model.algorithm?.behavior?.postconditions ?? []).join('\n')}
+                  onChange={(e) => updateAlgorithm({
+                    behavior: {
+                      ...(model.algorithm?.behavior ?? {}),
+                      postconditions: e.target.value.split('\n').filter(s => s.trim().length > 0)
+                    }
+                  })}
+                />
+
+                <div style={{ marginTop: 16 }}>
+                  <AffectedEntitiesEditor
+                    affectedEntities={model.algorithm?.behavior?.affectedEntities ?? []}
+                    modelAliases={modelAliases}
+                    sqdAliases={sqdAliases}
+                    getEntitiesForAlias={getEntitiesForAlias}
+                    onChange={(affectedEntities) => updateAlgorithm({
+                      behavior: {
+                        ...(model.algorithm?.behavior ?? {}),
+                        affectedEntities
+                      }
+                    })}
+                  />
+                </div>
+
+                <ActorRefsEditor
+                  actorRefs={normalizeActorRefs(model.algorithm?.behavior?.actors)}
+                  namespaceAliases={(model.namespaceRef ?? []).map(ns => ns.alias).filter((alias): alias is string => Boolean(alias))}
+                  getAvailableActors={getActorsForAlias}
+                  onChange={(actors) => updateAlgorithm({
+                    behavior: {
+                      ...(model.algorithm?.behavior ?? {}),
+                      actors
+                    }
+                  })}
+                  prefix="algorithm"
                 />
 
                 <label className="field-label">{L('algorithmForm.version', 'version')}</label>
@@ -545,9 +598,7 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
                 <ParametersEditor
                   value={normalizeAlgorithmParameters(model.algorithm)}
                   onChange={(parameters) => updateAlgorithm({
-                    parameters,
-                    inputs: undefined,
-                    outputs: undefined
+                    parameters
                   })}
                   namespaceRef={model.namespaceRef}
                   vscodeApi={vscodeApi}

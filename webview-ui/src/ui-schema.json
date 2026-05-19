@@ -37,6 +37,8 @@
       },
       "name": "Názov",
       "description": "Popis",
+      "preconditions": "Predpodmienky (oddelené čiarkou)",
+      "postconditions": "Postpodmienky (oddelené čiarkou)",
       "version": "Verzia",
       "parameters": "Parametre (zoznam)",
       "inputs": "Vstupy (oddelene čiarkou)",
@@ -64,7 +66,19 @@
       "conditionCheck": "Kontrola podmienky:",
       "conditionNone": "bez podmienky",
       "affectedEntities": "Ovlplyvnené entity:",
-      "affectedNone": "Žiadne položky"
+      "affectedNone": "Žiadne položky",
+      "addBehavior": "Pridať dynamiku",
+      "behaviorDescription": "Popis dynamiky",
+      "preconditions": "Predpodmienky (oddelené čiarkou)",
+      "postconditions": "Postpodmienky (oddelené čiarkou)",
+      "removeEmptyBehavior": "Odstrániť prázdnu dynamiku"
+    },
+    "actors": {
+      "title": "Aktéri",
+      "add": "+ Aktér",
+      "empty": "Žiadni aktéri",
+      "namespaceAlias": "namespaceAlias",
+      "actor": "aktér"
     },
     "dialogs": {
       "condition": "Detail podmienky",
@@ -175,7 +189,8 @@
       },
       "name": "Názov",
       "description": "Popis",
-      "preconditions": "Predpoklady (oddelene čiarkou)",
+      "preconditions": "Predpodmienky (oddelene čiarkou)",
+      "postconditions": "Postpodmienky (oddelene čiarkou)",
       "direction": "Smer",
       "inputs": "Vstupy (oddelene čiarkou)",
       "outputs": "ýstupy (oddelene čiarkou)",
@@ -267,6 +282,13 @@
       },
       "alias": "Alias",
       "filePath": "Cesta k súboru"
+    },
+    "actors": {
+      "title": "Aktéri",
+      "add": "+ Aktér",
+      "empty": "Žiadni aktéri",
+      "namespaceAlias": "namespaceAlias",
+      "actor": "aktér"
     },
     "common": {
       "up": "↑",

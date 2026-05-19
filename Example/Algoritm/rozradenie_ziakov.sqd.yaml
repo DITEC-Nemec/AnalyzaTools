@@ -1,6 +1,16 @@
 algorithm:
-  name: 'rozradenie_ziakov'
+  name: rozradenie_ziakov
+  behavior:
+    actors:
+      - namespaceAlias: local
+        actor: ''
 steps:
   - id: '1'
     type: step
     text: ''
+    behavior:
+      description: ''
+      preconditions: []
+      postconditions: []
+      affectedEntities: []
+      actors: []

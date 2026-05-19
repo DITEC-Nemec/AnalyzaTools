@@ -9,17 +9,15 @@ export interface NamespaceEntity {
 export interface SqdAlgorithm {
   algorithm: AlgorithmMeta;
   steps: SqdStep[];
+  actors?: ActorEntry[];
   namespaceRef?: NamespaceEntity[];
 }
 
 export interface AlgorithmMeta {
   name: string;
-  description?: string;
   version?: string;
   parameters?: Parameter[];
-  // Spatna kompatibilita so starsim formatom algoritmu
-  inputs?: Variable[];
-  outputs?: Variable[];
+  behavior?: Behavior;
 }
 
 export interface NamedType {
@@ -75,7 +73,7 @@ export interface SqdStep {
   branches?: Branch[];
   body?: SqdStep[];
   event?: StepEvent;
-  affectedEntities?: AffectedEntity[];
+  behavior?: Behavior;
 
   // Spatna kompatibilita so starsimi datami/editorom
   steps?: SqdStep[];
@@ -176,6 +174,27 @@ export interface Output {
 
 export type AffectedEntity = EntityImpact | Output;
 
+export interface ActorRef {
+  namespaceAlias: string;
+  actor: string;
+}
+
+export interface ActorEntry {
+  code: string;
+  title?: string;
+  type?: 'user' | 'system' | 'external_system';
+  meaning: string;
+  responsibilities?: string[];
+}
+
+export interface Behavior {
+  description?: string;
+  preconditions?: string[];
+  postconditions?: string[];
+  affectedEntities?: AffectedEntity[];
+  actors?: ActorRef[];
+}
+
 // ----- Domain Model -----
 
 export interface DomainModel {
@@ -185,6 +204,7 @@ export interface DomainModel {
   relationships?: Relationship[];
   glossary?: GlossaryEntry[];
   eventGlossary?: EventGlossaryEntry[];
+  actors?: ActorEntry[];
   namespaceRef?: NamespaceEntity[];
 }
 
@@ -298,11 +318,9 @@ export interface GlossaryEntry {
 
 export interface DomainFunction {
   name: string;
-  description?: string;
-  preconditions?: string[];
   parameters?: Parameter[];
-  affectedEntities?: AffectedEntity[];
-  
+  behavior?: Behavior;
+
   // Spatna kompatibilita so starsim formatom funkcie
   inputs?: Variable[];
   effects?: FunctionEffect[];

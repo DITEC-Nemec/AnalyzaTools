@@ -17,11 +17,13 @@ import type {
   StateEntry,
   Parameter,
   Variable,
-  EventGlossaryEntry
+  EventGlossaryEntry,
+  ActorRef
 } from '../types/sqd';
 import { label as L } from '../ui-labels';
 import { ParametersEditor } from '../components/ParametersEditor';
 import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
+import { ActorRefsEditor } from '../components/ActorRefsEditor';
 import { displayType, displaySimpleTypeDefinition } from '../utils/displayType';
 
 const PRIMITIVE_TYPES = ['string', 'integer', 'decimal', 'double', 'boolean', 'date', 'time', 'dateTime'];
@@ -134,6 +136,13 @@ const normalizeFunctionParameters = (fn: DomainFunction | null | undefined): Par
   return legacyInputs;
 };
 
+const normalizeActorRefs = (items: ActorRef[] | undefined): ActorRef[] => {
+  return (items ?? []).map((item) => ({
+    namespaceAlias: item.namespaceAlias ?? 'local',
+    actor: item.actor ?? ''
+  }));
+};
+
 const simpleTypeRefToText = (ref: SimpleTypeRef): string => `${ref.namespaceAlias}:${ref.simpleType}`;
 
 const parseEnumerationCsv = (text: string): (string | number)[] => {
@@ -187,6 +196,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   // Glossary selection
   const [selectedGlossaryIndex, setSelectedGlossaryIndex] = useState<number | null>(null);
   const [selectedEventGlossaryIndex, setSelectedEventGlossaryIndex] = useState<number | null>(null);
+  
+  // Actors selection
+  const [selectedActorIndex, setSelectedActorIndex] = useState<number | null>(null);
   
   // Namespace selection
   const [selectedNamespaceIndex, setSelectedNamespaceIndex] = useState<number | null>(null);
@@ -276,6 +288,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const relationships = useMemo(() => model?.relationships ?? [], [model]);
   const glossary = useMemo(() => model?.glossary ?? [], [model]);
   const eventGlossary = useMemo(() => model?.eventGlossary ?? [], [model]);
+  const actors = useMemo(() => model?.actors ?? [], [model]);
   const namespaceRef = useMemo(() => model?.namespaceRef ?? [], [model]);
 
   const selectedEntity = selectedEntityIndex !== null ? entities[selectedEntityIndex] : null;
@@ -287,12 +300,14 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const selectedRelationship = selectedRelationshipIndex !== null ? relationships[selectedRelationshipIndex] : null;
   const selectedGlossary = selectedGlossaryIndex !== null ? glossary[selectedGlossaryIndex] : null;
   const selectedEventGlossary = selectedEventGlossaryIndex !== null ? eventGlossary[selectedEventGlossaryIndex] : null;
+  const selectedActor = selectedActorIndex !== null ? actors[selectedActorIndex] : null;
   const selectedNamespace = selectedNamespaceIndex !== null ? namespaceRef[selectedNamespaceIndex] : null;
 
   const simpleTypeCount = simpleTypes.length;
   const relationshipCount = relationships.length;
   const glossaryCount = glossary.length;
   const eventGlossaryCount = eventGlossary.length;
+  const actorCount = actors.length;
   const namespaceCount = namespaceRef.length;
 
   const updateModel = (updater: (current: DomainModel) => DomainModel) => {
@@ -351,6 +366,11 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const getAvailableSimpleTypes = (namespaceAlias?: string): string[] => {
     const sourceModel = getModelByAlias(namespaceAlias);
     return (sourceModel?.simpleTypes ?? []).map(st => st.name).filter((name): name is string => Boolean(name));
+  };
+
+  const getAvailableActors = (namespaceAlias?: string): string[] => {
+    const sourceModel = getModelByAlias(namespaceAlias);
+    return (sourceModel?.actors ?? []).map(actor => actor.code).filter((code): code is string => Boolean(code));
   };
 
   const removeAttribute = (attrIndex: number) => {
@@ -465,6 +485,19 @@ const DomainModelEditor: React.FC<EditorProps> = ({
     updateEntity(selectedEntityIndex, { functions });
   };
 
+  const updateFunctionBehavior = (fnIndex: number, patch: Partial<NonNullable<DomainFunction['behavior']>>) => {
+    if (!selectedFunction || selectedFunctionIndex === null) {
+      return;
+    }
+
+    updateFunction(fnIndex, {
+      behavior: {
+        ...(selectedFunction.behavior ?? {}),
+        ...patch
+      }
+    });
+  };
+
   const addFunction = () => {
     if (!selectedEntity || selectedEntityIndex === null) {
       return;
@@ -474,9 +507,14 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       ...(selectedEntity.functions ?? []),
       {
         name: `funkcia_${(selectedEntity.functions ?? []).length + 1}`,
-        description: '',
-        preconditions: [],
         parameters: [],
+        behavior: {
+          description: '',
+          preconditions: [],
+          postconditions: [],
+          affectedEntities: [],
+          actors: []
+        },
         effects: []
       }
     ];
@@ -886,6 +924,72 @@ const DomainModelEditor: React.FC<EditorProps> = ({
     });
   };
 
+  const addActor = () => {
+    updateModel(current => {
+      return {
+        ...current,
+        actors: [
+          ...(current.actors ?? []),
+          {
+            code: `actor_${(current.actors ?? []).length + 1}`,
+            title: '',
+            type: 'user',
+            meaning: '',
+            responsibilities: []
+          }
+        ]
+      };
+    });
+
+    setTopTab('actors');
+    setSelectedActorIndex(actors.length);
+  };
+
+  const updateActor = (index: number, patch: Partial<{ code: string; title?: string; type?: 'user' | 'system' | 'external_system'; meaning: string; responsibilities?: string[] }>) => {
+    updateModel(current => {
+      const next = [...(current.actors ?? [])];
+      next[index] = { ...next[index], ...patch };
+      return { ...current, actors: next };
+    });
+  };
+
+  const removeActor = (index: number) => {
+    updateModel(current => ({
+      ...current,
+      actors: (current.actors ?? []).filter((_, i) => i !== index)
+    }));
+
+    const nextLen = actors.length - 1;
+    if (nextLen <= 0) {
+      setSelectedActorIndex(null);
+      return;
+    }
+
+    setSelectedActorIndex(prev => {
+      if (prev === null) {
+        return null;
+      }
+      return Math.min(prev, nextLen - 1);
+    });
+  };
+
+  const moveActor = (index: number, direction: -1 | 1) => {
+    updateModel(current => ({
+      ...current,
+      actors: moveItem(current.actors ?? [], index, index + direction)
+    }));
+
+    setSelectedActorIndex(prev => {
+      if (prev === null) {
+        return null;
+      }
+      if (prev === index) {
+        return index + direction;
+      }
+      return prev;
+    });
+  };
+
   const addNamespace = () => {
     updateModel(current => ({
       ...current,
@@ -1126,7 +1230,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         <div className="header-top">
           <strong>{model.domain?.name ?? 'Domain Model'}</strong>
           <span>
-            {entities.length} entit | {simpleTypeCount} simpleTypes | {relationshipCount} relationships | {glossaryCount} glossary | {eventGlossaryCount} eventGlossary | {namespaceCount} namespace
+            {entities.length} entit | {simpleTypeCount} simpleTypes | {relationshipCount} relationships | {glossaryCount} glossary | {eventGlossaryCount} eventGlossary | {actorCount} actors | {namespaceCount} namespace
           </span>
         </div>
         {availableModels.length > 1 && (
@@ -1159,6 +1263,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           </button>
           <button className={topTab === 'eventGlossary' ? 'tab active' : 'tab'} onClick={() => setTopTab('eventGlossary')}>
             {L('topTabs.eventGlossary', 'eventGlossary')}
+          </button>
+          <button className={topTab === 'actors' ? 'tab active' : 'tab'} onClick={() => setTopTab('actors')}>
+            {L('topTabs.actors', 'Actors')}
           </button>
           <button className={topTab === 'namespaceRef' ? 'tab active' : 'tab'} onClick={() => setTopTab('namespaceRef')}>
             {L('topTabs.namespaceRef', 'namespaceRef')}
@@ -2060,7 +2167,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                         {(selectedEntity.functions ?? []).map((fn, i) => (
                           <tr key={fn.name + i} className={selectedFunctionIndex === i ? 'selected' : ''} onClick={() => setSelectedFunctionIndex(i)}>
                             <td>{fn.name}</td>
-                            <td>{fn.description ?? '-'}</td>
+                            <td>{fn.behavior?.description ?? '-'}</td>
                             <td>{normalizeFunctionParameters(fn).length}</td>
                             <td>
                               <div className="inline-actions">
@@ -2092,20 +2199,31 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                             <label>{L('functions.name', 'Nazov')}</label>
                             <input value={selectedFunction.name} onChange={(e) => updateFunction(selectedFunctionIndex, { name: e.target.value })} />
 
-                            <label>{L('functions.description', 'Popis')}</label>
-                            <textarea rows={3} value={selectedFunction.description ?? ''} onChange={(e) => updateFunction(selectedFunctionIndex, { description: e.target.value })} />
+                            <label>{L('functions.description', 'Description')}</label>
+                            <textarea rows={3} value={selectedFunction.behavior?.description ?? ''} onChange={(e) => updateFunctionBehavior(selectedFunctionIndex, { description: e.target.value })} />
 
-                            <label>{L('functions.preconditions', 'Preconditions (oddelene ciarkou)')}</label>
-                            <input value={(selectedFunction.preconditions ?? []).join(', ')} onChange={(e) => updateFunction(selectedFunctionIndex, { preconditions: parseCsv(e.target.value) })} />
+                            <label>{L('functions.preconditions', 'Preconditions')}</label>
+                            <textarea rows={4} value={(selectedFunction.behavior?.preconditions ?? []).join('\n')} onChange={(e) => updateFunctionBehavior(selectedFunctionIndex, { preconditions: e.target.value.split('\n').filter(s => s.trim().length > 0) })} />
+
+                            <label>{L('functions.postconditions', 'Postconditions')}</label>
+                            <textarea rows={4} value={(selectedFunction.behavior?.postconditions ?? []).join('\n')} onChange={(e) => updateFunctionBehavior(selectedFunctionIndex, { postconditions: e.target.value.split('\n').filter(s => s.trim().length > 0) })} />
 
                             <div style={{ marginTop: 16 }}>
                               <AffectedEntitiesEditor
-                                affectedEntities={selectedFunction.affectedEntities ?? []}
+                                affectedEntities={selectedFunction.behavior?.affectedEntities ?? []}
                                 modelAliases={getNamespaceAliases()}
                                 getEntitiesForAlias={getAvailableEntities}
-                                onChange={(affectedEntities) => updateFunction(selectedFunctionIndex, { affectedEntities })}
+                                onChange={(affectedEntities) => updateFunctionBehavior(selectedFunctionIndex, { affectedEntities })}
                               />
                             </div>
+
+                            <ActorRefsEditor
+                              actorRefs={normalizeActorRefs(selectedFunction.behavior?.actors)}
+                              namespaceAliases={getNamespaceAliases()}
+                              getAvailableActors={getAvailableActors}
+                              onChange={(actors) => updateFunctionBehavior(selectedFunctionIndex, { actors })}
+                              prefix="domain"
+                            />
                           </div>
                         )}
 
@@ -2824,6 +2942,71 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
                 <label>{L('eventGlossary.recommendedAction', 'Recommended action')}</label>
                 <textarea rows={3} value={selectedEventGlossary.recommendedAction ?? ''} onChange={(e) => updateEventGlossary(selectedEventGlossaryIndex, { recommendedAction: e.target.value })} />
+              </div>
+            )}
+          </section>
+        )}
+
+        {topTab === 'actors' && (
+          <section className="panel">
+            <div className="panel-head">
+              <h3>{L('actors.title', 'Actors')}</h3>
+              <button onClick={addActor}>{L('actors.add', '+ Actor')}</button>
+            </div>
+
+            <table className="dm-table">
+              <thead>
+                <tr>
+                  <th>{L('actors.columns.code', 'Code')}</th>
+                  <th>{L('actors.columns.title', 'Title')}</th>
+                  <th>{L('actors.columns.type', 'Type')}</th>
+                  <th>{L('actors.columns.meaning', 'Meaning')}</th>
+                  <th>{L('actors.columns.actions', 'Akcie')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {actors.map((entry, i) => (
+                  <tr key={`${entry.code}-${i}`} className={selectedActorIndex === i ? 'selected' : ''} onClick={() => setSelectedActorIndex(i)}>
+                    <td>{entry.code}</td>
+                    <td>{entry.title || '-'}</td>
+                    <td>{entry.type || '-'}</td>
+                    <td>{entry.meaning ? entry.meaning.substring(0, 50) + (entry.meaning.length > 50 ? '...' : '') : '-'}</td>
+                    <td>
+                      <div className="inline-actions">
+                        <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveActor(i, -1); }}>↑</button>
+                        <button disabled={i === actors.length - 1} onClick={(e) => { e.stopPropagation(); moveActor(i, 1); }}>↓</button>
+                        <button onClick={(e) => { e.stopPropagation(); removeActor(i); }}>✕</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {selectedActor && selectedActorIndex !== null && (
+              <div className="item-card">
+                <h4>{L('actors.detail', 'Detail aktéra')}</h4>
+                <label>{L('actors.code', 'Code')}</label>
+                <input value={selectedActor.code} onChange={(e) => updateActor(selectedActorIndex, { code: e.target.value })} />
+
+                <label>{L('actors.title', 'Title')}</label>
+                <input value={selectedActor.title ?? ''} onChange={(e) => updateActor(selectedActorIndex, { title: e.target.value })} />
+
+                <label>{L('actors.type', 'Type')}</label>
+                <select
+                  value={selectedActor.type ?? 'user'}
+                  onChange={(e) => updateActor(selectedActorIndex, { type: e.target.value as 'user' | 'system' | 'external_system' })}
+                >
+                  <option value="user">user</option>
+                  <option value="system">system</option>
+                  <option value="external_system">external_system</option>
+                </select>
+
+                <label>{L('actors.meaning', 'Meaning')}</label>
+                <textarea rows={4} value={selectedActor.meaning} onChange={(e) => updateActor(selectedActorIndex, { meaning: e.target.value })} />
+
+                <label>{L('actors.responsibilities', 'Responsibilities (one per line)')}</label>
+                <textarea rows={4} value={(selectedActor.responsibilities ?? []).join('\n')} onChange={(e) => updateActor(selectedActorIndex, { responsibilities: e.target.value.split('\n').filter(s => s.trim().length > 0) })} />
               </div>
             )}
           </section>

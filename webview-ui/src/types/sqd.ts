@@ -54,7 +54,6 @@ export type StepType =
   | 'decision'
   | 'loop'
   | 'foreach'
-  | 'waitEvent'
   | 'return'
   | 'stop'
   | 'block';
@@ -72,7 +71,6 @@ export interface SqdStep {
   condition?: StepCondition;
   branches?: Branch[];
   body?: SqdStep[];
-  waitEvent?: StepEvent;
   behavior?: Behavior;
 
   // Spatna kompatibilita so starsimi datami/editorom
@@ -128,10 +126,11 @@ export interface ReferenceOperation {
 }
 
 export interface StepCondition {
-  kind?: 'entityRef' | 'variable' | 'operationRef' | 'simple';
+  kind?: 'entityRef' | 'variable' | 'operationRef' | 'waitEvent' | 'simple';
   variable?: string;
   entityRef?: ReferenceEntity;
   operationRef?: ReferenceOperation;
+  waitEvent?: StepEvent;
   description?: string;
   check: 'exists' | 'is null' | 'is not null' | 'equals' | 'not equals' | 'greater than' | 'less than';
   value?: unknown;

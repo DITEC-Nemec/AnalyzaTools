@@ -95,7 +95,6 @@
             "loop",
             "foreach",
             "operation",
-            "waitEvent",
             "return",
             "stop",
             "block"
@@ -128,9 +127,6 @@
         },
         "body": {
           "$ref": "#/$defs/body"
-        },
-        "waitEvent": {
-          "$ref": "#/$defs/waitEvent"
         },
         "behavior": {
           "$ref": "#/$defs/behavior"
@@ -201,20 +197,6 @@
           "if": {
             "properties": {
               "type": {
-                "const": "waitEvent"
-              }
-            }
-          },
-          "then": {
-            "required": [
-              "waitEvent"
-            ]
-          }
-        },
-        {
-          "if": {
-            "properties": {
-              "type": {
                 "const": "block"
               }
             }
@@ -241,6 +223,7 @@
             "entityRef",
             "variableRef",
             "operationRef",
+            "waitEvent",
             "simple"
           ]
         },
@@ -255,6 +238,10 @@
         "operationRef": {
           "$ref": "#/$defs/referenceOperation",
           "description": "Referencia na entityFunction alebo sqd, ktorého návratovú hodnotu podmienka vyhodnocuje. Použiť keď podmienka závisí od výsledku volania, nie od priameho stavu atribútu."
+        },
+        "waitEvent": {
+          "$ref": "#/$defs/waitEvent",
+          "description": "Čakanie na udalosť, ktorej výsledok (received/timeout) podmienka vyhodnocuje. Použiť keď podmienka závisí od výsledku čakania na udalosť."
         },
         "description": {
           "minLength": 0,
@@ -332,6 +319,27 @@
             "not": {
               "required": [
                 "entityRef",
+                "variableRef"
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "waitEvent"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "waitEvent"
+            ],
+            "not": {
+              "required": [
+                "entityRef",
+                "operationRef",
                 "variableRef"
               ]
             }

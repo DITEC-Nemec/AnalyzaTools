@@ -35,13 +35,12 @@ const TYPE_LABELS: Record<string, string> = {
   decision:  label('algorithm.stepTypeLabels.decision', 'Rozhodnutie'),
   loop:      label('algorithm.stepTypeLabels.loop', 'Smycka'),
   foreach:   label('algorithm.stepTypeLabels.foreach', 'Pre kazde'),
-  waitEvent: label('algorithm.stepTypeLabels.waitEvent', 'Cakanie na udalost'),
   return:    label('algorithm.stepTypeLabels.return', 'Navrat'),
   stop:      label('algorithm.stepTypeLabels.stop', 'Zastavenie'),
   block:     label('algorithm.stepTypeLabels.block', 'Blok'),
 };
 
-const CONDITION_KINDS: Array<NonNullable<StepCondition['kind']>> = ['entityRef', 'variable', 'operationRef', 'simple'];
+const CONDITION_KINDS: Array<NonNullable<StepCondition['kind']>> = ['entityRef', 'variable', 'operationRef', 'waitEvent', 'simple'];
 const CONDITION_CHECKS: StepCondition['check'][] = [
   'exists',
   'is null',
@@ -151,7 +150,7 @@ export const StepCard: React.FC<Props> = ({
 
   const condition = useMemo(() => step.condition ?? defaultCondition(), [step.condition]);
   const operation = useMemo(() => normalizeOperation(step), [step]);
-  const eventRef = useMemo(() => step.waitEvent?.eventRef ?? null, [step.waitEvent]);
+  const eventRef = useMemo(() => condition.waitEvent?.eventRef ?? null, [condition]);
 
   const upsertOperationObject = (patch: Partial<ReferenceOperation>) => {
     const next: ReferenceOperation = {
@@ -189,9 +188,12 @@ export const StepCard: React.FC<Props> = ({
     };
     onChange({
       ...step,
-      waitEvent: {
-        ...step.waitEvent,
-        eventRef: next
+      condition: {
+        ...condition,
+        waitEvent: {
+          ...(condition.waitEvent ?? { eventRef: { namespaceAlias: 'local', event: '' } }),
+          eventRef: next
+        }
       }
     });
   };
@@ -264,45 +266,6 @@ export const StepCard: React.FC<Props> = ({
             </div>
           )}
 
-          {step.type === 'waitEvent' && (
-            <div className="step-meta">
-              <label className="field-label">{L('steps.waitUntil', 'Cakat do')}</label>
-              <input
-                className="field-input"
-                value={step.waitEvent?.waitUntil ?? ''}
-                onChange={e => onChange({
-                  ...step,
-                  waitEvent: {
-                    eventRef: step.waitEvent?.eventRef ?? { namespaceAlias: 'local', event: '' },
-                    ...step.waitEvent,
-                    waitUntil: e.target.value
-                  }
-                })}
-                placeholder={L('steps.waitUntilPlaceholder', 'napr. max 30s alebo do stavu SpracovanieDokoncene')}
-              />
-              <label className="field-label">{L('steps.timeoutAction', 'Akcia pri timeout-e')}</label>
-              <input
-                className="field-input"
-                value={step.waitEvent?.timeoutAction ?? ''}
-                onChange={e => onChange({
-                  ...step,
-                  waitEvent: {
-                    eventRef: step.waitEvent?.eventRef ?? { namespaceAlias: 'local', event: '' },
-                    ...step.waitEvent,
-                    timeoutAction: e.target.value
-                  }
-                })}
-                placeholder={L('steps.timeoutActionPlaceholder', 'napr. retry 3x, inak skoc na step 9')}
-              />
-              <div className="condition-summary">
-                {L('steps.waitEventRef', 'Cakat na udalost')}: {summaryEventRef(eventRef)}
-                <button className="btn-link" onClick={() => setShowEventRefDialog(true)}>
-                  [{eventRef ? ` ${L('steps.editWaitEventRef', 'Upravit udalost...')} ` : ` ${L('steps.addWaitEventRef', 'Pridat udalost...')} `}]
-                </button>
-              </div>
-            </div>
-          )}
-
           {(step.type === 'decision' || step.type === 'loop') && (
             <div className="step-meta">
               <label className="field-label">{L('steps.conditionKind', 'Condition kind:')}</label>
@@ -344,6 +307,50 @@ export const StepCard: React.FC<Props> = ({
                 onChange={(e) => onChange({ ...step, condition: { ...condition, value: e.target.value } })}
                 placeholder={L('dialogs.valuePlaceholder', 'Hodnota pre porovnanie (voliteľné)')}
               />
+              {condition.kind === 'waitEvent' && (
+                <>
+                  <label className="field-label">{L('steps.waitUntil', 'Cakat do')}</label>
+                  <input
+                    className="field-input"
+                    value={condition.waitEvent?.waitUntil ?? ''}
+                    onChange={e => onChange({
+                      ...step,
+                      condition: {
+                        ...condition,
+                        waitEvent: {
+                          eventRef: condition.waitEvent?.eventRef ?? { namespaceAlias: 'local', event: '' },
+                          ...condition.waitEvent,
+                          waitUntil: e.target.value
+                        }
+                      }
+                    })}
+                    placeholder={L('steps.waitUntilPlaceholder', 'napr. max 30s alebo do stavu SpracovanieDokoncene')}
+                  />
+                  <label className="field-label">{L('steps.timeoutAction', 'Akcia pri timeout-e')}</label>
+                  <input
+                    className="field-input"
+                    value={condition.waitEvent?.timeoutAction ?? ''}
+                    onChange={e => onChange({
+                      ...step,
+                      condition: {
+                        ...condition,
+                        waitEvent: {
+                          eventRef: condition.waitEvent?.eventRef ?? { namespaceAlias: 'local', event: '' },
+                          ...condition.waitEvent,
+                          timeoutAction: e.target.value
+                        }
+                      }
+                    })}
+                    placeholder={L('steps.timeoutActionPlaceholder', 'napr. retry 3x, inak skoc na step 9')}
+                  />
+                  <div className="condition-summary">
+                    {L('steps.waitEventRef', 'Cakat na udalost')}: {summaryEventRef(eventRef)}
+                    <button className="btn-link" onClick={() => setShowEventRefDialog(true)}>
+                      [{eventRef ? ` ${L('steps.editWaitEventRef', 'Upravit udalost...')} ` : ` ${L('steps.addWaitEventRef', 'Pridat udalost...')} `}]
+                    </button>
+                  </div>
+                </>
+              )}
               <div className="condition-summary">
                 ✱ {summaryCondition(step.condition)}
                 <button className="btn-link" onClick={() => setShowConditionDialog(true)}>[ {L('actions.editDetail', 'Upravit detail...')} ]</button>
@@ -743,7 +750,64 @@ export const StepCard: React.FC<Props> = ({
               </>
             )}
 
-
+            {condition.kind === 'waitEvent' && (
+              <>
+                <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
+                <select
+                  className="field-input"
+                  value={condition.waitEvent?.eventRef?.namespaceAlias ?? ''}
+                  onChange={(e) => onChange({
+                    ...step,
+                    condition: {
+                      ...condition,
+                      waitEvent: {
+                        ...(condition.waitEvent ?? { eventRef: { namespaceAlias: '', event: '' } }),
+                        eventRef: { ...condition.waitEvent?.eventRef, namespaceAlias: e.target.value, event: '' }
+                      }
+                    }
+                  })}
+                >
+                  <option value="">—</option>
+                  {modelAliases.map(alias => (
+                    <option key={alias} value={alias}>{alias}</option>
+                  ))}
+                </select>
+                <label className="field-label">{L('dialogs.event', 'Event')}</label>
+                <select
+                  className="field-input"
+                  value={condition.waitEvent?.eventRef?.event ?? ''}
+                  onChange={(e) => onChange({
+                    ...step,
+                    condition: {
+                      ...condition,
+                      waitEvent: {
+                        ...(condition.waitEvent ?? { eventRef: { namespaceAlias: '', event: '' } }),
+                        eventRef: { ...condition.waitEvent?.eventRef, event: e.target.value }
+                      }
+                    }
+                  })}
+                >
+                  <option value="">—</option>
+                  {getEventsForAlias(condition.waitEvent?.eventRef?.namespaceAlias ?? '').map(event => (
+                    <option key={event} value={event}>{event}</option>
+                  ))}
+                </select>
+                <label className="field-label">parameterMap</label>
+                <VariableAssignList
+                  value={normalizeParameterMap(condition.waitEvent?.eventRef)}
+                  onChange={(mapParameters) => onChange({
+                    ...step,
+                    condition: {
+                      ...condition,
+                      waitEvent: {
+                        ...(condition.waitEvent ?? { eventRef: {} }),
+                        eventRef: { ...condition.waitEvent?.eventRef, mapParameters, mapInput: undefined, mapOutput: undefined }
+                      }
+                    }
+                  })}
+                />
+              </>
+            )}
 
             <div className="dialog-actions">
               <button className="icon-btn" onClick={() => setShowConditionDialog(false)}>{L('actions.close', 'Zavriet')}</button>

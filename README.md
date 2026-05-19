@@ -75,10 +75,10 @@
 - Chýba KĽÚČOVÝ INFO (komentár analytika)
 - **UI:** TextField pri step "Rationale / Why" (voliteľné)
 
-**B) Data Flow Tracking**
-- Algoritmus zmení state ale nesleduje "kam idú dáta"
-- Prípad: "Kde skončí vypočítaná hodnota?"
-- **UI:** Pri Affected Entities: "Output Assignment" - aká premenná dostane hodnotu
+**B) Wait Event Policy (PARTIAL)**
+- Máme `waitEvent` s `eventRef`, `waitUntil` a `timeoutAction`
+- Chýba štruktúrovaná politika timeout-u (enum + fallback step ref + retry policy)
+- **UI:** Polia existujú, ale bez silnej validácie semantiky
 
 **C) Error Handling / Exception Paths**
 - Čo sa stane ak operácia zlyhá?
@@ -126,7 +126,7 @@
 - Operations (entityFunction, sqd, step, event)
 - Conditions (entityRef, variable, simple)
 - Branches (decision, loop, foreach)
-- Events
+- Events + waitEvent
 
 ### 2.2 Chýbajúce UI Komponenty
 
@@ -140,11 +140,11 @@
 2. **Entity Type Selector**
    - Momentálne: len Entity
    - Treba: Entity / Value Object / Enum dropdown pri detaili entity
-   - Status: ❌ PRIORITY: MEDIUM
+   - Status: ✅ DONE
 
 3. **Aggregate Root Checkbox**
    - Pri entity detail: "Aggregate Root?" (boolean)
-   - Status: ❌ PRIORITY: MEDIUM
+   - Status: ✅ DONE — riešené cez pole `agregationStatus` (root / leaf / intermediate)
 
 4. **State Transition Rules**
    - Stav -> Pravítka pre prechod (preconditions/postconditions)
@@ -186,7 +186,7 @@
 
 6. **Data Output Assignment**
    - Pri Affected Entities: pri "write" impact -> "Assign to Variable" field
-   - Status: ❌ PRIORITY: MEDIUM
+   - Status: ✅ DONE
 
 7. **Parallel Execution Step Type**
    - Nový step type: "parallel" s možnosťou viacerých substeps
@@ -216,10 +216,8 @@
 3. Error Handler per Operation (Algorithm)
 
 ### PHASE 2 (MEDIUM PRIORITY - Lepšia vyjadriteľnosť):
-1. Entity Type Selector (Domain)
-2. Aggregate Root (Domain)
-3. State Transition Rules (Domain)
-4. Data Output Assignment (Algorithm)
+1. State Transition Rules (Domain)
+4. Wait Event timeout stratégia (Algorithm)
 5. Compensation Step (Algorithm)
 
 ### PHASE 3 (LOW PRIORITY - Nice to Have):

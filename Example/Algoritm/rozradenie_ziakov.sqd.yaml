@@ -8,9 +8,23 @@ steps:
   - id: '1'
     type: step
     text: ''
-    behavior:
+  - id: '2'
+    type: decision
+    text: ''
+    condition:
+      kind: simple
       description: ''
-      preconditions: []
-      postconditions: []
-      affectedEntities: []
-      actors: []
+      check: exists
+    branches:
+      - when: true
+        then:
+          - id: '3'
+            type: block
+            text: ''
+            body:
+              - id: '4'
+                type: operation
+                text: ''
+                operation: ''
+      - when: false
+        then: []

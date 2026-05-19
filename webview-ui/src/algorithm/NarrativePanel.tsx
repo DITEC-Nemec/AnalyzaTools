@@ -33,6 +33,19 @@ type NamespaceReferencedModel = {
   actors?: Array<{ code?: string }>;
 };
 
+const STEP_TYPE_LABELS: Record<StepType, string> = {
+  step: label('algorithm.stepTypeLabels.step', 'Krok'),
+  operation: label('algorithm.stepTypeLabels.operation', 'Operacia'),
+  decision: label('algorithm.stepTypeLabels.decision', 'Rozhodnutie'),
+  loop: label('algorithm.stepTypeLabels.loop', 'Smycka'),
+  foreach: label('algorithm.stepTypeLabels.foreach', 'Pre kazde'),
+  return: label('algorithm.stepTypeLabels.return', 'Navrat'),
+  stop: label('algorithm.stepTypeLabels.stop', 'Zastavenie'),
+  block: label('algorithm.stepTypeLabels.block', 'Blok')
+};
+
+const ALL_STEP_TYPES: StepType[] = ['step', 'decision', 'loop', 'foreach', 'operation', 'return', 'stop', 'block'];
+
 const AddMenu: React.FC<AddMenuProps> = ({ onAdd }) => {
   const [open, setOpen] = React.useState(false);
 
@@ -41,20 +54,6 @@ const AddMenu: React.FC<AddMenuProps> = ({ onAdd }) => {
     setOpen(false);
   };
 
-  const stepTypeLabels: Record<StepType, string> = {
-    step: label('algorithm.stepTypeLabels.step', 'Krok'),
-    operation: label('algorithm.stepTypeLabels.operation', 'Operacia'),
-    decision: label('algorithm.stepTypeLabels.decision', 'Rozhodnutie'),
-    loop: label('algorithm.stepTypeLabels.loop', 'Smycka'),
-    foreach: label('algorithm.stepTypeLabels.foreach', 'Pre kazde'),
-    waitEvent: label('algorithm.stepTypeLabels.waitEvent', 'Cakanie na udalost'),
-    return: label('algorithm.stepTypeLabels.return', 'Navrat'),
-    stop: label('algorithm.stepTypeLabels.stop', 'Zastavenie'),
-    block: label('algorithm.stepTypeLabels.block', 'Blok')
-  };
-
-  const allTypes: StepType[] = ['step', 'operation', 'decision', 'loop', 'foreach', 'waitEvent', 'return', 'stop', 'block'];
-
   return (
     <div className="add-menu">
       <button className="icon-btn" title={label('algorithm.actions.addStep', 'Pridat krok')} onClick={() => setOpen((v) => !v)}>
@@ -62,9 +61,9 @@ const AddMenu: React.FC<AddMenuProps> = ({ onAdd }) => {
       </button>
       {open && (
         <div className="add-menu-list">
-          {allTypes.map((type) => (
+          {ALL_STEP_TYPES.map((type) => (
             <button key={type} onClick={() => handleAdd(type)}>
-              {stepTypeLabels[type]}
+              {STEP_TYPE_LABELS[type]}
             </button>
           ))}
         </div>
@@ -173,8 +172,12 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
       return { ...base, operation: '' };
     }
 
-    if (type === 'waitEvent') {
-      return { ...base, waitEvent: { eventRef: { namespaceAlias: 'local', event: '' } } };
+    if (type === 'return') {
+      return base;
+    }
+
+    if (type === 'stop') {
+      return base;
     }
 
     if (type === 'block') {
@@ -317,8 +320,8 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
       .filter((event): event is string => Boolean(event));
   }, [namespaceModels]);
 
-  const getActorsForAlias = React.useCallback((alias: string): string[] => {
-    if (alias === 'local') {
+  const getActorsForAlias = React.useCallback((alias: string | undefined): string[] => {
+    if (!alias || alias === 'local') {
       return (model.actors ?? []).map(actor => actor.code).filter((code): code is string => Boolean(code));
     }
 

@@ -326,31 +326,7 @@
       "properties": {
         "restriction": {
           "$ref": "#/$defs/restriction"
-        },
-        "list": {
-          "$ref": "#/$defs/list"
-        },
-        "union": {
-          "$ref": "#/$defs/union"
-        }
-      },
-      "oneOf": [
-        {
-          "required": [
-            "restriction"
-          ]
-        },
-        {
-          "required": [
-            "list"
-          ]
-        },
-        {
-          "required": [
-            "union"
-          ]
-        }
-      ]
+        }   
     },
     "simpleTypeRef": {
       "type": "object",

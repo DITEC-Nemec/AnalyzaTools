@@ -74,9 +74,7 @@ const normalizeSimpleType = (simpleType: SimpleType): SimpleType => ({
 });
 
 const normalizeSimpleTypeDefinition = (def: any): SimpleTypeDefinition => ({
-  restriction: def?.restriction,
-  list: def?.list,
-  union: def?.union
+  restriction: def?.restriction
 });
 
 const normalizeRestriction = (restriction: any) => ({
@@ -152,8 +150,6 @@ const normalizeActorRefs = (items: ActorRef[] | undefined): ActorRef[] => {
     actor: item.actor ?? ''
   }));
 };
-
-const simpleTypeRefToText = (ref: SimpleTypeRef): string => `${ref.namespaceAlias}:${ref.simpleType}`;
 
 const parseEnumerationCsv = (text: string): (string | number)[] => {
   return text.split(',').map(item => {
@@ -378,7 +374,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const getAvailableAttributes = (entityName: string, namespaceAlias?: string): string[] => {
     const sourceModel = getModelByAlias(namespaceAlias);
     const entity = (sourceModel?.entities ?? []).find(e => e.name === entityName);
-    return (entity?.attributes ?? []).map(a => a.name).filter((name): name is string => Boolean(name));
+    return (entity?.attributes ?? []).map(a => a.namedType?.name).filter((name): name is string => Boolean(name));
   };
 
   // Helper: Get available simpleTypes (all, or from specific namespace)
@@ -1398,10 +1394,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                       </thead>
                       <tbody>
                         {(selectedEntity.attributes ?? []).map((attr, i) => (
-                          <tr key={(attr.namedType?.name ?? attr.name ?? 'attr') + i} className={selectedAttributeIndex === i ? 'selected' : ''} onClick={() => { setSelectedAttributeIndex(i); setSelectedAttributeStateIndex(null); }}>
-                            <td>{attr.namedType?.name ?? attr.name ?? '-'}</td>
+                          <tr key={(attr.namedType?.name ?? 'attr') + i} className={selectedAttributeIndex === i ? 'selected' : ''} onClick={() => { setSelectedAttributeIndex(i); setSelectedAttributeStateIndex(null); }}>
+                            <td>{attr.namedType?.name ?? '-'}</td>
                             <td>{displayType(attr.namedType)}</td>
-                            <td>{(attr.namedType?.nullable ?? attr.nullable ?? true) ? 'true' : 'false'}</td>
+                            <td>{(attr.namedType?.nullable ?? true) ? 'true' : 'false'}</td>
                             <td>{attr.states?.length ?? 0}</td>
                             <td>
                               <div className="inline-actions">
@@ -1420,21 +1416,35 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                         <h4>{L('attributes.view.detail', 'Detail atributu')}</h4>
                         <label>{L('attributes.form.name', 'Nazov')}</label>
                         <input
-                          value={selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''}
+                          value={selectedAttribute.namedType?.name ?? ''}
                           onChange={(e) => updateAttribute(selectedAttributeIndex, {
                             namedType: {
-                              ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
+                              ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                               name: e.target.value
                             }
                           })}
                         />
+                        <label className="check-row">
+                          <input
+                            type="checkbox"
+                            checked={selectedAttribute.namedType?.nullable ?? true}
+                            onChange={(e) => updateAttribute(selectedAttributeIndex, {
+                              namedType: {
+                                ...selectedAttribute.namedType,
+                                nullable: e.target.checked,
+                                name: selectedAttribute.namedType?.name || '' // Ensure name is always a string
+                              }
+                            })}
+                          />
+                          {L('attributes.form.nullable', 'Nullable')}
+                        </label>
 
                         <label>{L('attributes.form.type', 'Typ')}</label>
                         <select
-                          value={selectedAttribute.namedType?.type ?? selectedAttribute.type ?? ''}
+                          value={selectedAttribute.namedType?.type ?? ''}
                           onChange={(e) => updateAttribute(selectedAttributeIndex, {
                             namedType: {
-                              ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
+                              ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                               type: (e.target.value || undefined) as 'entityRef' | 'definition' | 'typeRef' | undefined
                             }
                           })}
@@ -1445,14 +1455,14 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                           ))}
                         </select>
 
-                        {(selectedAttribute.namedType?.type ?? selectedAttribute.type ?? '') === 'entityRef' && (
+                        {(selectedAttribute.namedType?.type ?? '') === 'entityRef' && (
                           <>
                             <label>{L('attributes.form.entityRefNamespaceAlias', 'EntityRef namespaceAlias')}</label>
                             <select
-                              value={selectedAttribute.namedType?.entityRef?.namespaceAlias ?? selectedAttribute.entityRef?.namespaceAlias ?? ''}
+                              value={selectedAttribute.namedType?.entityRef?.namespaceAlias ?? ''}
                               onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                 namedType: {
-                                  ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
+                                  ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                   entityRef: {
                                     ...(selectedAttribute.namedType?.entityRef ?? { namespaceAlias: '', entity: '' }),
                                     namespaceAlias: e.target.value
@@ -1468,10 +1478,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
                             <label>{L('attributes.form.entityRefEntity', 'EntityRef entity')}</label>
                             <select
-                              value={selectedAttribute.namedType?.entityRef?.entity ?? selectedAttribute.entityRef?.entity ?? ''}
+                              value={selectedAttribute.namedType?.entityRef?.entity ?? ''}
                               onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                 namedType: {
-                                  ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
+                                  ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                   entityRef: {
                                     ...(selectedAttribute.namedType?.entityRef ?? { namespaceAlias: '', entity: '' }),
                                     entity: e.target.value
@@ -1480,7 +1490,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                               })}
                             >
                               <option value="">—</option>
-                              {getAvailableEntities(selectedAttribute.namedType?.entityRef?.namespaceAlias ?? selectedAttribute.entityRef?.namespaceAlias).map(entity => (
+                              {getAvailableEntities(selectedAttribute.namedType?.entityRef?.namespaceAlias).map(entity => (
                                 <option key={entity} value={entity}>{entity}</option>
                               ))}
                             </select>
@@ -1488,14 +1498,14 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                           </>
                         )}
 
-                        {(selectedAttribute.namedType?.type ?? selectedAttribute.type ?? '') === 'typeRef' && (
+                        {(selectedAttribute.namedType?.type ?? '') === 'typeRef' && (
                           <>
                             <label>{L('attributes.typeRefNamespaceAlias', 'TypeRef namespaceAlias')}</label>
                             <select
                               value={selectedAttribute.namedType?.typeRef?.namespaceAlias ?? ''}
                               onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                 namedType: {
-                                  ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
+                                  ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                   typeRef: {
                                     ...(selectedAttribute.namedType?.typeRef ?? { namespaceAlias: '', simpleType: '' }),
                                     namespaceAlias: e.target.value
@@ -1514,7 +1524,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                               value={selectedAttribute.namedType?.typeRef?.simpleType ?? ''}
                               onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                 namedType: {
-                                  ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
+                                  ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                   typeRef: {
                                     ...(selectedAttribute.namedType?.typeRef ?? { namespaceAlias: '', simpleType: '' }),
                                     simpleType: e.target.value
@@ -1530,35 +1540,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                           </>
                         )}
 
-                        {(selectedAttribute.namedType?.type ?? selectedAttribute.type ?? '') === 'definition' && (
+                        {(selectedAttribute.namedType?.type ?? '') === 'definition' && (
                           <>
-                            <label>{L('attributes.definitionKind', 'Definition kind')}</label>
-                            <select
-                              value={selectedAttribute.namedType?.definition?.restriction ? 'restriction' : selectedAttribute.namedType?.definition?.list ? 'list' : 'union'}
-                              onChange={(e) => {
-                                const mode = e.target.value as 'restriction' | 'list' | 'union';
-                                const currentNamedType = normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? '');
-                                const nextDefinition: SimpleTypeDefinition =
-                                  mode === 'restriction'
-                                    ? { restriction: normalizeRestriction(currentNamedType.definition?.restriction) }
-                                    : mode === 'list'
-                                      ? { list: { itemType: currentNamedType.definition?.list?.itemType ?? 'string' } }
-                                      : { union: { memberTypes: currentNamedType.definition?.union?.memberTypes ?? [] } };
-
-                                updateAttribute(selectedAttributeIndex, {
-                                  namedType: {
-                                    ...currentNamedType,
-                                    definition: nextDefinition
-                                  }
-                                });
-                              }}
-                            >
-                              <option value="restriction">restriction</option>
-                              <option value="list">list</option>
-                              <option value="union">union</option>
-                            </select>
-
-                            {(selectedAttribute.namedType?.definition?.restriction || (!selectedAttribute.namedType?.definition?.list && !selectedAttribute.namedType?.definition?.union)) && (
+                            {
                               <>
                                 <label>{L('attributes.definition.restriction.base', 'restriction.base type')}</label>
                                 <select
@@ -1567,7 +1551,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                     const isPrimitive = e.target.value === 'primitive';
                                     updateAttribute(selectedAttributeIndex, {
                                       namedType: {
-                                        ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
+                                        ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                         definition: {
                                           restriction: {
                                             ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1589,7 +1573,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={selectedAttribute.namedType?.definition?.restriction?.base as string}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1611,7 +1595,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={(selectedAttribute.namedType?.definition?.restriction?.base as SimpleTypeRef)?.namespaceAlias ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1635,7 +1619,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={(selectedAttribute.namedType?.definition?.restriction?.base as SimpleTypeRef)?.simpleType ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1666,7 +1650,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                     value={(selectedAttribute.namedType?.definition?.restriction?.enumeration ?? []).join(', ')}
                                     onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                       namedType: {
-                                        ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                        ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                         definition: {
                                           restriction: {
                                             ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1687,7 +1671,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={selectedAttribute.namedType?.definition?.restriction?.pattern ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1703,7 +1687,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={selectedAttribute.namedType?.definition?.restriction?.length ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1719,7 +1703,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={selectedAttribute.namedType?.definition?.restriction?.minLength ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1735,7 +1719,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={selectedAttribute.namedType?.definition?.restriction?.maxLength ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1750,7 +1734,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={selectedAttribute.namedType?.definition?.restriction?.minInclusive ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1765,7 +1749,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={selectedAttribute.namedType?.definition?.restriction?.maxInclusive ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1780,7 +1764,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={selectedAttribute.namedType?.definition?.restriction?.minExclusive ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1795,7 +1779,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={selectedAttribute.namedType?.definition?.restriction?.maxExclusive ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1811,7 +1795,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={selectedAttribute.namedType?.definition?.restriction?.totalDigits ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1827,7 +1811,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={selectedAttribute.namedType?.definition?.restriction?.fractionDigits ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1842,7 +1826,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                       value={selectedAttribute.namedType?.definition?.restriction?.whiteSpace ?? ''}
                                       onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                         namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                           definition: {
                                             restriction: {
                                               ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1865,7 +1849,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                   value={selectedAttribute.namedType?.definition?.restriction?.minExclusive ?? ''}
                                   onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                     namedType: {
-                                      ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                      ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                       definition: {
                                         restriction: {
                                           ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1881,7 +1865,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                   value={selectedAttribute.namedType?.definition?.restriction?.maxExclusive ?? ''}
                                   onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                     namedType: {
-                                      ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                      ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                       definition: {
                                         restriction: {
                                           ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1898,7 +1882,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                   value={selectedAttribute.namedType?.definition?.restriction?.totalDigits ?? ''}
                                   onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                     namedType: {
-                                      ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                      ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                       definition: {
                                         restriction: {
                                           ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1915,7 +1899,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                   value={selectedAttribute.namedType?.definition?.restriction?.fractionDigits ?? ''}
                                   onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                     namedType: {
-                                      ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                      ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                       definition: {
                                         restriction: {
                                           ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1931,7 +1915,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                   value={selectedAttribute.namedType?.definition?.restriction?.whiteSpace ?? ''}
                                   onChange={(e) => updateAttribute(selectedAttributeIndex, {
                                     namedType: {
-                                      ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
+                                      ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.namedType?.name ?? ''),
                                       definition: {
                                         restriction: {
                                           ...normalizeRestriction(selectedAttribute.namedType?.definition?.restriction),
@@ -1947,163 +1931,11 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                                   <option value="collapse">collapse</option>
                                 </select>
                               </>
-                            )}
-
-                            {selectedAttribute.namedType?.definition?.list && (
-                              <>
-                                <label>{L('attributes.definition.list.itemType', 'list.itemType type')}</label>
-                                <select
-                                  value={typeof selectedAttribute.namedType?.definition?.list?.itemType === 'string' ? 'primitive' : 'reference'}
-                                  onChange={(e) => {
-                                    const isPrimitive = e.target.value === 'primitive';
-                                    updateAttribute(selectedAttributeIndex, {
-                                      namedType: {
-                                        ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
-                                        definition: {
-                                          list: {
-                                            itemType: isPrimitive ? 'string' : { namespaceAlias: '', simpleType: '' }
-                                          }
-                                        }
-                                      }
-                                    });
-                                  }}
-                                >
-                                  <option value="primitive">Primitív typ</option>
-                                  <option value="reference">SimpleType referencia</option>
-                                </select>
-
-                                {typeof selectedAttribute.namedType?.definition?.list?.itemType === 'string' ? (
-                                  <>
-                                    <label>{L('attributes.definition.list.itemTypePrimitive', 'itemType primitív typ')}</label>
-                                    <select
-                                      value={selectedAttribute.namedType?.definition?.list?.itemType as string}
-                                      onChange={(e) => updateAttribute(selectedAttributeIndex, {
-                                        namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
-                                          definition: {
-                                            list: {
-                                              itemType: e.target.value
-                                            }
-                                          }
-                                        }
-                                      })}
-                                    >
-                                      {PRIMITIVE_TYPES.map(type => (
-                                        <option key={type} value={type}>{type}</option>
-                                      ))}
-                                    </select>
-                                  </>
-                                ) : (
-                                  <>
-                                    <label>{L('attributes.definition.list.namespaceAlias', 'list.itemType namespaceAlias')}</label>
-                                    <select
-                                      value={(selectedAttribute.namedType?.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias ?? ''}
-                                      onChange={(e) => updateAttribute(selectedAttributeIndex, {
-                                        namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
-                                          definition: {
-                                            list: {
-                                              itemType: {
-                                                ...normalizeSimpleTypeRef(selectedAttribute.namedType?.definition?.list?.itemType as SimpleTypeRef),
-                                                namespaceAlias: e.target.value
-                                              }
-                                            }
-                                          }
-                                        }
-                                      })}
-                                    >
-                                      <option value="">—</option>
-                                      {getNamespaceAliases().map(alias => (
-                                        <option key={alias} value={alias}>{alias}</option>
-                                      ))}
-                                    </select>
-
-                                    <label>{L('attributes.definition.list.simpleType', 'list.itemType simpleType')}</label>
-                                    <select
-                                      value={(selectedAttribute.namedType?.definition?.list?.itemType as SimpleTypeRef)?.simpleType ?? ''}
-                                      onChange={(e) => updateAttribute(selectedAttributeIndex, {
-                                        namedType: {
-                                          ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
-                                          definition: {
-                                            list: {
-                                              itemType: {
-                                                ...normalizeSimpleTypeRef(selectedAttribute.namedType?.definition?.list?.itemType as SimpleTypeRef),
-                                                simpleType: e.target.value
-                                              }
-                                            }
-                                          }
-                                        }
-                                      })}
-                                    >
-                                      <option value="">—</option>
-                                      {getAvailableSimpleTypes((selectedAttribute.namedType?.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias).map(st => (
-                                        <option key={st} value={st}>{st}</option>
-                                      ))}
-                                    </select>
-                                  </>
-                                )}
-                              </>
-                            )}
-
-                            {selectedAttribute.namedType?.definition?.union && (
-                              <>
-                                <label>{L('attributes.definition.union.memberTypes', 'union.memberTypes')}</label>
-                                <p style={{ fontSize: '0.85em', marginTop: '0.2em', marginBottom: '0.2em' }}>
-                                  Primiešajte primitívne typy a/alebo SimpleType referencie (referencie: namespaceAlias:simpleType, jeden na riadok)
-                                </p>
-                                <textarea
-                                  rows={4}
-                                  value={(selectedAttribute.namedType?.definition?.union?.memberTypes ?? []).map(item =>
-                                    typeof item === 'string' ? item : simpleTypeRefToText(item)
-                                  ).join('\n')}
-                                  onChange={(e) => {
-                                    const lines = e.target.value.split('\n').filter(Boolean);
-                                    const memberTypes = lines.map(line => {
-                                      const trimmed = line.trim();
-                                      if (PRIMITIVE_TYPES.includes(trimmed)) {
-                                        return trimmed;
-                                      }
-                                      const colonIndex = trimmed.indexOf(':');
-                                      if (colonIndex > 0) {
-                                        return {
-                                          namespaceAlias: trimmed.slice(0, colonIndex).trim(),
-                                          simpleType: trimmed.slice(colonIndex + 1).trim()
-                                        };
-                                      }
-                                      return trimmed;
-                                    });
-                                    updateAttribute(selectedAttributeIndex, {
-                                      namedType: {
-                                        ...normalizeNamedType(selectedAttribute.namedType, selectedAttribute.name ?? ''),
-                                        definition: {
-                                          union: {
-                                            memberTypes
-                                          }
-                                        }
-                                      }
-                                    });
-                                  }}
-                                />
-                              </>
-                            )}
+                            }
                           </>
                         )}
 
-                        <label className="check-row">
-                          <input
-                            type="checkbox"
-                            checked={selectedAttribute.namedType?.nullable ?? selectedAttribute.nullable ?? true}
-                            onChange={(e) => updateAttribute(selectedAttributeIndex, {
-                              namedType: {
-                                ...selectedAttribute.namedType,
-                                nullable: e.target.checked,
-                                name: selectedAttribute.namedType?.name || '' // Ensure name is always a string
-                              }
-                            })}
-                          />
-                          {L('attributes.form.nullable', 'Nullable')}
-                        </label>
-
+                  
                         <div className="panel-head compact">
                           <strong>States</strong>
                           <button onClick={addAttributeState}>{L('attributes.form.statesAdd', '+ State')}</button>
@@ -2353,28 +2185,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                 <label>{L('simpleTypes.name', 'Name')}</label>
                 <input value={selectedSimpleType.name} onChange={(e) => updateSimpleType(selectedSimpleTypeIndex, { name: e.target.value })} />
 
-                <label>{L('simpleTypes.definitionKind', 'Definition kind')}</label>
-                <select
-                  value={selectedSimpleType.definition?.restriction ? 'restriction' : selectedSimpleType.definition?.list ? 'list' : 'union'}
-                  onChange={(e) => {
-                    const mode = e.target.value as 'restriction' | 'list' | 'union';
-                    const nextDefinition: SimpleTypeDefinition =
-                      mode === 'restriction'
-                        ? { restriction: normalizeRestriction(selectedSimpleType.definition?.restriction) }
-                        : mode === 'list'
-                          ? { list: { itemType: selectedSimpleType.definition?.list?.itemType ?? 'string' } }
-                          : { union: { memberTypes: selectedSimpleType.definition?.union?.memberTypes ?? [] } };
-                    updateSimpleType(selectedSimpleTypeIndex, { definition: nextDefinition });
-                  }}
-                >
-                  <option value="restriction">restriction</option>
-                  <option value="list">list</option>
-                  <option value="union">union</option>
-                </select>
-
-                {(selectedSimpleType.definition?.restriction || (!selectedSimpleType.definition?.list && !selectedSimpleType.definition?.union)) && (
-                  <>
-                    <label>{L('simpleTypes.definition.restriction.base', 'restriction.base type')}</label>
+                <label>{L('simpleTypes.definition.restriction.base', 'restriction.base type')}</label>
                     <select
                       value={typeof selectedSimpleType.definition?.restriction?.base === 'string' ? 'primitive' : 'reference'}
                       onChange={(e) => {
@@ -2631,133 +2442,6 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                       <option value="replace">replace</option>
                       <option value="collapse">collapse</option>
                     </select>
-                  </>
-                )}
-
-                  </>
-                )}
-
-                {selectedSimpleType.definition?.list && (
-                  <>
-                    <label>{L('simpleTypes.definition.list.itemType', 'list.itemType type')}</label>
-                    <select
-                      value={typeof selectedSimpleType.definition?.list?.itemType === 'string' ? 'primitive' : 'reference'}
-                      onChange={(e) => {
-                        const isPrimitive = e.target.value === 'primitive';
-                        updateSimpleType(selectedSimpleTypeIndex, {
-                          definition: {
-                            list: {
-                              itemType: isPrimitive ? 'string' : { namespaceAlias: '', simpleType: '' }
-                            }
-                          }
-                        });
-                      }}
-                    >
-                      <option value="primitive">Primitív typ</option>
-                      <option value="reference">SimpleType referencia</option>
-                    </select>
-
-                    {typeof selectedSimpleType.definition?.list?.itemType === 'string' ? (
-                      <>
-                        <label>{L('simpleTypes.definition.list.itemTypePrimitive', 'itemType primitív typ')}</label>
-                        <select
-                          value={selectedSimpleType.definition?.list?.itemType as string}
-                          onChange={(e) => updateSimpleType(selectedSimpleTypeIndex, {
-                            definition: {
-                              list: {
-                                itemType: e.target.value
-                              }
-                            }
-                          })}
-                        >
-                          {PRIMITIVE_TYPES.map(type => (
-                            <option key={type} value={type}>{type}</option>
-                          ))}
-                        </select>
-                      </>
-                    ) : (
-                      <>
-                        <label>{L('simpleTypes.definition.list.namespaceAlias', 'list.itemType namespaceAlias')}</label>
-                        <select
-                          value={(selectedSimpleType.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias ?? ''}
-                          onChange={(e) => updateSimpleType(selectedSimpleTypeIndex, {
-                            definition: {
-                              list: {
-                                itemType: {
-                                  ...normalizeSimpleTypeRef(selectedSimpleType.definition?.list?.itemType as SimpleTypeRef),
-                                  namespaceAlias: e.target.value
-                                }
-                              }
-                            }
-                          })}
-                        >
-                          <option value="">—</option>
-                          {getNamespaceAliases().map(alias => (
-                            <option key={alias} value={alias}>{alias}</option>
-                          ))}
-                        </select>
-
-                        <label>{L('simpleTypes.definition.list.simpleType', 'list.itemType simpleType')}</label>
-                        <select
-                          value={(selectedSimpleType.definition?.list?.itemType as SimpleTypeRef)?.simpleType ?? ''}
-                          onChange={(e) => updateSimpleType(selectedSimpleTypeIndex, {
-                            definition: {
-                              list: {
-                                itemType: {
-                                  ...normalizeSimpleTypeRef(selectedSimpleType.definition?.list?.itemType as SimpleTypeRef),
-                                  simpleType: e.target.value
-                                }
-                              }
-                            }
-                          })}
-                        >
-                          <option value="">—</option>
-                          {getAvailableSimpleTypes((selectedSimpleType.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias).map(st => (
-                            <option key={st} value={st}>{st}</option>
-                          ))}
-                        </select>
-                      </>
-                    )}
-                  </>
-                )}
-
-                {selectedSimpleType.definition?.union && (
-                  <>
-                    <label>{L('simpleTypes.definition.union.memberTypes', 'union.memberTypes')}</label>
-                    <p style={{ fontSize: '0.85em', marginTop: '0.2em', marginBottom: '0.2em' }}>
-                      Primiešajte primitívne typy a/alebo SimpleType referencie (referencie: namespaceAlias:simpleType, jeden na riadok)
-                    </p>
-                    <textarea
-                      rows={4}
-                      value={(selectedSimpleType.definition?.union?.memberTypes ?? []).map(item =>
-                        typeof item === 'string' ? item : simpleTypeRefToText(item)
-                      ).join('\n')}
-                      onChange={(e) => {
-                        const lines = e.target.value.split('\n').filter(Boolean);
-                        const memberTypes = lines.map(line => {
-                          const trimmed = line.trim();
-                          if (PRIMITIVE_TYPES.includes(trimmed)) {
-                            return trimmed;
-                          }
-                          const colonIndex = trimmed.indexOf(':');
-                          if (colonIndex > 0) {
-                            return {
-                              namespaceAlias: trimmed.slice(0, colonIndex).trim(),
-                              simpleType: trimmed.slice(colonIndex + 1).trim()
-                            };
-                          }
-                          return trimmed;
-                        });
-                        updateSimpleType(selectedSimpleTypeIndex, {
-                          definition: {
-                            union: {
-                              memberTypes
-                            }
-                          }
-                        });
-                      }}
-                    />
-
                   </>
                 )}
               </div>

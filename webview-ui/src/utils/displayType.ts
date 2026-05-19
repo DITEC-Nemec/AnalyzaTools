@@ -8,8 +8,6 @@ import type { NamedType, SimpleTypeRef, SimpleTypeDefinition } from '../types/sq
  * - definition:
  *   - restriction s simpleTypeRef base: "namespaceAlias:simpleType"
  *   - restriction s primitívnym base: "base"
- *   - list: "list"
- *   - union: "union"
  */
 export function displayType(namedType?: NamedType): string {
   if (!namedType) {
@@ -45,8 +43,6 @@ export function displayType(namedType?: NamedType): string {
  *
  * - restriction s simpleTypeRef base: "namespaceAlias:simpleType"
  * - restriction s primitívnym base: "primitívny typ"
- * - list: "list"
- * - union: "union"
  */
 export function displaySimpleTypeDefinition(def?: SimpleTypeDefinition): string {
   if (!def) {
@@ -69,16 +65,6 @@ export function displaySimpleTypeDefinition(def?: SimpleTypeDefinition): string 
       const simpleType = ref.simpleType ?? '';
       return alias || simpleType ? `${alias}:${simpleType}` : 'restriction';
     }
-  }
-
-  // List
-  if (def.list) {
-    return 'list';
-  }
-
-  // Union
-  if (def.union) {
-    return 'union';
   }
 
   return 'definition';

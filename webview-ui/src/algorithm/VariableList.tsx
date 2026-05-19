@@ -55,12 +55,6 @@ export const VariableList: React.FC<Props> = ({
     return normalizeSimpleTypeRef(base);
   };
 
-  const normalizeBaseTypeArrayItem = (item: string | SimpleTypeRef | undefined): string | SimpleTypeRef => {
-    if (!item) return 'string';
-    if (typeof item === 'string') return item;
-    return normalizeSimpleTypeRef(item);
-  };
-
   const normalizeRestriction = (restriction: RestrictionDefinition | undefined): RestrictionDefinition => ({
     base: restriction?.base ? normalizeBaseType(restriction.base) : 'string',
     enumeration: restriction?.enumeration,
@@ -78,17 +72,7 @@ export const VariableList: React.FC<Props> = ({
   });
 
   const normalizeSimpleTypeDefinition = (definition: SimpleTypeDefinition | undefined): SimpleTypeDefinition => ({
-    restriction: definition?.restriction ? normalizeRestriction(definition.restriction) : undefined,
-    list: definition?.list
-      ? {
-        itemType: definition.list.itemType ? normalizeBaseTypeArrayItem(definition.list.itemType) : 'string'
-      }
-      : undefined,
-    union: definition?.union
-      ? {
-        memberTypes: (definition.union.memberTypes ?? []).map(item => normalizeBaseTypeArrayItem(item))
-      }
-      : undefined
+    restriction: definition?.restriction ? normalizeRestriction(definition.restriction) : undefined
   });
 
   const parseCsv = (input: string): string[] =>
@@ -114,24 +98,6 @@ export const VariableList: React.FC<Props> = ({
 
   const parseEnumerationCsv = (input: string): Array<string | number | boolean> =>
     parseCsv(input).map(item => parseScalarValue(item));
-
-  const simpleTypeRefToText = (ref: SimpleTypeRef): string => `${ref.namespaceAlias}:${ref.simpleType}`;
-
-  const parseSimpleTypeRefsMultiline = (input: string): SimpleTypeRef[] =>
-    input
-      .split('\n')
-      .map(line => line.trim())
-      .filter(Boolean)
-      .map(line => {
-        const separatorIndex = line.indexOf(':');
-        if (separatorIndex < 0) {
-          return { namespaceAlias: '', simpleType: line };
-        }
-        return {
-          namespaceAlias: line.slice(0, separatorIndex).trim(),
-          simpleType: line.slice(separatorIndex + 1).trim()
-        };
-      });
 
   const ensureNamedType = (item: Variable): NamedType => ({
     name: item.namedType?.name ?? '',
@@ -445,29 +411,7 @@ export const VariableList: React.FC<Props> = ({
 
           {(selectedVariable.namedType?.type ?? 'typeRef') === 'definition' && (
             <>
-              <label className="field-label">definition kind</label>
-              <select
-                className="field-input"
-                value={selectedVariable.namedType?.definition?.restriction ? 'restriction' : selectedVariable.namedType?.definition?.list ? 'list' : 'union'}
-                onChange={e => {
-                  const mode = e.target.value as 'restriction' | 'list' | 'union';
-                  const namedType = ensureNamedType(selectedVariable);
-                  const nextDefinition: SimpleTypeDefinition =
-                    mode === 'restriction'
-                      ? { restriction: normalizeRestriction(namedType.definition?.restriction) }
-                      : mode === 'list'
-                        ? { list: { itemType: namedType.definition?.list?.itemType ?? 'string' } }
-                        : { union: { memberTypes: namedType.definition?.union?.memberTypes ?? [] } };
-                  handleNamedTypeChange(selectedIndex, { definition: nextDefinition });
-                }}
-              >
-                <option value="restriction">restriction</option>
-                <option value="list">list</option>
-                <option value="union">union</option>
-              </select>
-
-              {(selectedVariable.namedType?.definition?.restriction || (!selectedVariable.namedType?.definition?.list && !selectedVariable.namedType?.definition?.union)) && (
-                <>
+              <>
                   <label className="field-label">restriction.base type</label>
                   <select
                     className="field-input"
@@ -780,169 +724,7 @@ export const VariableList: React.FC<Props> = ({
                     <option value="replace">replace</option>
                     <option value="collapse">collapse</option>
                   </select>
-                </>
-              )}
-
-              {selectedVariable.namedType?.definition?.list && (
-                <>
-                  <label className="field-label">list.itemType type</label>
-                  <select
-                    className="field-input"
-                    value={typeof selectedVariable.namedType?.definition?.list?.itemType === 'string' ? 'primitive' : 'reference'}
-                    onChange={e => {
-                      const isPrimitive = e.target.value === 'primitive';
-                      handleNamedTypeChange(selectedIndex, {
-                        definition: {
-                          list: {
-                            itemType: isPrimitive ? 'string' : { namespaceAlias: '', simpleType: '' }
-                          }
-                        }
-                      });
-                    }}
-                  >
-                    <option value="primitive">Primitiv typ</option>
-                    <option value="reference">SimpleType referencia</option>
-                  </select>
-
-                  {typeof selectedVariable.namedType?.definition?.list?.itemType === 'string' ? (
-                    <>
-                      <label className="field-label">itemType primitiv typ</label>
-                      <select
-                        className="field-input"
-                        value={selectedVariable.namedType?.definition?.list?.itemType as string}
-                        onChange={e => handleNamedTypeChange(selectedIndex, {
-                          definition: {
-                            list: {
-                              itemType: e.target.value
-                            }
-                          }
-                        })}
-                      >
-                        {PRIMITIVE_TYPES.map(type => (
-                          <option key={type} value={type}>{type}</option>
-                        ))}
-                      </select>
-                    </>
-                  ) : (
-                    <>
-                      <label className="field-label">list.itemType namespaceAlias</label>
-                      {useSelectsForRefs ? (
-                        <select
-                          className="field-input"
-                          value={(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias ?? ''}
-                          onChange={e => handleNamedTypeChange(selectedIndex, {
-                            definition: {
-                              list: {
-                                itemType: {
-                                  ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef),
-                                  namespaceAlias: e.target.value,
-                                  simpleType: ''
-                                }
-                              }
-                            }
-                          })}
-                        >
-                          <option value="">—</option>
-                          {namespaceAliases.map(alias => (
-                            <option key={alias} value={alias}>{alias}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          className="field-input"
-                          value={(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias ?? ''}
-                          onChange={e => handleNamedTypeChange(selectedIndex, {
-                            definition: {
-                              list: {
-                                itemType: {
-                                  ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef),
-                                  namespaceAlias: e.target.value
-                                }
-                              }
-                            }
-                          })}
-                        />
-                      )}
-
-                      <label className="field-label">list.itemType simpleType</label>
-                      {useSelectsForRefs ? (
-                        <select
-                          className="field-input"
-                          value={(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef)?.simpleType ?? ''}
-                          onChange={e => handleNamedTypeChange(selectedIndex, {
-                            definition: {
-                              list: {
-                                itemType: {
-                                  ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef),
-                                  simpleType: e.target.value
-                                }
-                              }
-                            }
-                          })}
-                        >
-                          <option value="">—</option>
-                          {getAvailableSimpleTypes((selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef)?.namespaceAlias).map(simpleType => (
-                            <option key={simpleType} value={simpleType}>{simpleType}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          className="field-input"
-                          value={(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef)?.simpleType ?? ''}
-                          onChange={e => handleNamedTypeChange(selectedIndex, {
-                            definition: {
-                              list: {
-                                itemType: {
-                                  ...normalizeSimpleTypeRef(selectedVariable.namedType?.definition?.list?.itemType as SimpleTypeRef),
-                                  simpleType: e.target.value
-                                }
-                              }
-                            }
-                          })}
-                        />
-                      )}
-                    </>
-                  )}
-                </>
-              )}
-
-              {selectedVariable.namedType?.definition?.union && (
-                <>
-                  <label className="field-label">union.memberTypes</label>
-                  <textarea
-                    className="field-input"
-                    rows={4}
-                    value={(selectedVariable.namedType?.definition?.union?.memberTypes ?? [])
-                      .map(item => typeof item === 'string' ? item : simpleTypeRefToText(item))
-                      .join('\n')}
-                    onChange={e => {
-                      const lines = e.target.value.split('\n').filter(Boolean);
-                      const memberTypes = lines.map(line => {
-                        const trimmed = line.trim();
-                        if (PRIMITIVE_TYPES.includes(trimmed)) {
-                          return trimmed;
-                        }
-                        const colonIndex = trimmed.indexOf(':');
-                        if (colonIndex > 0) {
-                          return {
-                            namespaceAlias: trimmed.slice(0, colonIndex).trim(),
-                            simpleType: trimmed.slice(colonIndex + 1).trim()
-                          };
-                        }
-                        return trimmed;
-                      });
-
-                      handleNamedTypeChange(selectedIndex, {
-                        definition: {
-                          union: {
-                            memberTypes
-                          }
-                        }
-                      });
-                    }}
-                  />
-                </>
-              )}
+              </>
             </>
           )}
 

@@ -241,18 +241,8 @@ export interface RestrictionDefinition {
   whiteSpace?: 'preserve' | 'replace' | 'collapse';
 }
 
-export interface ListDefinition {
-  itemType: string | SimpleTypeRef;
-}
-
-export interface UnionDefinition {
-  memberTypes: (string | SimpleTypeRef)[];
-}
-
 export interface SimpleTypeDefinition {
   restriction?: RestrictionDefinition;
-  list?: ListDefinition;
-  union?: UnionDefinition;
 }
 
 export interface SimpleType {

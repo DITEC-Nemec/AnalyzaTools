@@ -25,7 +25,7 @@ interface Props {
   getEntitiesForAlias?: (alias: string) => string[];
   getFunctionsForEntity?: (alias: string, entity: string) => string[];
   getEventsForAlias?: (alias: string) => string[];
-  getActorsForAlias?: (alias: string) => string[];
+  getActorsForAlias?: (alias?: string) => string[];
   onChange: (updated: SqdStep) => void;
 }
 
@@ -139,7 +139,7 @@ export const StepCard: React.FC<Props> = ({
   getEntitiesForAlias = () => [],
   getFunctionsForEntity = () => [],
   getEventsForAlias = () => [],
-  getActorsForAlias = () => [],
+  getActorsForAlias = (_alias?: string) => [],
   onChange
 }) => {
   const L = (path: string, fallback: string) => label(`algorithm.${path}`, fallback);
@@ -266,72 +266,39 @@ export const StepCard: React.FC<Props> = ({
 
           {step.type === 'waitEvent' && (
             <div className="step-meta">
-              <label className="field-label">{L('steps.eventCode', 'Kod udalosti:')}</label>
+              <label className="field-label">{L('steps.waitUntil', 'Cakat do')}</label>
               <input
                 className="field-input"
-                value={step.waitEvent?.code ?? ''}
-                onChange={e => onChange({ 
-                  ...step, 
-                  waitEvent: { ...step.waitEvent, code: e.target.value } 
-                })}
-                placeholder="EVT_001"
-              />
-              <label className="field-label">{L('steps.eventTitle', 'Nazov udalosti:')}</label>
-              <input
-                className="field-input"
-                value={step.waitEvent?.title ?? ''}
-                onChange={e => onChange({
-                  ...step,
-                  waitEvent: { ...step.waitEvent, title: e.target.value }
-                })}
-                placeholder="Názov udalosti"
-              />
-              <label className="field-label">{L('steps.eventSeverity', 'Severity:')}</label>
-              <select
-                className="field-input"
-                value={step.waitEvent?.severity ?? 'info'}
+                value={step.waitEvent?.waitUntil ?? ''}
                 onChange={e => onChange({
                   ...step,
                   waitEvent: {
+                    eventRef: step.waitEvent?.eventRef ?? { namespaceAlias: 'local', event: '' },
                     ...step.waitEvent,
-                    severity: e.target.value as NonNullable<SqdStep['waitEvent']>['severity']
+                    waitUntil: e.target.value
                   }
                 })}
-              >
-                <option value="info">info</option>
-                <option value="warning">warning</option>
-                <option value="error">error</option>
-              </select>
-              <label className="field-label">{L('steps.eventDescription', 'Popis udalosti:')}</label>
+                placeholder={L('steps.waitUntilPlaceholder', 'napr. max 30s alebo do stavu SpracovanieDokoncene')}
+              />
+              <label className="field-label">{L('steps.timeoutAction', 'Akcia pri timeout-e')}</label>
               <input
                 className="field-input"
-                value={step.waitEvent?.text ?? step.waitEvent?.description ?? ''}
-                onChange={e => onChange({ 
-                  ...step, 
-                  waitEvent: { ...step.waitEvent, text: e.target.value, description: e.target.value }
+                value={step.waitEvent?.timeoutAction ?? ''}
+                onChange={e => onChange({
+                  ...step,
+                  waitEvent: {
+                    eventRef: step.waitEvent?.eventRef ?? { namespaceAlias: 'local', event: '' },
+                    ...step.waitEvent,
+                    timeoutAction: e.target.value
+                  }
                 })}
-                placeholder="Popis udalosti…"
+                placeholder={L('steps.timeoutActionPlaceholder', 'napr. retry 3x, inak skoc na step 9')}
               />
-
               <div className="condition-summary">
-                {L('steps.eventRef', 'eventRef')}: {summaryEventRef(eventRef)}
+                {L('steps.waitEventRef', 'Cakat na udalost')}: {summaryEventRef(eventRef)}
                 <button className="btn-link" onClick={() => setShowEventRefDialog(true)}>
-                  [{eventRef ? ` ${L('steps.editEventRef', 'Upravit eventRef...')} ` : ` ${L('steps.addEventRef', 'Pridat eventRef...')} `}]
+                  [{eventRef ? ` ${L('steps.editWaitEventRef', 'Upravit udalost...')} ` : ` ${L('steps.addWaitEventRef', 'Pridat udalost...')} `}]
                 </button>
-                {eventRef && (
-                  <button
-                    className="btn-link"
-                    onClick={() => onChange({
-                      ...step,
-                      waitEvent: {
-                        ...step.waitEvent,
-                        eventRef: undefined
-                      }
-                    })}
-                  >
-                    [ {L('actions.delete', 'Zmazat')} ]
-                  </button>
-                )}
               </div>
             </div>
           )}
@@ -952,7 +919,7 @@ export const StepCard: React.FC<Props> = ({
       {showEventRefDialog && (
         <div className="dialog-overlay" onClick={() => setShowEventRefDialog(false)}>
           <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
-            <h4>{L('dialogs.eventRef', 'EventRef detail')}</h4>
+            <h4>{L('dialogs.waitEventRef', 'Detail cakania na udalost')}</h4>
 
             <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
             <select

@@ -147,14 +147,9 @@ export interface Branch {
 }
 
 export interface StepEvent {
-  eventRef?: ReferenceEvent;
-  code?: string;
-  title?: string;
-  severity?: 'info' | 'warning' | 'error';
-  text?: string;
-
-  // Spatna kompatibilita
-  description?: string;
+  eventRef: ReferenceEvent;
+  waitUntil?: string;
+  timeoutAction?: string;
 }
 
 export interface EntityImpact {

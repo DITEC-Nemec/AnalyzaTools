@@ -174,7 +174,7 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
     }
 
     if (type === 'waitEvent') {
-      return { ...base, waitEvent: { code: '', text: '', severity: 'info' } };
+      return { ...base, waitEvent: { eventRef: { namespaceAlias: 'local', event: '' } } };
     }
 
     if (type === 'block') {

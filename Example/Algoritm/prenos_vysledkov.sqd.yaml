@@ -82,11 +82,11 @@ steps:
             type: waitEvent
             text: Neexistujú dáta na prenos pre vstupné parametre.
             waitEvent:
-              code: sosm-11
+              waitUntil: max 30s
+              timeoutAction: retry 3x, potom NAVRAT s chybou timeout
               eventRef:
-                namespaceAlias: ''
+                namespaceAlias: ziak
                 event: ''
-              severity: info
           - id: 2.2.2
             legacyId: '*2.2.2*'
             type: return
@@ -114,10 +114,9 @@ steps:
                     type: waitEvent
                     text: Výpočet ešte beží.
                     waitEvent:
-                      code: sosm-12
                       eventRef:
-                        namespaceAlias: ''
-                        event: ''
+                        namespaceAlias: local
+                        event: sosm-12
                   - id: 2.2.3.2
                     type: return
                     text: NAVRAT
@@ -143,7 +142,9 @@ steps:
                             type: waitEvent
                             text: Výpočet skončil s chybou – neprenášam výsledky.
                             waitEvent:
-                              code: sosm-21
+                              eventRef:
+                                namespaceAlias: local
+                                event: sosm-21
                           - id: 2.2.5.2
                             type: return
                             text: NAVRAT
@@ -182,7 +183,9 @@ steps:
                                             type: waitEvent
                                             text: Prenos ešte beží.
                                             waitEvent:
-                                              code: sosm-13
+                                              eventRef:
+                                                namespaceAlias: local
+                                                event: sosm-13
                                           - id: 2.2.7.1.2
                                             type: return
                                             text: NAVRAT
@@ -221,7 +224,9 @@ steps:
                                                             type: waitEvent
                                                             text: Prenos už bežal a skončil s chybou.
                                                             waitEvent:
-                                                              code: sosm-23
+                                                              eventRef:
+                                                                namespaceAlias: local
+                                                                event: sosm-23
                                                           - id: 2.2.7.2.1.2
                                                             type: return
                                                             text: NAVRAT
@@ -231,7 +236,9 @@ steps:
                                                             type: waitEvent
                                                             text: Prenos už bežal a skončil bez chýb.
                                                             waitEvent:
-                                                              code: sosm-03
+                                                              eventRef:
+                                                                namespaceAlias: local
+                                                                event: sosm-03
                                                           - id: 2.2.7.2.3
                                                             type: return
                                                             text: NAVRAT
@@ -273,7 +280,9 @@ steps:
     type: waitEvent
     text: Spracované bez chýb.
     waitEvent:
-      code: sosm-00
+      eventRef:
+        namespaceAlias: local
+        event: sosm-00
   - id: '3.4'
     legacyId: '*3.4*'
     type: operation
@@ -299,7 +308,9 @@ steps:
             type: waitEvent
             text: Neočakávaná chyba.
             waitEvent:
-              code: sosm-99
+              eventRef:
+                namespaceAlias: local
+                event: sosm-99
           - id: 4.1.2
             type: operation
             text: Ukončenie prenosu dát pri chybe.

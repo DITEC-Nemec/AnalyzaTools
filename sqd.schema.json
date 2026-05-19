@@ -1126,40 +1126,22 @@
     },
     "waitEvent": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "eventRef": {
           "$ref": "#/$defs/referenceEvent"
-       
         },
-        "code": {
-          "type": "string"
-        },
-        "title": {
-          "type": "string"
-        },
-        "severity": {
+        "waitUntil": {
           "type": "string",
-          "enum": [
-            "info",
-            "warning",
-            "error"
-          ]
+          "description": "Popis, dokedy sa na udalosť čaká (napr. časový limit alebo biznis podmienka)."
         },
-        "text": {
-          "type": "string"
+        "timeoutAction": {
+          "type": "string",
+          "description": "Popis akcie pri timeout-e (napr. fallback step, retry alebo fail)."
         }
       },
-      "anyOf": [
-        {
-          "required": [
-            "code"
-          ]
-        },
-        {
-          "required": [
-            "eventRef"
-          ]
-        }
+      "required": [
+        "eventRef"
       ]
     },
     "actorEntry": {

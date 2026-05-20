@@ -25,6 +25,7 @@ import { label as rawLabel } from '../ui-labels';
 import { ParametersEditor } from '../components/ParametersEditor';
 import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
 import { ActorRefsEditor } from '../components/ActorRefsEditor';
+import { ErrorEventsEditor } from '../components/ErrorEventsEditor';
 import { ImportsPanel } from './ImportsPanel';
 import { displayType, displaySimpleTypeDefinition } from '../utils/displayType';
 
@@ -405,6 +406,13 @@ const DomainModelEditor: React.FC<EditorProps> = ({
     return (sourceModel?.actors ?? []).map(actor => actor.code).filter((code): code is string => Boolean(code));
   };
 
+  const getAvailableEvents = (namespaceAlias?: string): string[] => {
+    const sourceModel = getModelByAlias(namespaceAlias);
+    return (sourceModel?.eventGlossary ?? [])
+      .map((entry) => entry.code)
+      .filter((code): code is string => Boolean(code));
+  };
+
   const removeAttribute = (attrIndex: number) => {
     if (!selectedEntity || selectedEntityIndex === null) {
       return;
@@ -544,6 +552,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           description: '',
           preconditions: [],
           postconditions: [],
+          errorEvents: [],
           affectedEntities: [],
           actors: []
         }
@@ -2079,6 +2088,13 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
                             <label>{L('functions.form.postconditions', 'Postconditions')}</label>
                             <textarea rows={4} value={(selectedFunction.behavior?.postconditions ?? []).join('\n')} onChange={(e) => updateFunctionBehavior(selectedFunctionIndex, { postconditions: e.target.value.split('\n').filter(s => s.trim().length > 0) })} />
+
+                            <ErrorEventsEditor
+                              errorEvents={selectedFunction.behavior?.errorEvents ?? []}
+                              namespaceAliases={getNamespaceAliases()}
+                              getEventsForAlias={getAvailableEvents}
+                              onChange={(errorEvents) => updateFunctionBehavior(selectedFunctionIndex, { errorEvents })}
+                            />
 
                             <div style={{ marginTop: 16 }}>
                               <AffectedEntitiesEditor

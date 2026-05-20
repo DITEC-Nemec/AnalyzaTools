@@ -5,6 +5,7 @@ import { normalizeModelFormat } from '../domainModel/schemaNormalization';
 import { ParametersEditor } from '../components/ParametersEditor';
 import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
 import { ActorRefsEditor } from '../components/ActorRefsEditor';
+import { ErrorEventsEditor } from '../components/ErrorEventsEditor';
 import type { ActorRef, AlgorithmMeta, NamespaceEntity, Parameter, SqdAlgorithm, SqdStep, StepCondition } from '../types/sqd';
 import { StepCard } from './StepCard';
 import { label } from '../ui-labels';
@@ -432,7 +433,7 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
                   <>
                     <AddMenu onAdd={insertAfter} />
                     {!step.behavior && (
-                      <button className="icon-btn" title={L('actions.addBehavior', 'Pridat behavior')} onClick={() => updateCurrent({ ...step, behavior: { description: '', preconditions: [], postconditions: [], affectedEntities: [], actors: [] } })}>💬</button>
+                      <button className="icon-btn" title={L('actions.addBehavior', 'Pridat behavior')} onClick={() => updateCurrent({ ...step, behavior: { description: '', preconditions: [], postconditions: [], errorEvents: [], affectedEntities: [], actors: [] } })}>💬</button>
                     )}
                     {step.behavior && (
                       <button className="icon-btn" title={L('actions.removeBehavior', 'Odstranit behavior')} onClick={() => { const { behavior, ...rest } = step; updateCurrent(rest); }}>✕</button>
@@ -591,6 +592,18 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
                     behavior: {
                       ...(model.algorithm?.behavior ?? {}),
                       postconditions: e.target.value.split('\n').filter(s => s.trim().length > 0)
+                    }
+                  })}
+                />
+
+                <ErrorEventsEditor
+                  errorEvents={model.algorithm?.behavior?.errorEvents ?? []}
+                  namespaceAliases={(model.namespaceRef ?? []).map(ns => ns.alias).filter((alias): alias is string => Boolean(alias))}
+                  getEventsForAlias={getEventsForAlias}
+                  onChange={(errorEvents) => updateAlgorithm({
+                    behavior: {
+                      ...(model.algorithm?.behavior ?? {}),
+                      errorEvents
                     }
                   })}
                 />

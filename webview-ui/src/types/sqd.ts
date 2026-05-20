@@ -186,6 +186,30 @@ export interface ActorRef {
   actor: string;
 }
 
+export type ErrorEventAction =
+  | 'emit'
+  | 'fallback'
+  | 'return'
+  | 'exception'
+  | 'retry'
+  | 'skip'
+  | 'compensate';
+
+export interface ErrorEvent {
+  condition: string;
+  eventRef: ReferenceEvent;
+  action?: ErrorEventAction;
+  fallbackStepRef?: string;
+  returnValue?: string;
+  exceptionMessage?: string;
+  maxAttempts?: number;
+  backoffStrategy?: 'fixed' | 'linear' | 'exponential';
+  delayMs?: number;
+  skipToStepRef?: string;
+  compensationStepRef?: string;
+  note?: string;
+}
+
 export interface ActorEntry {
   code: string;
   title?: string;
@@ -198,6 +222,7 @@ export interface Behavior {
   description?: string;
   preconditions?: string[];
   postconditions?: string[];
+  errorEvents?: ErrorEvent[];
   affectedEntities?: AffectedEntity[];
   actors?: ActorRef[];
 }

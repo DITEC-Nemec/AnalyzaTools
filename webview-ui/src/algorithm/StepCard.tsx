@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { VariableAssignList } from './VariableAssignList';
 import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
 import { ActorRefsEditor } from '../components/ActorRefsEditor';
+import { ErrorEventsEditor } from '../components/ErrorEventsEditor';
 import type {
   ActorRef,
   EntityImpact,
@@ -388,6 +389,13 @@ export const StepCard: React.FC<Props> = ({
                 onChange={(e) => updateBehavior({ postconditions: e.target.value.split('\n').filter(s => s.trim().length > 0) })}
               />
 
+              <ErrorEventsEditor
+                errorEvents={step.behavior.errorEvents ?? []}
+                namespaceAliases={Array.from(new Set(['local', ...modelAliases, ...sqdAliases]))}
+                getEventsForAlias={getEventsForAlias}
+                onChange={(errorEvents) => updateBehavior({ errorEvents })}
+              />
+
               <AffectedEntitiesEditor
                 affectedEntities={step.behavior.affectedEntities ?? []}
                 modelAliases={modelAliases}
@@ -412,6 +420,7 @@ export const StepCard: React.FC<Props> = ({
                   const hasContent = (step.behavior?.description ?? '').trim().length > 0
                     || (step.behavior?.preconditions?.length ?? 0) > 0
                     || (step.behavior?.postconditions?.length ?? 0) > 0
+                    || (step.behavior?.errorEvents?.length ?? 0) > 0
                     || (step.behavior?.affectedEntities?.length ?? 0) > 0
                     || (step.behavior?.actors?.length ?? 0) > 0;
 

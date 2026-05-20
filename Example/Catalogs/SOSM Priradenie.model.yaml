@@ -1,96 +1,95 @@
-meta:
-  namespaceRef:
-    - alias: local
-      filePath: Catalogs/SOSM Priradenie.model.yaml
-      sourceType: current
-    - alias: Externe
-      filePath: Catalogs/Externe.model.yaml
-      sourceType: model
-domain:
-  metadata: {}
-  imports:
-    - local
-  entities:
-    - name: SOSM Priradenie
-      attributes:
-        - namedType:
-            name: Preferencia študenta
-            nullable: false
-            type: definition
-            definition:
-              restriction:
-                base: integer
-          states: []
-        - namedType:
-            name: Preferencia školy
-            nullable: false
-            type: definition
-            definition:
-              restriction:
-                base: integer
-          states: []
-        - namedType:
-            name: Preferencia školy po automate
-            nullable: true
-            type: definition
-            definition:
-              restriction:
-                base: integer
-          states: []
-      functions:
-        - name: priradiStudenta
-          parameters:
-            - direction: in
-              namedType:
-                name: studentId
-                type: entityRef
-                nullable: false
-                readOnly: false
-                multiplicity: "1"
-          description: "Priraď študenta na základe preferencií"
-      stateModel: []
-      description: priradenie studenta k škole
-      type: business_concept
-  simpleTypes: []
-  relationships:
-    - start_role:
+namespaceRef:
+  - alias: local
+    filePath: Catalogs/SOSM Priradenie.model.yaml
+    sourceType: current
+  - alias: Externe
+    filePath: Catalogs/Externe.model.yaml
+    sourceType: model
+entities:
+  - name: SOSM Priradenie
+    attributes:
+      - namedType:
+          name: Preferencia študenta
+          nullable: false
+          type: definition
+          definition:
+            restriction:
+              base: integer
+        states: []
+      - namedType:
+          name: Preferencia školy
+          nullable: false
+          type: definition
+          definition:
+            restriction:
+              base: integer
+        states: []
+      - namedType:
+          name: Preferencia školy po automate
+          nullable: true
+          type: definition
+          definition:
+            restriction:
+              base: integer
+        states: []
+    functions:
+      - name: priradiStudenta
+        parameters:
+          - direction: in
+            namedType:
+              name: studentId
+              type: entityRef
+              nullable: false
+              readOnly: false
+              multiplicity: '1'
+    stateModel:
+      - name: ''
+        label: ''
+        description: ''
+        isFinal: false
+    description: priradenie studenta k škole
+    type: business_concept
+simpleTypes: []
+relationships:
+  - start_role:
+      entity: ŠaŠZ z prihlášky
+      nazov: ''
+      multiplicity: '1'
+      description: ''
+      entityRef:
+        namespaceAlias: Externe
         entity: ŠaŠZ z prihlášky
-        nazov: ''
-        multiplicity: '1'
-        description: ''
-        entityRef:
-          namespaceAlias: Externe
-          entity: ŠaŠZ z prihlášky
-      end_role:
-        entity: SOSM Priradenie
-        nazov: ''
-        multiplicity: '*'
-        description: ''
-        entityRef:
-          namespaceAlias: local
-          entity: SOSM Priradenie
-      type: references
+    end_role:
+      entity: SOSM Priradenie
+      nazov: ''
+      multiplicity: '*'
       description: ''
-    - start_role:
+      entityRef:
+        namespaceAlias: local
+        entity: SOSM Priradenie
+    type: references
+    description: ''
+  - start_role:
+      entity: Dôvod prijatia alebo neprijatia
+      nazov: ''
+      multiplicity: 0..1
+      description: ''
+      entityRef:
+        namespaceAlias: Externe
         entity: Dôvod prijatia alebo neprijatia
-        nazov: ''
-        multiplicity: 0..1
-        description: ''
-        entityRef:
-          namespaceAlias: Externe
-          entity: Dôvod prijatia alebo neprijatia
-      end_role:
-        entity: SOSM Priradenie
-        nazov: ''
-        multiplicity: '*'
-        description: ''
-        entityRef:
-          namespaceAlias: local
-          entity: SOSM Priradenie
-      type: references
+    end_role:
+      entity: SOSM Priradenie
+      nazov: ''
+      multiplicity: '*'
       description: ''
-  eventGlossary: []
-dictionary:
-  glossary: []
-  businessRules: []
-  actors: []
+      entityRef:
+        namespaceAlias: local
+        entity: SOSM Priradenie
+    type: references
+    description: ''
+eventGlossary: []
+imports:
+  - local
+glossary: []
+businessRules: []
+actors: []

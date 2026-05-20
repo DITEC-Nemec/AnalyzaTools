@@ -526,6 +526,12 @@
             "type": "string"
           }
         },
+        "errorEvents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/errorEvent"
+          }
+        },
         "affectedEntities": {
           "$ref": "#/$defs/affectedEntities"
         },
@@ -536,6 +542,118 @@
           }
         }
       }
+    },
+
+    "errorEvent": {
+      "type": "object",
+      "required": ["condition", "eventRef"],
+      "additionalProperties": false,
+      "properties": {
+        "condition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "eventRef": {
+          "$ref": "#/$defs/referenceEvent"
+        },
+        "action": {
+          "type": "string",
+          "enum": ["emit", "fallback", "return", "exception", "retry", "skip", "compensate"],
+          "default": "emit"
+        },
+        "fallbackStepRef": {
+          "type": "string"
+        },
+        "returnValue": {
+          "type": "string"
+        },
+        "exceptionMessage": {
+          "type": "string"
+        },
+        "maxAttempts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "backoffStrategy": {
+          "type": "string",
+          "enum": ["fixed", "linear", "exponential"]
+        },
+        "delayMs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipToStepRef": {
+          "type": "string"
+        },
+        "compensationStepRef": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "fallback"
+              }
+            }
+          },
+          "then": {
+            "required": ["fallbackStepRef"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "return"
+              }
+            }
+          },
+          "then": {
+            "required": ["returnValue"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "exception"
+              }
+            }
+          },
+          "then": {
+            "required": ["exceptionMessage"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "retry"
+              }
+            }
+          },
+          "then": {
+            "required": ["maxAttempts"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "compensate"
+              }
+            }
+          },
+          "then": {
+            "required": ["compensationStepRef"]
+          }
+        }
+      ]
     },
 
     "affectedEntities": {

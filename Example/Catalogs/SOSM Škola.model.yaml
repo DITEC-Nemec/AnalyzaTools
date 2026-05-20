@@ -1,51 +1,54 @@
-meta:
-  namespaceRef:
-    - alias: local
-      filePath: Catalogs/SOSM Škola.model.yaml
-      sourceType: current
-    - alias: SOSM Priradenie
-      filePath: Catalogs/SOSM Priradenie.model.yaml
-      sourceType: model
-    - alias: Externy
-      filePath: Catalogs/Externe.model.yaml
-      sourceType: model
-
-domain:
-  metadata:
-    name: SOSM Škola
-  imports:
-    - local
-  entities:
-    - name: SOSM Škola
-      attributes:
-        - namedType:
-            name: Kapacita
-            nullable: true
-            type: definition
-            definition:
-              restriction:
-                base: integer
-          states: []
-      functions: []
-      stateModel: []
-  simpleTypes: []
-  relationships: []
-  eventGlossary:
-    - code: event-1
-      title: ''
-      meaning: ''
-      severity: info
-      recommendedAction: ''
-
-dictionary:
-  glossary:
-    - term: pojem_1
-      meaning: ''
-      relatedEntity: SOSM Škola
-  businessRules: []
-  actors:
-    - code: actor_1
-      title: ''
-      type: user
-      meaning: ''
-      responsibilities: []
+namespaceRef:
+  - alias: local
+    filePath: Catalogs/SOSM Škola.model.yaml
+    sourceType: current
+  - alias: SOSM Priradenie
+    filePath: Catalogs/SOSM Priradenie.model.yaml
+    sourceType: model
+  - alias: Externy
+    filePath: Catalogs/Externe.model.yaml
+    sourceType: model
+name: SOSM Škola
+entities:
+  - name: SOSM Škola
+    attributes:
+      - namedType:
+          name: Kapacita
+          nullable: true
+          type: definition
+          definition:
+            restriction:
+              base: integer
+        states: []
+    functions:
+      - name: funkcia_1
+        parameters: []
+        behavior:
+          description: ''
+          preconditions: []
+          postconditions: []
+          errorEvents: []
+          affectedEntities: []
+          actors: []
+    stateModel: []
+simpleTypes: []
+relationships: []
+eventGlossary:
+  - code: event-1
+    title: ''
+    meaning: ''
+    severity: info
+    recommendedAction: ''
+imports:
+  - local
+glossary:
+  - term: pojem_1
+    meaning: ''
+    relatedEntity: SOSM Škola
+businessRules: []
+actors:
+  - code: actor_1
+    title: ''
+    type: user
+    meaning: ''
+    responsibilities: []

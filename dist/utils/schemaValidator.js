@@ -215,6 +215,20 @@ function validateBehaviorNamespaces(behavior, allowedImports, path) {
             }
         }
     }
+    if (behavior.errorEvents) {
+        for (let i = 0; i < behavior.errorEvents.length; i++) {
+            const errorEvent = behavior.errorEvents[i];
+            if (errorEvent.eventRef?.namespaceAlias) {
+                if (!allowedImports.has(errorEvent.eventRef.namespaceAlias)) {
+                    errors.push({
+                        type: "error",
+                        path: `${path}.errorEvents[${i}].eventRef.namespaceAlias`,
+                        message: `Namespace alias "${errorEvent.eventRef.namespaceAlias}" not in imports`,
+                    });
+                }
+            }
+        }
+    }
     return errors;
 }
 /**

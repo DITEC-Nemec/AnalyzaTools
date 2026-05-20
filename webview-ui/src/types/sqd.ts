@@ -11,6 +11,7 @@ export interface SqdAlgorithm {
   steps: SqdStep[];
   actors?: ActorEntry[];
   namespaceRef?: NamespaceEntity[];
+  imports?: string[];
 }
 
 export interface AlgorithmMeta {

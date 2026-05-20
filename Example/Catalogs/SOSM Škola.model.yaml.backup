@@ -1,0 +1,25 @@
+domain:
+  name: SOSM Škola
+entities:
+  - name: SOSM Škola
+    attributes:
+      - namedType:
+          name: Kapacita
+          nullable: true
+          type: definition
+          definition:
+            restriction:
+              base: integer
+        states: []
+    functions: []
+    stateModel: []
+namespaceRef:
+  - alias: local
+    filePath: Catalogs/SOSM Škola.model.yaml
+    sourceType: current
+  - alias: SOSM Priradenie
+    filePath: Catalogs/SOSM Priradenie.model.yaml
+    sourceType: model
+  - alias: Externy
+    filePath: Catalogs/Externe.model.yaml
+    sourceType: model

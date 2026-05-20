@@ -1,0 +1,40 @@
+algorithm:
+  name: rozradenie_ziakov
+  behavior:
+    actors:
+      - namespaceAlias: local
+        actor: ''
+steps:
+  - id: '1'
+    type: step
+    text: ''
+    behavior:
+      description: ''
+      preconditions: []
+      postconditions: []
+      affectedEntities: []
+      actors: []
+  - id: '2'
+    type: decision
+    text: ''
+    condition:
+      kind: attributeRef
+      description: ''
+      check: exists
+    branches:
+      - when: true
+        then:
+          - id: '3'
+            type: block
+            text: ''
+            body:
+              - id: '4'
+                type: operation
+                text: ''
+                operation: ''
+      - when: false
+        then: []
+namespaceRef:
+  - alias: Externe
+    filePath: Catalogs/Externe.model.yaml
+    sourceType: model

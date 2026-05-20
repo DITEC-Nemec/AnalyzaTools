@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as yaml from 'js-yaml';
+import { normalizeModelFormat } from './schemaNormalization';
 import type {
   Attribute,
   CodeLabel,
@@ -24,6 +25,7 @@ import { label as rawLabel } from '../ui-labels';
 import { ParametersEditor } from '../components/ParametersEditor';
 import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
 import { ActorRefsEditor } from '../components/ActorRefsEditor';
+import { ImportsPanel } from './ImportsPanel';
 import { displayType, displaySimpleTypeDefinition } from '../utils/displayType';
 
 const PRIMITIVE_TYPES = ['string', 'integer', 'decimal', 'double', 'boolean', 'date', 'time', 'dateTime'];
@@ -247,12 +249,13 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         }
 
         try {
-          const parsed = yaml.load(content) as DomainModel;
-          if (!parsed || typeof parsed !== 'object') {
+          const parsed = yaml.load(content);
+          const normalized = normalizeModelFormat(parsed);
+          if (!normalized || typeof normalized !== 'object') {
             return;
           }
 
-          setNamespaceModels(prev => ({ ...prev, [alias]: parsed }));
+          setNamespaceModels(prev => ({ ...prev, [alias]: normalized }));
         } catch {
           setNamespaceModels(prev => {
             const next = { ...prev };
@@ -354,6 +357,17 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   // Helper: Get available namespace aliases
   const getNamespaceAliases = (): string[] => {
     return (model?.namespaceRef ?? []).map(ns => ns.alias).filter((alias): alias is string => Boolean(alias));
+  };
+
+  // Helper: Get imported namespaces (respects domain.imports if present)
+  const getImportedNamespaces = (): string[] => {
+    // If model has imports[] (unified format), use those + ensure 'local' is included
+    if ((model as any).imports && Array.isArray((model as any).imports)) {
+      const imported = (model as any).imports;
+      return Array.from(new Set([...imported, 'local'])); // Always include local
+    }
+    // Otherwise (legacy format), treat all namespaces as imported
+    return getNamespaceAliases();
   };
 
   const getModelByAlias = (namespaceAlias?: string): DomainModel | null => {
@@ -1256,6 +1270,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
       <main className="dm-detail">
         <div className="tab-row">
+          <button className={topTab === 'imports' ? 'tab active' : 'tab'} onClick={() => setTopTab('imports')}>
+            {DL('topTabs.imports', 'Imports')}
+          </button>
           <button className={topTab === 'entities' ? 'tab active' : 'tab'} onClick={() => setTopTab('entities')}>
             {DL('topTabs.entities', 'Entity')}
           </button>
@@ -1278,6 +1295,16 @@ const DomainModelEditor: React.FC<EditorProps> = ({
             {DL('topTabs.namespaceRef', 'namespaceRef')}
           </button>
         </div>
+
+        {topTab === 'imports' && (
+          <section className="panel">
+            <ImportsPanel
+              imports={(model as any)?.imports ?? ['local']}
+              availableNamespaces={model?.namespaceRef ?? []}
+              onChange={(imports) => updateModel(current => ({ ...current, imports } as any))}
+            />
+          </section>
+        )}
 
         {topTab === 'entities' && (
           <section className="panel">

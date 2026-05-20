@@ -1,0 +1,966 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/unified.schema.json",
+  "title": "Unified SQD Model + Algorithm Schema",
+  "description": "Single source of truth combining domain models and algorithms with selective namespace imports",
+  "type": "object",
+  
+  "properties": {
+    "meta": {
+      "type": "object",
+      "description": "Shared governance layer - accessible to all modules",
+      "required": ["namespaceRef"],
+      "properties": {
+        "namespaceRef": {
+          "type": "array",
+          "description": "Global catalog of all available namespaces (governance/infrastructure)",
+          "items": {
+            "$ref": "#/$defs/namespaceEntity"
+          },
+          "uniqueItems": true,
+          "minItems": 1,
+          "contains": {
+            "type": "object",
+            "properties": {
+              "alias": {
+                "const": "local"
+              },
+              "sourceType": {
+                "const": "current"
+              }
+            },
+            "required": ["alias", "sourceType"]
+          }
+        }
+      }
+    },
+
+    "domain": {
+      "type": "object",
+      "description": "Business domain model with selective namespace imports",
+      "required": ["name"],
+      "properties": {
+        "metadata": {
+          "type": "object",
+          "description": "Domain governance metadata",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Domain name"
+            },
+            "description": {
+              "type": "string"
+            },
+            "version": {
+              "type": "string",
+              "description": "Model version (e.g., 1.0.0)"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["draft", "active", "deprecated"]
+            }
+          },
+          "required": ["name"]
+        },
+        
+        "imports": {
+          "type": "array",
+          "description": "Namespace aliases to import (from meta.namespaceRef) - only needed ones loaded",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "default": ["local"],
+          "example": ["local", "SOSM", "Finance"]
+        },
+
+        "entities": {
+          "type": "array",
+          "description": "Business entities - can reference imported namespaces",
+          "items": {
+            "$ref": "#/$defs/entity"
+          }
+        },
+
+        "simpleTypes": {
+          "type": "array",
+          "description": "Custom type definitions",
+          "items": {
+            "$ref": "#/$defs/simpleType"
+          }
+        },
+
+        "relationships": {
+          "type": "array",
+          "description": "Entity relationships within and across imported namespaces",
+          "items": {
+            "$ref": "#/$defs/relationship"
+          }
+        },
+
+        "eventGlossary": {
+          "type": "array",
+          "description": "Domain event catalog - events scoped to this domain, referenceable via namespaceRef",
+          "items": {
+            "$ref": "#/$defs/eventGlossaryEntry"
+          }
+        }
+      }
+    },
+
+    "algorithm": {
+      "type": "object",
+      "description": "Algorithm definitions with selective namespace imports",
+      "properties": {
+        "imports": {
+          "type": "array",
+          "description": "Namespace aliases to import (from meta.namespaceRef) - algorithm-specific dependencies",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true,
+          "default": ["local"],
+          "example": ["local", "SOSM"]
+        },
+
+        "definitions": {
+          "type": "array",
+          "description": "Algorithm/procedure definitions",
+          "items": {
+            "$ref": "#/$defs/algorithmDefinition"
+          }
+        }
+      }
+    },
+
+    "dictionary": {
+      "type": "object",
+      "description": "Cross-domain catalog - terms, rules and actors shared across all domains",
+      "properties": {
+        "glossary": {
+          "type": "array",
+          "description": "Universal business term definitions",
+          "items": {
+            "$ref": "#/$defs/glossaryEntry"
+          }
+        },
+
+        "businessRules": {
+          "type": "array",
+          "description": "Cross-domain business rules and constraints",
+          "items": {
+            "$ref": "#/$defs/businessRule"
+          }
+        },
+
+        "actors": {
+          "type": "array",
+          "description": "Universal actor catalog - roles shared across all domains (user, system, external_system)",
+          "items": {
+            "$ref": "#/$defs/actorEntry"
+          }
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "namespaceEntity": {
+      "type": "object",
+      "required": ["alias", "filePath", "sourceType"],
+      "additionalProperties": false,
+      "properties": {
+        "alias": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Alias for this namespace (used in imports and references)"
+        },
+        "filePath": {
+          "type": "string",
+          "description": "Path to file containing this namespace"
+        },
+        "sourceType": {
+          "type": "string",
+          "enum": ["current", "model", "sqd"],
+          "description": "Source type for reference resolution"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "deprecated", "draft"],
+          "description": "Namespace governance status"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "sourceType": {
+                "const": "current"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "alias": {
+                "const": "local"
+              }
+            },
+            "required": ["alias"]
+          }
+        }
+      ]
+    },
+
+    "entity": {
+      "type": "object",
+      "required": ["name", "attributes"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique entity name (used in algorithms)"
+        },
+        "description": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["business_concept", "database_table", "code_list", "conceptual_system", "computational_system", "other"]
+        },
+        "agregationStatus": {
+          "type": "string",
+          "enum": ["root", "leaf", "intermediate"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "deprecated"]
+        },
+        "stateModel": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/stateEntry"
+          }
+        },
+        "attributes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/attribute"
+          }
+        },
+        "functions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/function"
+          }
+        }
+      }
+    },
+
+    "attribute": {
+      "type": "object",
+      "required": ["namedType"],
+      "properties": {
+        "namedType": {
+          "$ref": "#/$defs/namedType"
+        },
+        "states": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/codeLabel"
+          }
+        }
+      }
+    },
+
+    "namedType": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Variable name"
+        },
+        "annotation": {
+          "$ref": "#/$defs/annotation"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["definition", "entityRef", "typeRef"]
+        },
+        "definition": {
+          "$ref": "#/$defs/simpleTypeDefinition"
+        },
+        "entityRef": {
+          "$ref": "#/$defs/referenceEntity"
+        },
+        "typeRef": {
+          "$ref": "#/$defs/simpleTypeRef"
+        },
+        "nullable": {
+          "type": "boolean",
+          "default": true
+        },
+        "readOnly": {
+          "type": "boolean"
+        },
+        "multiplicity": {
+          "type": "string"
+        }
+      }
+    },
+
+    "referenceEntity": {
+      "type": "object",
+      "required": ["namespaceAlias"],
+      "additionalProperties": false,
+      "properties": {
+        "namespaceAlias": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Namespace alias from imports"
+        },
+        "entity": {
+          "type": "string",
+          "description": "Entity name in that namespace"
+        }
+      }
+    },
+
+    "simpleTypeRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["namespaceAlias", "simpleType"],
+      "properties": {
+        "namespaceAlias": {
+          "type": "string",
+          "minLength": 1
+        },
+        "simpleType": {
+          "type": "string"
+        }
+      }
+    },
+
+    "simpleType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "definition"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "annotation": {
+          "$ref": "#/$defs/annotation"
+        },
+        "definition": {
+          "$ref": "#/$defs/simpleTypeDefinition"
+        }
+      }
+    },
+
+    "simpleTypeDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "restriction": {
+          "$ref": "#/$defs/restriction"
+        }
+      }
+    },
+
+    "restriction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base"],
+      "properties": {
+        "base": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["string", "boolean", "decimal", "integer", "long", "int", "short", "byte", "nonNegativeInteger", "positiveInteger", "nonPositiveInteger", "negativeInteger", "float", "double", "date", "dateTime", "time", "duration", "anyURI", "QName", "ID", "IDREF", "token", "normalizedString"]
+            },
+            {
+              "$ref": "#/$defs/simpleTypeRef"
+            }
+          ]
+        },
+        "enumeration": {
+          "type": "array",
+          "items": {
+            "type": ["string", "number", "boolean"]
+          },
+          "uniqueItems": true
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "minInclusive": {
+          "type": ["number", "string"]
+        },
+        "maxInclusive": {
+          "type": ["number", "string"]
+        },
+        "minExclusive": {
+          "type": ["number", "string"]
+        },
+        "maxExclusive": {
+          "type": ["number", "string"]
+        },
+        "totalDigits": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fractionDigits": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "whiteSpace": {
+          "type": "string",
+          "enum": ["preserve", "replace", "collapse"]
+        }
+      }
+    },
+
+    "role": {
+      "type": "object",
+      "required": ["entityRef"],
+      "properties": {
+        "nazov": {
+          "type": "string",
+          "description": "Role name"
+        },
+        "multiplicity": {
+          "type": "string",
+          "description": "Multiplicity (e.g., 1, 0..1, 1..*, *)"
+        },
+        "entityRef": {
+          "$ref": "#/$defs/referenceEntity"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+
+    "relationship": {
+      "type": "object",
+      "required": ["type", "start_role", "end_role"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["contains", "references", "belongs_to", "aggregates"]
+        },
+        "start_role": {
+          "$ref": "#/$defs/role"
+        },
+        "end_role": {
+          "$ref": "#/$defs/role"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+
+    "function": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/parameter"
+          }
+        },
+        "behavior": {
+          "$ref": "#/$defs/behavior"
+        }
+      }
+    },
+
+    "parameter": {
+      "type": "object",
+      "properties": {
+        "direction": {
+          "type": "string",
+          "enum": ["in", "out", "inout"]
+        },
+        "namedType": {
+          "$ref": "#/$defs/namedType"
+        }
+      }
+    },
+
+    "behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "postconditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "affectedEntities": {
+          "$ref": "#/$defs/affectedEntities"
+        },
+        "actors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/actorRef"
+          }
+        }
+      }
+    },
+
+    "affectedEntities": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/entityImpact"
+          },
+          {
+            "$ref": "#/$defs/output"
+          }
+        ]
+      }
+    },
+
+    "entityImpact": {
+      "type": "object",
+      "required": ["impact"],
+      "properties": {
+        "attributeRef": {
+          "$ref": "#/$defs/referenceAttribute"
+        },
+        "variableRef": {
+          "type": "string"
+        },
+        "impact": {
+          "type": "string",
+          "enum": ["read", "write", "affect"]
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+
+    "output": {
+      "type": "object",
+      "required": ["variable"],
+      "properties": {
+        "variable": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
+
+    "referenceAttribute": {
+      "type": "object",
+      "required": ["namespaceAlias"],
+      "additionalProperties": false,
+      "properties": {
+        "namespaceAlias": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entity": {
+          "type": "string"
+        },
+        "attribute": {
+          "type": "string"
+        }
+      }
+    },
+
+    "actorRef": {
+      "type": "object",
+      "required": ["namespaceAlias", "actor"],
+      "additionalProperties": false,
+      "properties": {
+        "namespaceAlias": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Namespace alias from imports"
+        },
+        "actor": {
+          "type": "string",
+          "description": "Actor code"
+        }
+      }
+    },
+
+    "actorEntry": {
+      "type": "object",
+      "required": ["code", "meaning"],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["user", "system", "external_system"]
+        },
+        "meaning": {
+          "type": "string"
+        },
+        "responsibilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+
+    "glossaryEntry": {
+      "type": "object",
+      "required": ["term", "meaning"],
+      "properties": {
+        "term": {
+          "type": "string"
+        },
+        "meaning": {
+          "type": "string"
+        },
+        "relatedEntity": {
+          "type": "string"
+        }
+      }
+    },
+
+    "eventGlossaryEntry": {
+      "type": "object",
+      "required": ["code", "meaning"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Event code (e.g., sosm-00)"
+        },
+        "title": {
+          "type": "string"
+        },
+        "meaning": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "error"]
+        },
+        "recommendedAction": {
+          "type": "string"
+        }
+      }
+    },
+
+    "businessRule": {
+      "type": "object",
+      "required": ["code", "description"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "description": "Rule identifier"
+        },
+        "description": {
+          "type": "string",
+          "description": "Rule statement in natural language"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["mandatory", "recommended", "informational"]
+        },
+        "affectedEntities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Entity names affected by this rule"
+        }
+      }
+    },
+
+    "algorithmDefinition": {
+      "type": "object",
+      "required": ["name", "steps"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/parameter"
+          }
+        },
+        "behavior": {
+          "$ref": "#/$defs/behavior"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          },
+          "minItems": 1
+        }
+      }
+    },
+
+    "step": {
+      "type": "object",
+      "required": ["id", "type", "text"],
+      "properties": {
+        "id": { "type": "string" },
+        "legacyId": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["step", "decision", "loop", "foreach", "operation", "return", "stop", "block"]
+        },
+        "text": { "type": "string" },
+        "collection": { "type": "string" },
+        "item": { "type": "string" },
+        "operation": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/referenceOperation" }
+          ]
+        },
+        "condition": { "$ref": "#/$defs/condition" },
+        "branches": { "$ref": "#/$defs/branches" },
+        "body": { "$ref": "#/$defs/body" },
+        "behavior": { "$ref": "#/$defs/behavior" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "decision" } } },
+          "then": { "required": ["condition", "branches"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "loop" } } },
+          "then": { "required": ["condition", "body"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "foreach" } } },
+          "then": { "required": ["collection", "item", "body"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "operation" } } },
+          "then": { "required": ["operation"] }
+        },
+        {
+          "if": { "properties": { "type": { "const": "block" } } },
+          "then": { "required": ["body"] }
+        }
+      ]
+    },
+
+    "condition": {
+      "type": "object",
+      "required": ["kind", "description", "check"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["entityRef", "variableRef", "operationRef", "waitEvent", "simple"]
+        },
+        "variableRef": { "type": "string", "deprecated": true },
+        "attributeRef": { "$ref": "#/$defs/referenceAttribute" },
+        "operationRef": { "$ref": "#/$defs/referenceOperation" },
+        "waitEvent": { "$ref": "#/$defs/waitEvent" },
+        "description": { "minLength": 0 },
+        "check": {
+          "type": "string",
+          "enum": ["exists", "is null", "is not null", "equals", "not equals", "greater than", "less than"]
+        },
+        "value": {}
+      }
+    },
+
+    "branches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["when", "then"],
+        "properties": {
+          "when": {
+            "oneOf": [
+              { "type": "boolean" },
+              { "type": "string", "const": "otherwise" }
+            ]
+          },
+          "then": {
+            "type": "array",
+            "items": { "$ref": "#/$defs/step" }
+          }
+        }
+      }
+    },
+
+    "body": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/step" },
+      "minItems": 1
+    },
+
+    "waitEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eventRef"],
+      "properties": {
+        "eventRef": { "$ref": "#/$defs/referenceEvent" },
+        "waitUntil": { "type": "string" },
+        "timeoutAction": { "type": "string" }
+      }
+    },
+
+    "referenceOperation": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["entityFunction", "sqd", "step", "event"]
+        },
+        "stepRef": { "type": "string" },
+        "entityFunctionRef": { "$ref": "#/$defs/referenceEntityFunction" },
+        "sqdRef": { "$ref": "#/$defs/referenceSqd" },
+        "eventRef": { "$ref": "#/$defs/referenceEvent" }
+      }
+    },
+
+    "referenceEntityFunction": {
+      "type": "object",
+      "required": ["function"],
+      "additionalProperties": false,
+      "properties": {
+        "namespaceAlias": { "type": "string", "minLength": 1 },
+        "entity": { "type": "string" },
+        "function": { "type": "string" },
+        "mapParameters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/parameterMap" }
+        }
+      }
+    },
+
+    "referenceSqd": {
+      "type": "object",
+      "required": ["namespaceAlias"],
+      "additionalProperties": false,
+      "properties": {
+        "namespaceAlias": { "type": "string", "minLength": 1 },
+        "mapParameters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/parameterMap" }
+        }
+      }
+    },
+
+    "referenceEvent": {
+      "type": "object",
+      "required": ["namespaceAlias"],
+      "additionalProperties": false,
+      "properties": {
+        "namespaceAlias": { "type": "string", "minLength": 1 },
+        "event": { "type": "string" },
+        "mapParameters": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/parameterMap" }
+        }
+      }
+    },
+
+    "parameterMap": {
+      "type": "object",
+      "required": ["parameter", "value"],
+      "properties": {
+        "parameter": { "type": "string" },
+        "value": { "type": "string" }
+      }
+    },
+
+    "stateEntry": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "isFinal": {
+          "type": "boolean"
+        }
+      }
+    },
+
+    "codeLabel": {
+      "type": "object",
+      "required": ["code"],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        }
+      }
+    },
+
+    "annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "documentation": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

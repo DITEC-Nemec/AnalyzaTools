@@ -1,42 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.com/sqd.schema.json",
-  "title": "SQD Algorithm Model - Legacy & Unified",
-  "description": "Schema for SQD algorithm files supporting both legacy and unified formats",
+  "title": "SQD Narrative Algorithm Model",
   "type": "object",
-  "anyOf": [
-    {
-      "description": "Unified format: meta + algorithm.definitions",
-      "required": ["meta", "algorithm"],
-      "properties": {
-        "meta": {
-          "type": "object"
-        },
-        "algorithm": {
-          "type": "object",
-          "properties": {
-            "definitions": {
-              "type": "array",
-              "minItems": 1
-            }
-          },
-          "required": ["definitions"]
-        }
-      }
-    },
-    {
-      "description": "Legacy format: algorithm + steps at root",
-      "required": ["algorithm", "steps"],
-      "properties": {
-        "algorithm": {
-          "type": "object"
-        },
-        "steps": {
-          "type": "array",
-          "minItems": 1
-        }
-      }
-    }
+  "required": [
+    "algorithm",
+    "steps"
   ],
   "properties": {
     "algorithm": {

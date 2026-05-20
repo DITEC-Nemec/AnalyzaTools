@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import * as yaml from 'js-yaml';
+import { normalizeAlgorithmFormat } from '../domainModel/schemaNormalization';
 import { NarrativePanel } from './NarrativePanel';
 import type {ReferenceAttribute, ReferenceEntity, ReferenceEvent, ReferenceOperation, SqdAlgorithm, SqdStep } from '../types/sqd';
 import { vscodeApi } from './main';
@@ -138,8 +139,9 @@ export const AlgorithmEditor: React.FC = () => {
         setRawYaml(msg.content);
         setFileName(msg.fileName ?? '');
         try {
-          const parsed = yaml.load(msg.content) as SqdAlgorithm;
-          setModel(parsed);
+          const parsed = yaml.load(msg.content);
+          const normalized = normalizeAlgorithmFormat(parsed);
+          setModel(normalized);
           setError(null);
         } catch (e) {
           setError(String(e));

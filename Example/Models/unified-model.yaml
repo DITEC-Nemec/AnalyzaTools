@@ -1,0 +1,132 @@
+meta:
+  namespaceRef:
+    - alias: local
+      filePath: Example/Models/unified-model.yaml
+      sourceType: current
+    - alias: SOSM
+      filePath: Example/Catalogs/SOSM Škola.model.yaml
+      sourceType: model
+
+domain:
+  metadata:
+    name: TestDomain
+    description: Test domain model with namespace imports
+    version: "1.0.0"
+    status: draft
+
+  imports:
+    - local
+    - SOSM
+
+  entities:
+    - name: Žiak
+      type: business_concept
+      description: Student in the school system
+      attributes:
+        - namedType:
+            name: id
+            type: definition
+            definition:
+              restriction:
+                base: integer
+        - namedType:
+            name: meno
+            type: definition
+            definition:
+              restriction:
+                base: string
+        - namedType:
+            name: priezvisko
+            type: definition
+            definition:
+              restriction:
+                base: string
+        - namedType:
+            name: skola
+            type: entityRef
+            entityRef:
+              namespaceAlias: SOSM
+              entity: Škola
+
+    - name: Trieda
+      type: business_concept
+      description: Class in local domain
+      attributes:
+        - namedType:
+            name: oznacenie
+            type: definition
+            definition:
+              restriction:
+                base: string
+
+  simpleTypes:
+    - name: VekCategory
+      definition:
+        restriction:
+          base: string
+          enumeration:
+            - "6-7"
+            - "8-9"
+            - "10-11"
+            - "12-13"
+            - "14-15"
+            - "16-18"
+
+  relationships:
+    - type: contains
+      start_role:
+        nazov: trieda
+        multiplicity: "1"
+        entityRef:
+          namespaceAlias: local
+          entity: Trieda
+      end_role:
+        nazov: ziaci
+        multiplicity: "*"
+        entityRef:
+          namespaceAlias: local
+          entity: Žiak
+
+  eventGlossary:
+    - code: evt-001
+      title: Student Enrolled
+      meaning: A new student has been enrolled in the school
+      severity: info
+
+dictionary:
+  glossary:
+    - term: Školský rok
+      meaning: Academic year from September to June
+      relatedEntity: Žiak
+
+    - term: Trieda
+      meaning: Group of students taught together
+      relatedEntity: Trieda
+
+  businessRules:
+    - code: BR-001
+      description: A student must belong to exactly one class
+      severity: mandatory
+      affectedEntities:
+        - Žiak
+
+  actors:
+    - code: STUDENT
+      type: user
+      meaning: Student user in the system
+      responsibilities:
+        - View own grades
+        - Submit assignments
+
+    - code: TEACHER
+      type: user
+      meaning: Teacher user in the system
+      responsibilities:
+        - Create assignments
+        - Grade submissions
+
+    - code: SYSTEM
+      type: system
+      meaning: Automated system processes
+      responsibilities:
+        - Calculate final grades

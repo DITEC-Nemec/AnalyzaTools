@@ -1,40 +1,46 @@
+meta:
+  namespaceRef:
+    - alias: local
+      filePath: Example/Algoritm/rozradenie_ziakov.sqd.yaml
+      sourceType: current
+    - alias: Externe
+      filePath: Catalogs/Externe.model.yaml
+      sourceType: model
 algorithm:
-  name: rozradenie_ziakov
-  behavior:
-    actors:
-      - namespaceAlias: local
-        actor: ''
-steps:
-  - id: '1'
-    type: step
-    text: ''
-    behavior:
-      description: ''
-      preconditions: []
-      postconditions: []
-      affectedEntities: []
-      actors: []
-  - id: '2'
-    type: decision
-    text: ''
-    condition:
-      kind: attributeRef
-      description: ''
-      check: exists
-    branches:
-      - when: true
-        then:
-          - id: '3'
-            type: block
-            text: ''
-            body:
-              - id: '4'
-                type: operation
-                text: ''
-                operation: ''
-      - when: false
-        then: []
-namespaceRef:
-  - alias: Externe
-    filePath: Catalogs/Externe.model.yaml
-    sourceType: model
+  definitions:
+    - name: rozradenie_ziakov
+      version: "1.0"
+      imports:
+        - local
+        - Externe
+      actors:
+        - namespaceAlias: local
+          actor: SYSTEM
+      behavior:
+        description: "Radí študentov podľa ich preferencií a kapacity škôl"
+        preconditions:
+          - "Žiadosti od študentov sú dostupné"
+        postconditions:
+          - "Priradenie je vytvorené a zaznamenané"
+      steps:
+        - id: '1'
+          type: step
+          text: "Načítaj žiadosti od študentov"
+        - id: '2'
+          type: decision
+          text: "Sú dostupné kapacity?"
+          condition:
+            kind: simple
+            description: "Skontroluj dostupné miesta"
+            check: exists
+          branches:
+            - when: true
+              then:
+                - id: '3'
+                  type: operation
+                  text: "Priraď študenta"
+            - when: false
+              then:
+                - id: '4'
+                  type: step
+                  text: "Oznám študentovi nedostupnosť"

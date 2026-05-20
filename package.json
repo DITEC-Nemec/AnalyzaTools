@@ -111,7 +111,7 @@
         "displayName": "SQD Domain Model Editor",
         "selector": [
           {
-            "filenamePattern": "*.model.yaml"
+            "filenamePattern": "*model.yaml"
           }
         ],
         "priority": "default"
@@ -141,7 +141,8 @@
     "watch": "webpack --mode development --watch",
     "watch:webview": "npm --prefix webview-ui run dev",
     "lint": "eslint src --ext ts",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "migrate": "node scripts/migrate.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.19.39",

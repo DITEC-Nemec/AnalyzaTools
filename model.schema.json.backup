@@ -1,35 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.com/model.schema.json",
-  "title": "SQD Domain Model - Legacy & Unified",
-  "description": "Schema for domain model files supporting both legacy and unified formats",
+  "title": "SQD Domain Model",
   "type": "object",
-  "anyOf": [
-    {
-      "description": "Unified format: meta + domain",
-      "required": ["meta", "domain"],
-      "properties": {
-        "meta": {
-          "type": "object"
-        },
-        "domain": {
-          "type": "object",
-          "properties": {
-            "metadata": { "type": "object" },
-            "imports": { "type": "array" }
-          }
-        }
-      }
-    },
-    {
-      "description": "Legacy format: domain/name/entities at root",
-      "required": ["domain"],
-      "properties": {
-        "domain": {
-          "type": "object"
-        }
-      }
-    }
+  "required": [
+    "domain"
   ],
   "properties": {
     "domain": {

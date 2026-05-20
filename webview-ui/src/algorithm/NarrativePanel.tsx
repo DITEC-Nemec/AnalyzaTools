@@ -1,5 +1,6 @@
 import React from 'react';
 import * as yaml from 'js-yaml';
+import { ImportsPanel } from './ImportsPanel';
 import { ParametersEditor } from '../components/ParametersEditor';
 import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
 import { ActorRefsEditor } from '../components/ActorRefsEditor';
@@ -14,7 +15,7 @@ interface Props {
 }
 
 type StepType = SqdStep['type'];
-type TopTab = 'algorithm' | 'steps' | 'namespaceRef';
+type TopTab = 'imports' | 'algorithm' | 'steps' | 'namespaceRef';
 type AlgorithmSubTab = 'detail' | 'parameters';
 
 interface OwnerContext {
@@ -509,6 +510,9 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
     <div className="narrative-panel">
       <div className="panel-title">{L('panelTitle', 'SQD Editor')}</div>
       <div className="tab-row">
+        <button className={tab === 'imports' ? 'tab active' : 'tab'} onClick={() => setTab('imports')}>
+          {L('tabs.imports', 'imports')}
+        </button>
         <button className={tab === 'algorithm' ? 'tab active' : 'tab'} onClick={() => setTab('algorithm')}>
           {L('tabs.algorithm', 'algorithm')}
         </button>
@@ -521,6 +525,14 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
       </div>
 
       <div className="steps-tree">
+        {tab === 'imports' && (
+          <ImportsPanel
+            imports={(model as any).imports ?? ['local']}
+            availableNamespaces={namespaceItems}
+            onChange={(imports) => onChange({ ...model, imports } as any)}
+          />
+        )}
+
         {tab === 'algorithm' && (
           <div className="item-card">
             <h4>{L('algorithmForm.title', 'Algorithm')}</h4>

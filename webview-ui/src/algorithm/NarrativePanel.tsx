@@ -1,6 +1,7 @@
 import React from 'react';
 import * as yaml from 'js-yaml';
 import { ImportsPanel } from './ImportsPanel';
+import { normalizeModelFormat } from '../domainModel/schemaNormalization';
 import { ParametersEditor } from '../components/ParametersEditor';
 import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
 import { ActorRefsEditor } from '../components/ActorRefsEditor';
@@ -246,12 +247,13 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange }) => {
         }
 
         try {
-          const parsed = yaml.load(msg.content) as NamespaceReferencedModel;
-          if (!parsed || typeof parsed !== 'object') {
+          const parsed = yaml.load(msg.content);
+          const normalized = normalizeModelFormat(parsed) as unknown as NamespaceReferencedModel;
+          if (!normalized || typeof normalized !== 'object') {
             return;
           }
 
-          setNamespaceModels(prev => ({ ...prev, [alias]: parsed }));
+          setNamespaceModels(prev => ({ ...prev, [alias]: normalized }));
         } catch {
           setNamespaceModels(prev => {
             const next = { ...prev };

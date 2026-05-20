@@ -1,6 +1,7 @@
 import React from 'react';
 import * as yaml from 'js-yaml';
 import { VariableList } from '../algorithm/VariableList';
+import { normalizeModelFormat } from '../domainModel/schemaNormalization';
 import type { NamespaceEntity, ParameterDirection, Variable } from '../types/sqd';
 
 type ParameterItem = Variable & { direction?: ParameterDirection };
@@ -57,11 +58,12 @@ export const ParametersEditor: React.FC<ParametersEditorProps> = ({
       }
 
       try {
-        const parsed = yaml.load(content) as ModelLike;
-        if (!parsed || typeof parsed !== 'object') {
+        const parsed = yaml.load(content);
+        const normalized = normalizeModelFormat(parsed) as unknown as ModelLike;
+        if (!normalized || typeof normalized !== 'object') {
           return;
         }
-        setNamespaceModels((prev) => ({ ...prev, [alias]: parsed }));
+        setNamespaceModels((prev) => ({ ...prev, [alias]: normalized }));
       } catch {
         setNamespaceModels((prev) => {
           const next = { ...prev };

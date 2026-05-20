@@ -90,3 +90,4 @@ relationships:
         entity: SOSM Priradenie
     type: references
     description: ''
+simpleTypes: []

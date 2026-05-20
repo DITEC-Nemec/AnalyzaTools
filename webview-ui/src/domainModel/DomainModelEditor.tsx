@@ -211,7 +211,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
   // Tab states
   const [topTab, setTopTab] = useState<string>('entities');
-  const [entityTab, setEntityTab] = useState<string>('attributes');
+  const [entityTab, setEntityTab] = useState<string>('detail');
   const [functionTab, setFunctionTab] = useState<string>('detail');
 
   // Initialize model
@@ -1128,7 +1128,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
   const selectEntity = (index: number) => {
     setSelectedEntityIndex(index);
-    setEntityTab('attributes');
+    setEntityTab('detail');
   };
 
   const addAttribute = () => {
@@ -1321,49 +1321,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
             {selectedEntity && selectedEntityIndex !== null && (
               <div className="item-card">
-                <h4>{DL('entities.view.detail', 'Detail entity')}</h4>
-                <label>{DL('entities.form.name', 'Nazov entity')}</label>
-                <input value={selectedEntity.name} onChange={(e) => updateEntity(selectedEntityIndex, { name: e.target.value })} />
-
-                <label>{DL('entities.form.description', 'Popis')}</label>
-                <textarea rows={3} value={selectedEntity.description ?? ''} onChange={(e) => updateEntity(selectedEntityIndex, { description: e.target.value })} />
-
-                <label>{DL('entities.form.type', 'Typ')}</label>
-                <select
-                  value={selectedEntity.type ?? ''}
-                  onChange={(e) => updateEntity(selectedEntityIndex, {
-                    type: (e.target.value || undefined) as Entity['type']
-                  })}
-                >
-                  <option value="">-</option>
-                  {ENTITY_TYPES.map((entityType) => (
-                    <option key={entityType} value={entityType}>{entityType}</option>
-                  ))}
-                </select>
-
-                <label>{DL('entities.form.agregationStatus', 'Agregation status')}</label>
-                <select
-                  value={selectedEntity.agregationStatus ?? ''}
-                  onChange={(e) => updateEntity(selectedEntityIndex, {
-                    agregationStatus: (e.target.value || undefined) as Entity['agregationStatus']
-                  })}
-                >
-                  <option value="">-</option>
-                  {ENTITY_AGREGATION_STATUSES.map((agregationStatus) => (
-                    <option key={agregationStatus} value={agregationStatus}>{agregationStatus}</option>
-                  ))}
-                </select>
-
-                <label>{DL('entities.form.status', 'Status')}</label>
-                <select
-                  value={selectedEntity.status ?? 'active'}
-                  onChange={(e) => updateEntity(selectedEntityIndex, { status: e.target.value as Entity['status'] })}
-                >
-                  <option value="active">active</option>
-                  <option value="deprecated">deprecated</option>
-                </select>
-
                 <div className="tab-row sub">
+                  <button className={entityTab === 'detail' ? 'tab active' : 'tab'} onClick={() => setEntityTab('detail')}>
+                    {DL('entities.view.subTabs.detail', 'Detail')}
+                  </button>
                   <button className={entityTab === 'attributes' ? 'tab active' : 'tab'} onClick={() => setEntityTab('attributes')}>
                     {DL('entities.view.subTabs.attributes', 'Atributy')}
                   </button>
@@ -1374,6 +1335,51 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                     {DL('entities.view.subTabs.stateModel', 'stateModel')}
                   </button>
                 </div>
+
+                {entityTab === 'detail' && (
+                  <section className="panel nested">
+                    <label>{DL('entities.form.name', 'Nazov entity')}</label>
+                    <input value={selectedEntity.name} onChange={(e) => updateEntity(selectedEntityIndex, { name: e.target.value })} />
+
+                    <label>{DL('entities.form.description', 'Popis')}</label>
+                    <textarea rows={3} value={selectedEntity.description ?? ''} onChange={(e) => updateEntity(selectedEntityIndex, { description: e.target.value })} />
+
+                    <label>{DL('entities.form.type', 'Typ')}</label>
+                    <select
+                      value={selectedEntity.type ?? ''}
+                      onChange={(e) => updateEntity(selectedEntityIndex, {
+                        type: (e.target.value || undefined) as Entity['type']
+                      })}
+                    >
+                      <option value="">-</option>
+                      {ENTITY_TYPES.map((entityType) => (
+                        <option key={entityType} value={entityType}>{entityType}</option>
+                      ))}
+                    </select>
+
+                    <label>{DL('entities.form.agregationStatus', 'Agregation status')}</label>
+                    <select
+                      value={selectedEntity.agregationStatus ?? ''}
+                      onChange={(e) => updateEntity(selectedEntityIndex, {
+                        agregationStatus: (e.target.value || undefined) as Entity['agregationStatus']
+                      })}
+                    >
+                      <option value="">-</option>
+                      {ENTITY_AGREGATION_STATUSES.map((agregationStatus) => (
+                        <option key={agregationStatus} value={agregationStatus}>{agregationStatus}</option>
+                      ))}
+                    </select>
+
+                    <label>{DL('entities.form.status', 'Status')}</label>
+                    <select
+                      value={selectedEntity.status ?? 'active'}
+                      onChange={(e) => updateEntity(selectedEntityIndex, { status: e.target.value as Entity['status'] })}
+                    >
+                      <option value="active">active</option>
+                      <option value="deprecated">deprecated</option>
+                    </select>
+                  </section>
+                )}
 
                 {entityTab === 'attributes' && (
                   <section className="panel nested">

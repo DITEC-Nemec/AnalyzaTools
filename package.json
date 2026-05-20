@@ -142,7 +142,8 @@
     "watch:webview": "npm --prefix webview-ui run dev",
     "lint": "eslint src --ext ts",
     "test": "vscode-test",
-    "migrate": "node scripts/migrate.mjs"
+    "migrate": "node scripts/migrate.mjs",
+    "validate:examples": "node scripts/validate-examples.mjs"
   },
   "devDependencies": {
     "@types/node": "^20.19.39",

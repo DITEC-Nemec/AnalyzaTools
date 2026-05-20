@@ -211,6 +211,7 @@ export interface DomainModel {
   relationships?: Relationship[];
   glossary?: GlossaryEntry[];
   eventGlossary?: EventGlossaryEntry[];
+  businessRules?: BusinessRule[];
   actors?: ActorEntry[];
   namespaceRef?: NamespaceEntity[];
 }
@@ -332,4 +333,11 @@ export interface EventGlossaryEntry {
   meaning: string;
   severity?: 'info' | 'warning' | 'error';
   recommendedAction?: string;
+}
+
+export interface BusinessRule {
+  code: string;
+  description: string;
+  severity?: 'mandatory' | 'recommended' | 'informational';
+  affectedEntities?: string[];
 }

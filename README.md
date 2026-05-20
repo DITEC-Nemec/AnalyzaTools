@@ -1,5 +1,79 @@
 # Analýza Modelu z pohľadu Analytika a UI
 
+## YAML Schema – Unified Format
+
+Všetky YAML súbory v tomto projekte používajú **unified schema format**.  
+**Nové súbory sa VŽDY vytvárajú v unified formáte.** Legacy formát je podporovaný len na čítanie (fallback v editore).
+
+### Štruktúra unified domain model (`*.model.yaml`)
+
+```yaml
+meta:
+  namespaceRef:                          # Katalóg namespace referencií
+    - alias: local
+      filePath: path/to/this-file.model.yaml
+      sourceType: current                # vždy pre local
+    - alias: SomeNamespace
+      filePath: path/to/other.model.yaml
+      sourceType: model
+
+domain:
+  metadata: { name, description, version, status }
+  imports: [local, SomeNamespace]        # Selektívny import
+  entities: [...]
+  simpleTypes: [...]
+  relationships: [...]
+  eventGlossary: [...]
+
+dictionary:
+  glossary: [...]
+  businessRules: [...]
+  actors: [...]
+```
+
+### Štruktúra unified algorithm model (`*.sqd.yaml`)
+
+```yaml
+meta:
+  namespaceRef:
+    - alias: local
+      filePath: path/to/this-file.sqd.yaml
+      sourceType: current
+    - alias: DomainModel
+      filePath: path/to/model.model.yaml
+      sourceType: model
+
+algorithm:
+  definitions:
+    - name: AlgorithmName
+      version: "1.0"
+      imports: [local, DomainModel]      # Selektívny import
+      actors: [...]
+      behavior: { description, preconditions, postconditions }
+      steps: [...]
+```
+
+### Pravidlá
+- `meta.namespaceRef` musí obsahovať `alias: local` s `sourceType: current`
+- `domain.imports` / `algorithm.definitions[].imports` smú referencovať len aliasy z `meta.namespaceRef`
+- `entityRef.namespaceAlias` v relationships musí byť alias definovaný v `meta.namespaceRef`
+- Každý `step` musí mať `id` a platný `type`; `decision` vyžaduje `condition` + `branches`; `operation` vyžaduje `operation` pole
+
+### Nástroje
+
+```bash
+npm run migrate           # Jednorazová konverzia legacy → unified (vytvorí .backup)
+npm run validate:examples # Validácia všetkých Example/**/*.yaml (volaj pred commitom)
+npm run build             # Build VS Code extension
+npm run build:webview     # Build React webview UI
+```
+
+### CI
+
+`npm run validate:examples` vracia exit code 1 pri chybách — zaraďte do CI pipeline pred každým merge.
+
+---
+
 ## 1. ANALYTICKÁ PERSPEKTÍVA - Čo chýba v Modeli
 
 ### 1.1 Domain Model - Úroveň Domény
@@ -135,7 +209,7 @@
 1. **Business Rules Tab** 
    - Tabuľka s pravidlami (code, description, severity)
    - Detail: Pravidlo + jeho popis + severity (high/medium/low)
-   - Status: ✅ PRIORITY: HIGH
+   - Status: ✅ DONE
 
 2. **Entity Type Selector**
    - Momentálne: len Entity
@@ -165,11 +239,11 @@
 
 1. **Step Rationale / Comment**
    - TextField pri step detaili "Why / Rationale"
-   - Status: ❌ PRIORITY: HIGH
+   - Status: ✅ DONE
 
 2. **Error Handler per Operation**
    - Pri operation detail: "On Error" - dropdown s fallback steps alebo skip
-   - Status: ❌ PRIORITY: MEDIUM
+   - Status: ✅ DONE
 
 3. **Performance SLA**
    - Pri algoritme behavior: "Performance SLA" textarea (description)
@@ -210,10 +284,10 @@
 
 ## 3. Prioritizácia Implementácie
 
-### PHASE 1 (HIGH PRIORITY - Analyticky potrebné):
-1. Step Rationale / Comment (Algorithm)
-2. Business Rules (Domain) 
-3. Error Handler per Operation (Algorithm)
+### PHASE 1 (HIGH PRIORITY - Analyticky potrebné): ✅ DONE
+1. Step Rationale / Comment (Algorithm) ✅
+2. Business Rules (Domain) ✅
+3. Error Handler per Operation (Algorithm) ✅
 
 ### PHASE 2 (MEDIUM PRIORITY - Lepšia vyjadriteľnosť):
 1. State Transition Rules (Domain)

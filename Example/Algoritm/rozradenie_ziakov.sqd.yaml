@@ -39,6 +39,7 @@ algorithm:
                 - id: '3'
                   type: operation
                   text: "Priraď študenta"
+                  operation: priradiStudenta
             - when: false
               then:
                 - id: '4'

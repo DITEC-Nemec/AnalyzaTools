@@ -204,6 +204,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   // Glossary selection
   const [selectedGlossaryIndex, setSelectedGlossaryIndex] = useState<number | null>(null);
   const [selectedEventGlossaryIndex, setSelectedEventGlossaryIndex] = useState<number | null>(null);
+
+  // Business Rules selection
+  const [selectedBusinessRuleIndex, setSelectedBusinessRuleIndex] = useState<number | null>(null);
   
   // Actors selection
   const [selectedActorIndex, setSelectedActorIndex] = useState<number | null>(null);
@@ -1284,6 +1287,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           </button>
           <button className={topTab === 'glossary' ? 'tab active' : 'tab'} onClick={() => setTopTab('glossary')}>
             {DL('topTabs.glossary', 'Glossary')}
+          </button>
+          <button className={topTab === 'businessRules' ? 'tab active' : 'tab'} onClick={() => setTopTab('businessRules')}>
+            {DL('topTabs.businessRules', 'Business Rules')}
           </button>
           <button className={topTab === 'eventGlossary' ? 'tab active' : 'tab'} onClick={() => setTopTab('eventGlossary')}>
             {DL('topTabs.eventGlossary', 'eventGlossary')}
@@ -2610,6 +2616,95 @@ const DomainModelEditor: React.FC<EditorProps> = ({
             )}
           </section>
         )}
+
+        {topTab === 'businessRules' && (() => {
+          const rules: import('../types/sqd').BusinessRule[] = (model as any)?.businessRules ?? [];
+          const selIdx = selectedBusinessRuleIndex;
+          const setSelIdx = setSelectedBusinessRuleIndex;
+          const selRule = selIdx !== null ? rules[selIdx] ?? null : null;
+
+          const updateRules = (next: import('../types/sqd').BusinessRule[]) =>
+            updateModel(cur => ({ ...cur, businessRules: next } as any));
+
+          const addRule = () => {
+            const next = [...rules, { code: `BR-${String(rules.length + 1).padStart(3, '0')}`, description: '', severity: 'recommended' as const }];
+            updateRules(next);
+            setSelIdx(next.length - 1);
+          };
+          const removeRule = (i: number) => { updateRules(rules.filter((_, idx) => idx !== i)); if (selIdx === i) setSelIdx(null); };
+          const moveRule = (i: number, dir: -1 | 1) => {
+            updateRules(moveItem(rules, i, i + dir));
+            setSelIdx(prev => prev === null ? null : prev === i ? i + dir : prev);
+          };
+          const updateRule = (i: number, patch: Partial<import('../types/sqd').BusinessRule>) => {
+            const next = [...rules]; next[i] = { ...next[i], ...patch }; updateRules(next);
+          };
+
+          return (
+            <section className="panel">
+              <div className="panel-head">
+                <h3>{DL('businessRules.view.title', 'Business Rules')}</h3>
+                <button onClick={addRule}>{DL('businessRules.view.add', '+ Pravidlo')}</button>
+              </div>
+
+              <table className="dm-table">
+                <thead>
+                  <tr>
+                    <th>{DL('businessRules.columns.code', 'Code')}</th>
+                    <th>{DL('businessRules.columns.description', 'Popis')}</th>
+                    <th>{DL('businessRules.columns.severity', 'Závažnosť')}</th>
+                    <th>{DL('businessRules.columns.actions', 'Akcie')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rules.map((rule, i) => (
+                    <tr key={`${rule.code}-${i}`} className={selIdx === i ? 'selected' : ''} onClick={() => setSelIdx(i)}>
+                      <td>{rule.code}</td>
+                      <td>{rule.description || '-'}</td>
+                      <td>
+                        <span className={`badge badge-${rule.severity ?? 'medium'}`}>{rule.severity ?? 'medium'}</span>
+                      </td>
+                      <td>
+                        <div className="inline-actions">
+                          <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveRule(i, -1); }}>↑</button>
+                          <button disabled={i === rules.length - 1} onClick={(e) => { e.stopPropagation(); moveRule(i, 1); }}>↓</button>
+                          <button onClick={(e) => { e.stopPropagation(); removeRule(i); }}>✕</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {selRule && selIdx !== null && (
+                <div className="item-card">
+                  <h4>{DL('businessRules.view.detail', 'Detail pravidla')}</h4>
+
+                  <label className="field-label">{DL('businessRules.form.code', 'Code')}</label>
+                  <input className="field-input" value={selRule.code} onChange={(e) => updateRule(selIdx, { code: e.target.value })} />
+
+                  <label className="field-label">{DL('businessRules.form.description', 'Popis')}</label>
+                  <textarea className="step-text" rows={4} value={selRule.description} onChange={(e) => updateRule(selIdx, { description: e.target.value })} />
+
+                  <label className="field-label">{DL('businessRules.form.severity', 'Závažnosť')}</label>
+                  <select className="field-input" value={selRule.severity ?? 'recommended'} onChange={(e) => updateRule(selIdx, { severity: e.target.value as any })}>
+                    <option value="mandatory">mandatory – povinné</option>
+                    <option value="recommended">recommended – odporúčané</option>
+                    <option value="informational">informational – informačné</option>
+                  </select>
+
+                  <label className="field-label">{DL('businessRules.form.affectedEntities', 'Postihnuté entity (jedna na riadok)')}</label>
+                  <textarea
+                    className="field-input"
+                    rows={3}
+                    value={(selRule.affectedEntities ?? []).join('\n')}
+                    onChange={(e) => updateRule(selIdx, { affectedEntities: e.target.value.split('\n').filter(s => s.trim()) })}
+                  />
+                </div>
+              )}
+            </section>
+          );
+        })()}
 
         {topTab === 'eventGlossary' && (
           <section className="panel">

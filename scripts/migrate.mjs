@@ -5,7 +5,9 @@
  * 
  * Usage: npm run migrate
  * 
- * Finds all *.model.yaml and *.sqd.yaml files and converts legacy format to unified
+ * IMPORTANT: This is a ONE-TIME migration tool.
+ * After migration, all files must remain in unified format.
+ * Use `npm run validate:examples` to enforce this.
  */
 
 import fs from 'fs';

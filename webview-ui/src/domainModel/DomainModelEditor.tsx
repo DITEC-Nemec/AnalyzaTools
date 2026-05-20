@@ -2477,13 +2477,23 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                 {relationships.map((rel, i) => {
                   const startEntity = rel.start_role?.entityRef?.entity ?? rel.start_role?.entity;
                   const endEntity = rel.end_role?.entityRef?.entity ?? rel.end_role?.entity;
+                  const startRoleName = rel.start_role?.nazov?.trim() ?? '';
+                  const startRoleMultiplicity = rel.start_role?.multiplicity?.trim() ?? '';
+                  const endRoleName = rel.end_role?.nazov?.trim() ?? '';
+                  const endRoleMultiplicity = rel.end_role?.multiplicity?.trim() ?? '';
+                  const startRoleLabel = startRoleName
+                    ? (startRoleMultiplicity ? `${startRoleName} (${startRoleMultiplicity})` : startRoleName)
+                    : (startRoleMultiplicity ? `(${startRoleMultiplicity})` : '-');
+                  const endRoleLabel = endRoleName
+                    ? (endRoleMultiplicity ? `${endRoleName} (${endRoleMultiplicity})` : endRoleName)
+                    : (endRoleMultiplicity ? `(${endRoleMultiplicity})` : '-');
 
                   return (
                     <tr key={`${startEntity}-${endEntity}-${i}`} className={selectedRelationshipIndex === i ? 'selected' : ''} onClick={() => setSelectedRelationshipIndex(i)}>
                       <td>{startEntity ?? '-'}</td>
-                      <td>{rel.start_role?.nazov ?? '-'}</td>
+                      <td>{startRoleLabel}</td>
                       <td>{endEntity ?? '-'}</td>
-                      <td>{rel.end_role?.nazov ?? '-'}</td>
+                      <td>{endRoleLabel}</td>
                       <td>{rel.type ?? 'references'}</td>
                       <td>
                         <div className="inline-actions">

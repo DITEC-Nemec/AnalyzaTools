@@ -209,6 +209,64 @@ body {
   color: var(--vscode-descriptionForeground, #999);
 }
 
+.imports-picker {
+  position: relative;
+  max-width: 640px;
+}
+
+.add-import-btn {
+  min-height: 28px;
+  border: 1px solid var(--vscode-button-border, #555);
+  background: var(--vscode-button-secondaryBackground, #3a3a3a);
+  color: var(--vscode-button-secondaryForeground, #ccc);
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.imports-picker-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 15;
+  width: min(620px, 100%);
+  min-width: 320px;
+  border: 1px solid var(--vscode-panel-border, #555);
+  border-radius: 6px;
+  background: var(--vscode-editorWidget-background, #252526);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.imports-picker-list {
+  max-height: 220px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.imports-picker-item {
+  width: 100%;
+  border: 1px solid var(--vscode-panel-border, #444);
+  background: transparent;
+  color: inherit;
+  border-radius: 4px;
+  padding: 6px 8px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+}
+
+.imports-picker-item:hover {
+  background: var(--vscode-list-hoverBackground, #2a2d2e);
+}
+
 .dm-detail button {
   cursor: pointer;
 }

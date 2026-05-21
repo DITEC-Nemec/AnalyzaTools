@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import * as yaml from 'js-yaml';
 import { normalizeAlgorithmFormat } from '../domainModel/schemaNormalization';
 import { NarrativePanel } from './NarrativePanel';
-import type {ReferenceAttribute, ReferenceEntity, ReferenceEvent, ReferenceOperation, SqdAlgorithm, SqdStep } from '../types/sqd';
+import type { NamespaceEntity, ReferenceAttribute, ReferenceEntity, ReferenceEvent, ReferenceOperation, SqdAlgorithm, SqdStep } from '../types/sqd';
 import { vscodeApi } from './main';
 import { label } from '../ui-labels';
 
@@ -103,6 +103,7 @@ export const AlgorithmEditor: React.FC = () => {
   const [rawYaml, setRawYaml] = useState('');
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [globalNamespaces, setGlobalNamespaces] = useState<NamespaceEntity[]>([]);
 
   const countWarnings = (steps: SqdAlgorithm['steps']): number => {
     let warnings = 0;
@@ -138,6 +139,7 @@ export const AlgorithmEditor: React.FC = () => {
       if (msg.type === 'update') {
         setRawYaml(msg.content);
         setFileName(msg.fileName ?? '');
+        setGlobalNamespaces(Array.isArray(msg.globalNamespaces) ? msg.globalNamespaces : []);
         try {
           const parsed = yaml.load(msg.content);
           const normalized = normalizeAlgorithmFormat(parsed);
@@ -179,7 +181,7 @@ export const AlgorithmEditor: React.FC = () => {
         <span className="editor-title">{L('editorTitle', 'SQD Algorithm Editor')}</span>
       </div>
       <div className="editor-body">
-        <NarrativePanel model={model} onChange={handleModelChange} />
+        <NarrativePanel model={model} onChange={handleModelChange} globalNamespaces={globalNamespaces} />
       </div>
       <div className="editor-footer">
         <span className="footer-item footer-valid">{L('footer.status', 'Status: Valid')}</span>

@@ -1,0 +1,8 @@
+dictionary:
+  imports:
+    - local
+    - SOSM Škola
+    - Externe
+  glossary: []
+  businessRules: []
+  actors: []

@@ -1,10 +1,18 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as yaml from 'js-yaml';
 import { pickNamespaceReference } from './namespacePicker';
 
 interface ModelFile {
   path: string;
   label: string;
+}
+
+interface NamespaceEntity {
+  alias: string;
+  filePath: string;
+  sourceType: 'current' | 'model' | 'sqd';
+  status?: 'active' | 'deprecated' | 'draft';
 }
 
 /**
@@ -59,6 +67,51 @@ export class DomainModelEditorProvider implements vscode.CustomTextEditorProvide
     return path.resolve(path.dirname(documentUri.fsPath), requestedPath);
   }
 
+  private extractNamespaceCatalog(content: string): NamespaceEntity[] {
+    try {
+      const parsed = yaml.load(content) as any;
+      const namespaceRef = Array.isArray(parsed?.meta?.namespaceRef)
+        ? parsed.meta.namespaceRef
+        : Array.isArray(parsed?.namespaceRef)
+          ? parsed.namespaceRef
+          : [];
+
+      return namespaceRef
+        .map((entry: any) => ({
+          alias: String(entry?.alias ?? '').trim(),
+          filePath: String(entry?.filePath ?? '').trim(),
+          sourceType: (entry?.sourceType === 'sqd' || entry?.sourceType === 'current') ? entry.sourceType : 'model',
+          ...(entry?.status ? { status: entry.status } : {})
+        }))
+        .filter((entry: NamespaceEntity) => entry.alias.length > 0 && entry.filePath.length > 0);
+    } catch {
+      return [];
+    }
+  }
+
+  private async loadGlobalNamespaceCatalog(documentUri: vscode.Uri): Promise<NamespaceEntity[]> {
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(documentUri);
+    if (!workspaceFolder) {
+      return [];
+    }
+
+    const candidates = ['_global.meta.yaml', '_global.meta.yml'];
+    for (const fileName of candidates) {
+      try {
+        const uri = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const catalog = this.extractNamespaceCatalog(doc.getText());
+        if (catalog.length > 0) {
+          return catalog;
+        }
+      } catch {
+        // ignore missing/invalid candidate and try next
+      }
+    }
+
+    return [];
+  }
+
   async resolveCustomTextEditor(
     document: vscode.TextDocument,
     webviewPanel: vscode.WebviewPanel
@@ -72,13 +125,20 @@ export class DomainModelEditorProvider implements vscode.CustomTextEditorProvide
 
     webviewPanel.webview.html = this._getHtml(webviewPanel.webview);
 
+    const fileNameLower = path.basename(document.uri.fsPath).toLowerCase();
+    if (fileNameLower.endsWith('.meta.yaml') && fileNameLower !== '_global.meta.yaml') {
+      vscode.window.showWarningMessage('Odporucana konvencia je pomenovanie _global.meta.yaml pre globalny namespace katalog.');
+    }
+
     const sendContent = async () => {
       const models = await this.findAvailableModels();
+      const globalNamespaces = await this.loadGlobalNamespaceCatalog(document.uri);
       webviewPanel.webview.postMessage({
         type: 'update',
         content: document.getText(),
         currentPath: document.uri.fsPath,
-        availableModels: models
+        availableModels: models,
+        globalNamespaces
       });
     };
     

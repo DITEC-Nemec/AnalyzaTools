@@ -6,12 +6,25 @@ export interface NamespaceEntity {
   sourceType: 'current' | 'model' | 'sqd';
 }
 
+export type GovernanceStatus = 'draft' | 'active' | 'deprecated';
+
+export interface GovernanceMetadata {
+  name: string;
+  description?: string;
+  version?: string;
+  status?: GovernanceStatus;
+}
+
 export interface SqdAlgorithm {
   algorithm: AlgorithmMeta;
   steps: SqdStep[];
   actors?: ActorEntry[];
   namespaceRef?: NamespaceEntity[];
   imports?: string[];
+  name?: string;
+  description?: string;
+  version?: string;
+  status?: GovernanceStatus;
 }
 
 export interface AlgorithmMeta {
@@ -292,6 +305,7 @@ export interface Entity {
   agregationStatus?: 'root' | 'leaf' | 'intermediate';
   status?: 'active' | 'deprecated';
   stateModel?: StateEntry[];
+  transitions?: Transition[];
   attributes?: Attribute[];
   functions?: DomainFunction[];
 }
@@ -300,7 +314,23 @@ export interface StateEntry {
   name: string;
   label?: string;
   description?: string;
+  type?: 'initial' | 'normal' | 'final' | 'choice' | 'junction' | 'error';
+  entryOperation?: ReferenceOperation;
+  doOperation?: ReferenceOperation;
+  exitOperation?: ReferenceOperation;
   isFinal?: boolean;
+}
+
+export interface Transition {
+  id?: string;
+  from: string;
+  to: string;
+  trigger?: StepEvent;
+  condition?: string;
+  operation?: ReferenceOperation;
+  priority?: number;
+  automatic?: boolean;
+  description?: string;
 }
 
 export interface CodeLabel {

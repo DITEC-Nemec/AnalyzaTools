@@ -48,40 +48,55 @@ export interface ValidationResult {
 export function validateImportsExist(model: UnifiedModel): ValidationError[] {
   const errors: ValidationError[] = [];
 
+  const domainImports = model.domain?.imports ?? [];
+  const algorithmImports = model.algorithm?.imports ?? [];
+  const dictionaryImports = model.dictionary?.imports ?? [];
+  const hasAnyImports = domainImports.length > 0 || algorithmImports.length > 0 || dictionaryImports.length > 0;
+
   if (!model.meta?.namespaceRef) {
-    errors.push({
-      type: "error",
-      path: "meta.namespaceRef",
-      message: "meta.namespaceRef is required",
-    });
+    if (hasAnyImports) {
+      errors.push({
+        type: "warning",
+        path: "meta.namespaceRef",
+        message: "Cannot validate imports without meta.namespaceRef catalog",
+      });
+    }
     return errors;
   }
 
   const validAliases = new Set(model.meta.namespaceRef.map((n) => n.alias));
+  validAliases.add("local"); // local is always implicit
 
   // Check domain imports
-  if (model.domain?.imports) {
-    for (const alias of model.domain.imports) {
-      if (!validAliases.has(alias)) {
-        errors.push({
-          type: "error",
-          path: `domain.imports`,
-          message: `Import alias "${alias}" not found in meta.namespaceRef`,
-        });
-      }
+  for (const alias of domainImports) {
+    if (!validAliases.has(alias)) {
+      errors.push({
+        type: "error",
+        path: `domain.imports`,
+        message: `Import alias "${alias}" not found in meta.namespaceRef`,
+      });
     }
   }
 
   // Check algorithm imports
-  if (model.algorithm?.imports) {
-    for (const alias of model.algorithm.imports) {
-      if (!validAliases.has(alias)) {
-        errors.push({
-          type: "error",
-          path: `algorithm.imports`,
-          message: `Import alias "${alias}" not found in meta.namespaceRef`,
-        });
-      }
+  for (const alias of algorithmImports) {
+    if (!validAliases.has(alias)) {
+      errors.push({
+        type: "error",
+        path: `algorithm.imports`,
+        message: `Import alias "${alias}" not found in meta.namespaceRef`,
+      });
+    }
+  }
+
+  // Check dictionary imports
+  for (const alias of dictionaryImports) {
+    if (!validAliases.has(alias)) {
+      errors.push({
+        type: "error",
+        path: `dictionary.imports`,
+        message: `Import alias "${alias}" not found in meta.namespaceRef`,
+      });
     }
   }
 
@@ -96,8 +111,8 @@ export function validateNamespaceReferences(model: UnifiedModel): ValidationErro
   const errors: ValidationError[] = [];
 
   // Collect valid namespaces per module
-  const domainImports = new Set(model.domain?.imports || ["local"]);
-  const algorithmImports = new Set(model.algorithm?.imports || ["local"]);
+  const domainImports = new Set([...(model.domain?.imports ?? []), "local"]);
+  const algorithmImports = new Set([...(model.algorithm?.imports ?? []), "local"]);
 
   // Validate domain namespace usages
   if (model.domain) {
@@ -498,12 +513,12 @@ function validateConditionNamespaces(
 export function validateUnifiedModel(model: UnifiedModel): ValidationResult {
   const errors: ValidationError[] = [];
 
-  // Check required "local" namespace
-  if (!model.meta?.namespaceRef?.some((n) => n.alias === "local")) {
+  // Local alias is implicit and should not be listed explicitly in namespace catalog.
+  if (model.meta?.namespaceRef?.some((n) => n.alias === "local")) {
     errors.push({
-      type: "error",
+      type: "warning",
       path: "meta.namespaceRef",
-      message: 'meta.namespaceRef must contain an entry with alias="local"',
+      message: 'Alias "local" is implicit and should not be listed in meta.namespaceRef',
     });
   }
 

@@ -1,8 +1,4 @@
-meta:
-  namespaceRef:
-    - alias: local
-      filePath: Catalogs/Externe.model.yaml
-      sourceType: current
+
 domain:
   metadata: {}
   imports:

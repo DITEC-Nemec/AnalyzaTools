@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { DomainModelEditor } from './DomainModelEditor';
-import { normalizeModelFormat, parseAndNormalizeYaml } from './schemaNormalization';
+import { buildUnifiedDomainDocument, getDomainEditorFileKind, normalizeModelFormat } from './schemaNormalization';
 import './styles.css';
 import * as yaml from 'js-yaml';
-import type { DomainModel } from '../types/sqd';
+import type { DomainModel, NamespaceEntity } from '../types/sqd';
 
 declare function acquireVsCodeApi(): { postMessage(msg: unknown): void };
 export const vscodeApi = acquireVsCodeApi();
@@ -13,6 +13,7 @@ interface AppState {
   model: DomainModel | null;
   currentPath: string;
   availableModels: Array<{ name: string; path: string }>;
+  globalNamespaces: NamespaceEntity[];
   error: string | null;
 }
 
@@ -87,70 +88,6 @@ const sanitizeNamedType = (namedType: unknown): unknown => {
   }
 
   return cleaned;
-};
-
-/**
- * Normalize unified format to legacy format for editor compatibility
- * Extracts domain from meta/domain structure and flattens namespaceRef
- */
-const normalizeModelFormat = (parsed: unknown): DomainModel => {
-  if (!isPlainObject(parsed)) {
-    return parsed as DomainModel;
-  }
-
-  // Check if it's unified format (has meta.namespaceRef or domain.imports)
-  const hasMeta = isPlainObject(parsed.meta);
-  const hasDomainModule = isPlainObject(parsed.domain);
-
-  if (hasMeta || (hasDomainModule && 'imports' in (parsed.domain || {}))) {
-    // It's unified format - convert to legacy
-    const legacy: Record<string, unknown> = {};
-
-    // Extract from meta
-    if (isPlainObject(parsed.meta) && Array.isArray((parsed.meta as any).namespaceRef)) {
-      legacy.namespaceRef = (parsed.meta as any).namespaceRef;
-    }
-
-    // Extract from domain module
-    if (isPlainObject(parsed.domain)) {
-      const domain = parsed.domain as Record<string, unknown>;
-      
-      // Copy domain.metadata to root
-      if (isPlainObject(domain.metadata)) {
-        const metadata = domain.metadata as Record<string, unknown>;
-        Object.entries(metadata).forEach(([key, val]) => {
-          legacy[key] = val;
-        });
-      }
-
-      // Copy domain content
-      ['entities', 'simpleTypes', 'relationships', 'eventGlossary', 'functions', 'stateModel'].forEach(key => {
-        if (key in domain) {
-          legacy[key] = domain[key];
-        }
-      });
-
-      // Store imports as domain.imports for later use (not in legacy format but needed)
-      if (Array.isArray(domain.imports)) {
-        (legacy as any).imports = domain.imports;
-      }
-    }
-
-    // Copy dictionary items to root
-    if (isPlainObject(parsed.dictionary)) {
-      const dict = parsed.dictionary as Record<string, unknown>;
-      ['glossary', 'businessRules', 'actors'].forEach(key => {
-        if (key in dict) {
-          legacy[key] = dict[key];
-        }
-      });
-    }
-
-    return legacy as DomainModel;
-  }
-
-  // It's already legacy format
-  return parsed as DomainModel;
 };
 
 const FUNCTION_ALLOWED_KEYS = new Set(['name', 'parameters', 'behavior']);
@@ -232,22 +169,25 @@ function App() {
     model: null,
     currentPath: '',
     availableModels: [],
+    globalNamespaces: [],
     error: null
   });
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      const { type, content, currentPath, availableModels } = event.data;
+      const { type, content, currentPath, availableModels, globalNamespaces } = event.data;
       
       if (type === 'update') {
         try {
           const parsed = yaml.load(content);
-          const normalized = normalizeModelFormat(parsed);
+          const fileKind = getDomainEditorFileKind(currentPath || '');
+          const normalized = normalizeModelFormat(parsed, fileKind);
           setState(prev => ({
             ...prev,
             model: normalized,
             currentPath,
             availableModels: availableModels || [],
+            globalNamespaces: Array.isArray(globalNamespaces) ? globalNamespaces : [],
             error: null
           }));
         } catch (e) {
@@ -266,7 +206,9 @@ function App() {
   const handleChange = (model: DomainModel) => {
     setState(prev => ({ ...prev, model }));
     const sanitized = sanitizeModelForSave(model) as DomainModel;
-    const yaml_str = yaml.dump(sanitized);
+    const fileKind = getDomainEditorFileKind(state.currentPath || '');
+    const unified = buildUnifiedDomainDocument(sanitized, fileKind, state.currentPath || '');
+    const yaml_str = yaml.dump(unified, { noRefs: true, lineWidth: -1 });
     vscodeApi.postMessage({
       type: 'edit',
       content: yaml_str
@@ -294,6 +236,7 @@ function App() {
       value={state.model}
       onChange={handleChange}
       availableModels={state.availableModels}
+      globalNamespaces={state.globalNamespaces}
       onModelSwitch={handleModelSwitch}
       currentPath={state.currentPath}
       vscodeApi={vscodeApi}

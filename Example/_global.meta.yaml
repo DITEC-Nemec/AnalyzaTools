@@ -1,0 +1,19 @@
+meta:
+  metadata:
+    name: _global
+  namespaceRef:
+    - alias: SOSM Škola
+      filePath: Catalogs/SOSM Škola.model.yaml
+      sourceType: model
+    - alias: rozradenie_ziakov
+      filePath: Algoritm/rozradenie_ziakov.sqd.yaml
+      sourceType: sqd
+    - alias: SOSM Priradenie
+      filePath: Catalogs/SOSM Priradenie.model.yaml
+      sourceType: model
+    - alias: Externe
+      filePath: Catalogs/Externe.model.yaml
+      sourceType: model
+    - alias: unified-algorithm
+      filePath: Algoritm/unified-algorithm.sqd.yaml
+      sourceType: sqd

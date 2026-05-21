@@ -111,7 +111,13 @@
         "displayName": "SQD Domain Model Editor",
         "selector": [
           {
-            "filenamePattern": "*model.yaml"
+            "filenamePattern": "*.model.yaml"
+          },
+          {
+            "filenamePattern": "*.meta.yaml"
+          },
+          {
+            "filenamePattern": "*.dictionary.yaml"
           }
         ],
         "priority": "default"
@@ -119,8 +125,12 @@
     ],
     "configurationDefaults": {
       "yaml.schemas": {
-        "./sqd.schema.json": "*.sqd.yaml",
-        "./model.schema.json": "*.model.yaml"
+        "./unified.schema.json": [
+          "*.sqd.yaml",
+          "*.model.yaml",
+          "*.meta.yaml",
+          "*.dictionary.yaml"
+        ]
       }
     },
     "configuration": {

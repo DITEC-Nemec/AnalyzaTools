@@ -1,6 +1,14 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as yaml from 'js-yaml';
 import { pickNamespaceReference } from './namespacePicker';
+
+interface NamespaceEntity {
+  alias: string;
+  filePath: string;
+  sourceType: 'current' | 'model' | 'sqd';
+  status?: 'active' | 'deprecated' | 'draft';
+}
 
 /**
  * Custom Editor pre *.sqd.yaml súbory.
@@ -45,6 +53,51 @@ export class AlgorithmEditorProvider implements vscode.CustomTextEditorProvider 
     return path.resolve(path.dirname(documentUri.fsPath), requestedPath);
   }
 
+  private extractNamespaceCatalog(content: string): NamespaceEntity[] {
+    try {
+      const parsed = yaml.load(content) as any;
+      const namespaceRef = Array.isArray(parsed?.meta?.namespaceRef)
+        ? parsed.meta.namespaceRef
+        : Array.isArray(parsed?.namespaceRef)
+          ? parsed.namespaceRef
+          : [];
+
+      return namespaceRef
+        .map((entry: any) => ({
+          alias: String(entry?.alias ?? '').trim(),
+          filePath: String(entry?.filePath ?? '').trim(),
+          sourceType: (entry?.sourceType === 'sqd' || entry?.sourceType === 'current') ? entry.sourceType : 'model',
+          ...(entry?.status ? { status: entry.status } : {})
+        }))
+        .filter((entry: NamespaceEntity) => entry.alias.length > 0 && entry.filePath.length > 0);
+    } catch {
+      return [];
+    }
+  }
+
+  private async loadGlobalNamespaceCatalog(documentUri: vscode.Uri): Promise<NamespaceEntity[]> {
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(documentUri);
+    if (!workspaceFolder) {
+      return [];
+    }
+
+    const candidates = ['_global.meta.yaml', '_global.meta.yml'];
+    for (const fileName of candidates) {
+      try {
+        const uri = vscode.Uri.joinPath(workspaceFolder.uri, fileName);
+        const doc = await vscode.workspace.openTextDocument(uri);
+        const catalog = this.extractNamespaceCatalog(doc.getText());
+        if (catalog.length > 0) {
+          return catalog;
+        }
+      } catch {
+        // ignore missing/invalid candidate and try next
+      }
+    }
+
+    return [];
+  }
+
   async resolveCustomTextEditor(
     document: vscode.TextDocument,
     webviewPanel: vscode.WebviewPanel
@@ -59,14 +112,16 @@ export class AlgorithmEditorProvider implements vscode.CustomTextEditorProvider 
     webviewPanel.webview.html = this._getHtml(webviewPanel.webview, 'algorithm');
 
     // Pošli obsah súboru do webview
-    const sendContent = () => {
+    const sendContent = async () => {
+      const globalNamespaces = await this.loadGlobalNamespaceCatalog(document.uri);
       webviewPanel.webview.postMessage({
         type: 'update',
         content: document.getText(),
-        fileName: document.uri.path.split('/').pop() ?? document.fileName
+        fileName: document.uri.path.split('/').pop() ?? document.fileName,
+        globalNamespaces
       });
     };
-    sendContent();
+    await sendContent();
 
     // Sleduj zmeny dokumentu
     const changeDocSub = vscode.workspace.onDidChangeTextDocument(e => {

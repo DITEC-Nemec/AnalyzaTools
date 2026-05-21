@@ -17,6 +17,12 @@ import type {
   FunctionEffect,
   StateEntry,
   Parameter,
+  ParameterMap,
+  ReferenceEntityFunction,
+  ReferenceEvent,
+  ReferenceOperation,
+  ReferenceSqd,
+  Transition,
   Variable,
   EventGlossaryEntry,
   ActorRef
@@ -26,6 +32,7 @@ import { ParametersEditor } from '../components/ParametersEditor';
 import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
 import { ActorRefsEditor } from '../components/ActorRefsEditor';
 import { ErrorEventsEditor } from '../components/ErrorEventsEditor';
+import { VariableAssignList } from '../algorithm/VariableAssignList';
 import { ImportsPanel } from './ImportsPanel';
 import { displayType, displaySimpleTypeDefinition } from '../utils/displayType';
 
@@ -41,13 +48,39 @@ const ENTITY_TYPES: NonNullable<Entity['type']>[] = [
   'other'
 ];
 const ENTITY_AGREGATION_STATUSES: NonNullable<Entity['agregationStatus']>[] = ['root', 'leaf', 'intermediate'];
+const STATE_TYPES: Array<NonNullable<StateEntry['type']>> = ['initial', 'normal', 'final', 'choice', 'junction', 'error'];
+const OPERATION_KINDS: Array<ReferenceOperation['kind']> = ['entityFunction', 'sqd', 'step', 'event'];
 const L = (path: string, fallback: string) => rawLabel(`domain.${path}`, fallback);
 const DL = L;
+
+type DomainEditorMode = 'model' | 'meta' | 'dictionary';
+
+const getDomainEditorMode = (filePath: string): DomainEditorMode => {
+  const lower = (filePath ?? '').toLowerCase();
+  if (lower.endsWith('.meta.yaml') || lower.endsWith('.meta.yml')) {
+    return 'meta';
+  }
+  if (lower.endsWith('.dictionary.yaml') || lower.endsWith('.dictionary.yml')) {
+    return 'dictionary';
+  }
+  return 'model';
+};
+
+const tabsForMode = (mode: DomainEditorMode): string[] => {
+  if (mode === 'meta') {
+    return ['metadata', 'namespaceRef'];
+  }
+  if (mode === 'dictionary') {
+    return ['metadata', 'imports', 'glossary', 'businessRules', 'actors'];
+  }
+  return ['metadata', 'imports', 'entities', 'simpleTypes', 'relationships', 'eventGlossary'];
+};
 
 interface EditorProps {
   value: DomainModel;
   onChange: (value: DomainModel) => void;
   availableModels: Array<{ name: string; path: string }>;
+  globalNamespaces: NamespaceEntity[];
   onModelSwitch: (path: string) => void;
   currentPath: string;
   vscodeApi: { postMessage(msg: unknown): void };
@@ -154,6 +187,29 @@ const normalizeActorRefs = (items: ActorRef[] | undefined): ActorRef[] => {
   }));
 };
 
+const normalizeParameterMap = (
+  ref?: { mapParameters?: ParameterMap[]; mapInput?: ParameterMap[]; mapOutput?: ParameterMap[] }
+): ParameterMap[] => {
+  if (!ref) {
+    return [];
+  }
+
+  if ((ref.mapParameters ?? []).length > 0) {
+    return (ref.mapParameters ?? []).map(item => ({
+      parameter: item.parameter ?? item.variable ?? '',
+      value: item.value ?? ''
+    }));
+  }
+
+  return [
+    ...(ref.mapInput ?? []),
+    ...(ref.mapOutput ?? [])
+  ].map(item => ({
+    parameter: item.parameter ?? item.variable ?? '',
+    value: item.value ?? ''
+  }));
+};
+
 const parseEnumerationCsv = (text: string): (string | number)[] => {
   return text.split(',').map(item => {
     const trimmed = item.trim();
@@ -175,6 +231,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   value: initialModel,
   onChange,
   availableModels,
+  globalNamespaces,
   onModelSwitch,
   currentPath,
   vscodeApi
@@ -195,6 +252,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   // Function selection
   const [selectedFunctionIndex, setSelectedFunctionIndex] = useState<number | null>(null);
   const [selectedStateModelIndex, setSelectedStateModelIndex] = useState<number | null>(null);
+  const [selectedTransitionIndex, setSelectedTransitionIndex] = useState<number | null>(null);
   
   // SimpleType selection
   const [selectedSimpleTypeIndex, setSelectedSimpleTypeIndex] = useState<number | null>(null);
@@ -220,27 +278,43 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const [entityTab, setEntityTab] = useState<string>('detail');
   const [functionTab, setFunctionTab] = useState<string>('detail');
 
+  const mode = useMemo<DomainEditorMode>(() => getDomainEditorMode(currentPath), [currentPath]);
+  const allowedTopTabs = useMemo(() => tabsForMode(mode), [mode]);
+
+  const isTabVisible = (tab: string): boolean => allowedTopTabs.includes(tab);
+
   // Initialize model
   useEffect(() => {
     setCurrentModelPath(currentPath ?? '');
     setModel(initialModel);
   }, [initialModel, currentPath]);
 
+  useEffect(() => {
+    if (!allowedTopTabs.includes(topTab)) {
+      setTopTab(allowedTopTabs[0] ?? 'entities');
+    }
+  }, [allowedTopTabs, topTab]);
+
   // Message handler for file picker
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      const { type, filePath, content, requestKey } = event.data;
-      if (type === 'filePicked' && filePath && selectedNamespaceIndex !== null) {
+      const { type, alias, sourceType, filePath, content, requestKey } = event.data;
+      if (type === 'filePicked' && filePath) {
+        let appendedIndex: number | null = null;
         updateModel(current => {
           const namespaceRef = [...(current.namespaceRef ?? [])];
-          namespaceRef[selectedNamespaceIndex] = {
-            ...namespaceRef[selectedNamespaceIndex],
-            filePath,
-            alias: namespaceRef[selectedNamespaceIndex]?.alias || 'newNamespace',
-            sourceType: 'model'
-          };
+          appendedIndex = namespaceRef.length;
+          namespaceRef.push({
+            alias: typeof alias === 'string' && alias.trim().length > 0 ? alias.trim() : 'newNamespace',
+            sourceType: sourceType === 'sqd' || sourceType === 'current' ? sourceType : 'model',
+            filePath
+          });
           return { ...current, namespaceRef };
         });
+
+        if (appendedIndex !== null) {
+          setSelectedNamespaceIndex(appendedIndex);
+        }
         return;
       }
 
@@ -279,11 +353,23 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const aliasesInUse = new Set(
-      (model.namespaceRef ?? [])
-        .filter(ns => ns.sourceType === 'model' && !!ns.alias)
-        .map(ns => ns.alias)
-    );
+    const localCatalog = (model.namespaceRef ?? []).filter((ns) => !!ns.alias);
+    const mergedCatalog = [...globalNamespaces, ...localCatalog].reduce<Map<string, NamespaceEntity>>((acc, ns) => {
+      if (ns.alias) {
+        acc.set(ns.alias, ns);
+      }
+      return acc;
+    }, new Map());
+
+    const imports = Array.isArray((model as any).imports)
+      ? (model as any).imports.filter((alias: unknown): alias is string => typeof alias === 'string' && alias.trim().length > 0)
+      : [];
+
+    const modelAliasesToLoad = Array.from(new Set(imports))
+      .map((alias) => mergedCatalog.get(alias))
+      .filter((ns): ns is NamespaceEntity => Boolean(ns && ns.sourceType !== 'sqd' && ns.alias !== 'local' && ns.filePath));
+
+    const aliasesInUse = new Set(modelAliasesToLoad.map(ns => ns.alias));
 
     setNamespaceModels(prev => {
       const next: Record<string, DomainModel> = {};
@@ -295,15 +381,11 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return next;
     });
 
-    (model.namespaceRef ?? []).forEach(ns => {
-      if (ns.sourceType !== 'model' || !ns.alias || !ns.filePath) {
-        return;
-      }
-
+    modelAliasesToLoad.forEach(ns => {
       pendingNamespaceByRequestKey.current.set(ns.filePath, ns.alias);
       vscodeApi.postMessage({ type: 'loadModel', path: ns.filePath });
     });
-  }, [model, vscodeApi]);
+  }, [model, vscodeApi, globalNamespaces]);
 
   const entities = useMemo(() => model?.entities ?? [], [model]);
   const simpleTypes = useMemo(() => model?.simpleTypes ?? [], [model]);
@@ -318,6 +400,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const selectedAttributeState = selectedAttributeStateIndex !== null && selectedAttribute ? selectedAttribute.states?.[selectedAttributeStateIndex] : null;
   const selectedFunction = selectedFunctionIndex !== null && selectedEntity ? selectedEntity.functions?.[selectedFunctionIndex] : null;
   const selectedStateModel = selectedStateModelIndex !== null && selectedEntity ? selectedEntity.stateModel?.[selectedStateModelIndex] : null;
+  const selectedTransition = selectedTransitionIndex !== null && selectedEntity ? selectedEntity.transitions?.[selectedTransitionIndex] : null;
   const selectedSimpleType = selectedSimpleTypeIndex !== null ? simpleTypes[selectedSimpleTypeIndex] : null;
   const selectedRelationship = selectedRelationshipIndex !== null ? relationships[selectedRelationshipIndex] : null;
   const selectedGlossary = selectedGlossaryIndex !== null ? glossary[selectedGlossaryIndex] : null;
@@ -360,7 +443,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
   // Helper: Get available namespace aliases
   const getNamespaceAliases = (): string[] => {
-    return (model?.namespaceRef ?? []).map(ns => ns.alias).filter((alias): alias is string => Boolean(alias));
+    return getImportedNamespaces();
   };
 
   // Helper: Get imported namespaces (respects domain.imports if present)
@@ -370,8 +453,43 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       const imported = (model as any).imports;
       return Array.from(new Set([...imported, 'local'])); // Always include local
     }
-    // Otherwise (legacy format), treat all namespaces as imported
-    return getNamespaceAliases();
+    // No imports means local-only references.
+    return ['local'];
+  };
+
+  const getImportedModelAliases = (): string[] => {
+    const localCatalog = (model?.namespaceRef ?? []).filter((ns) => !!ns.alias);
+    const mergedCatalog = [...globalNamespaces, ...localCatalog].reduce<Map<string, NamespaceEntity>>((acc, ns) => {
+      if (ns.alias) {
+        acc.set(ns.alias, ns);
+      }
+      return acc;
+    }, new Map());
+
+    const imported = getImportedNamespaces();
+    return imported.filter((alias) => {
+      if (alias === 'local') {
+        return true;
+      }
+      const ns = mergedCatalog.get(alias);
+      return ns?.sourceType !== 'sqd';
+    });
+  };
+
+  const getImportedSqdAliases = (): string[] => {
+    const localCatalog = (model?.namespaceRef ?? []).filter((ns) => !!ns.alias);
+    const mergedCatalog = [...globalNamespaces, ...localCatalog].reduce<Map<string, NamespaceEntity>>((acc, ns) => {
+      if (ns.alias) {
+        acc.set(ns.alias, ns);
+      }
+      return acc;
+    }, new Map());
+
+    const imported = getImportedNamespaces();
+    return imported.filter((alias) => {
+      const ns = mergedCatalog.get(alias);
+      return ns?.sourceType === 'sqd';
+    });
   };
 
   const getModelByAlias = (namespaceAlias?: string): DomainModel | null => {
@@ -393,6 +511,12 @@ const DomainModelEditor: React.FC<EditorProps> = ({
     const sourceModel = getModelByAlias(namespaceAlias);
     const entity = (sourceModel?.entities ?? []).find(e => e.name === entityName);
     return (entity?.attributes ?? []).map(a => a.namedType?.name).filter((name): name is string => Boolean(name));
+  };
+
+  const getAvailableFunctions = (namespaceAlias: string, entityName: string): string[] => {
+    const sourceModel = getModelByAlias(namespaceAlias);
+    const entity = (sourceModel?.entities ?? []).find(e => e.name === entityName);
+    return (entity?.functions ?? []).map(fn => fn.name).filter((name): name is string => Boolean(name));
   };
 
   // Helper: Get available simpleTypes (all, or from specific namespace)
@@ -615,7 +739,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   };
 
   const updateEntityState = (stateIndex: number, patch: Partial<StateEntry>) => {
-    if (!selectedEntity || selectedStateModelIndex === null || selectedEntityIndex === null) {
+    if (!selectedEntity || selectedEntityIndex === null) {
       return;
     }
 
@@ -629,7 +753,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const stateModel = [...(selectedEntity.stateModel ?? []), { name: '', label: '', description: '', isFinal: false }];
+    const stateModel = [...(selectedEntity.stateModel ?? []), { name: '', label: '', description: '', type: 'normal', isFinal: false }];
     updateEntity(selectedEntityIndex, { stateModel });
     setSelectedStateModelIndex(stateModel.length - 1);
     setEntityTab('stateModel');
@@ -673,6 +797,90 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       }
       return prev;
     });
+  };
+
+  const updateEntityTransition = (transitionIndex: number, patch: Partial<Transition>) => {
+    if (!selectedEntity || selectedEntityIndex === null) {
+      return;
+    }
+
+    const transitions = [...(selectedEntity.transitions ?? [])];
+    transitions[transitionIndex] = { ...transitions[transitionIndex], ...patch };
+    updateEntity(selectedEntityIndex, { transitions });
+  };
+
+  const addEntityTransition = () => {
+    if (!selectedEntity || selectedEntityIndex === null) {
+      return;
+    }
+
+    const stateNames = (selectedEntity.stateModel ?? []).map((state) => state.name).filter(Boolean);
+    const fallback = stateNames[0] ?? '';
+    const transitions = [
+      ...(selectedEntity.transitions ?? []),
+      {
+        id: '',
+        from: fallback,
+        to: fallback,
+        trigger: { eventRef: { namespaceAlias: 'local', event: '' } },
+        condition: '',
+        priority: 0,
+        automatic: false,
+        description: ''
+      }
+    ];
+
+    updateEntity(selectedEntityIndex, { transitions });
+    setSelectedTransitionIndex(transitions.length - 1);
+    setEntityTab('transitions');
+  };
+
+  const removeEntityTransition = (transitionIndex: number) => {
+    if (!selectedEntity || selectedEntityIndex === null) {
+      return;
+    }
+
+    const transitions = (selectedEntity.transitions ?? []).filter((_, i) => i !== transitionIndex);
+    updateEntity(selectedEntityIndex, { transitions });
+
+    if (transitions.length === 0) {
+      setSelectedTransitionIndex(null);
+      return;
+    }
+
+    setSelectedTransitionIndex(prev => {
+      if (prev === null) {
+        return null;
+      }
+      return Math.min(prev, transitions.length - 1);
+    });
+  };
+
+  const moveEntityTransition = (transitionIndex: number, direction: -1 | 1) => {
+    if (!selectedEntity || selectedEntityIndex === null) {
+      return;
+    }
+
+    const transitions = moveItem(selectedEntity.transitions ?? [], transitionIndex, transitionIndex + direction);
+    updateEntity(selectedEntityIndex, { transitions });
+
+    setSelectedTransitionIndex(prev => {
+      if (prev === null) {
+        return null;
+      }
+      if (prev === transitionIndex) {
+        return transitionIndex + direction;
+      }
+      return prev;
+    });
+  };
+
+  const updateStateOperation = (stateIndex: number, field: 'entryOperation' | 'doOperation' | 'exitOperation', operation: ReferenceOperation) => {
+    updateEntityState(stateIndex, { [field]: operation });
+  };
+
+  const updateTransitionOperation = (transitionIndex: number, operation: ReferenceOperation) => {
+    updateEntityTransition(transitionIndex, { operation });
   };
 
   const updateSimpleType = (index: number, patch: Partial<SimpleType>) => {
@@ -1106,7 +1314,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           name: `entita_${(current.entities ?? []).length + 1}`,
           attributes: [],
           functions: [],
-          stateModel: []
+          stateModel: [],
+          transitions: []
         }
       ]
     }));
@@ -1154,6 +1363,11 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
   const selectEntity = (index: number) => {
     setSelectedEntityIndex(index);
+    setSelectedAttributeIndex(null);
+    setSelectedAttributeStateIndex(null);
+    setSelectedFunctionIndex(null);
+    setSelectedStateModelIndex(null);
+    setSelectedTransitionIndex(null);
     setEntityTab('detail');
   };
 
@@ -1257,11 +1471,228 @@ const DomainModelEditor: React.FC<EditorProps> = ({
     );
   };
 
+  const formatTriggerEvent = (transition: Transition): string => {
+    const namespaceAlias = transition.trigger?.eventRef?.namespaceAlias?.trim();
+    const event = transition.trigger?.eventRef?.event?.trim();
+    if (!namespaceAlias && !event) {
+      return '-';
+    }
+    return `${namespaceAlias || '-'}:${event || '-'}`;
+  };
+
+  const renderOperationEditor = (
+    value: ReferenceOperation | undefined,
+    onChange: (operation: ReferenceOperation) => void,
+    keyPrefix: string
+  ) => {
+    const operation: ReferenceOperation = value ?? { kind: 'step', stepRef: '' };
+    const modelAliases = getImportedModelAliases();
+    const sqdAliases = getImportedSqdAliases();
+
+    const setKind = (kind: ReferenceOperation['kind']) => {
+      if (kind === 'step') {
+        onChange({ kind: 'step', stepRef: operation.stepRef ?? '' });
+        return;
+      }
+      if (kind === 'entityFunction') {
+        onChange({ kind: 'entityFunction', entityFunctionRef: operation.entityFunctionRef ?? { namespaceAlias: 'local', entity: '', function: '' } });
+        return;
+      }
+      if (kind === 'sqd') {
+        onChange({ kind: 'sqd', sqdRef: operation.sqdRef ?? { namespaceAlias: '' } });
+        return;
+      }
+      onChange({ kind: 'event', eventRef: operation.eventRef ?? { namespaceAlias: 'local', event: '' } });
+    };
+
+    return (
+      <>
+        <label>{L('operationRef.form.kind', 'Operation kind')}</label>
+        <select value={operation.kind} onChange={(e) => setKind(e.target.value as ReferenceOperation['kind'])}>
+          {OPERATION_KINDS.map(kind => (
+            <option key={`${keyPrefix}-kind-${kind}`} value={kind}>{kind}</option>
+          ))}
+        </select>
+
+        {operation.kind === 'step' && (
+          <>
+            <label>{L('operationRef.form.stepRef', 'Step ref')}</label>
+            <input
+              value={operation.stepRef ?? ''}
+              onChange={(e) => onChange({ kind: 'step', stepRef: e.target.value })}
+            />
+          </>
+        )}
+
+        {operation.kind === 'entityFunction' && (
+          <>
+            <label>{L('operationRef.form.namespaceAlias', 'Namespace alias')}</label>
+            <select
+              value={operation.entityFunctionRef?.namespaceAlias ?? 'local'}
+              onChange={(e) => onChange({
+                kind: 'entityFunction',
+                entityFunctionRef: {
+                  ...(operation.entityFunctionRef ?? {}),
+                  namespaceAlias: e.target.value,
+                  entity: '',
+                  function: ''
+                }
+              })}
+            >
+              <option value="">—</option>
+              {modelAliases.map(alias => (
+                <option key={`${keyPrefix}-entity-ns-${alias}`} value={alias}>{alias}</option>
+              ))}
+            </select>
+
+            <label>{L('operationRef.form.entity', 'Entity')}</label>
+            <select
+              value={operation.entityFunctionRef?.entity ?? ''}
+              onChange={(e) => onChange({
+                kind: 'entityFunction',
+                entityFunctionRef: {
+                  ...(operation.entityFunctionRef ?? {}),
+                  entity: e.target.value,
+                  function: ''
+                }
+              })}
+            >
+              <option value="">—</option>
+              {getAvailableEntities(operation.entityFunctionRef?.namespaceAlias ?? 'local').map(entity => (
+                <option key={`${keyPrefix}-entity-${entity}`} value={entity}>{entity}</option>
+              ))}
+            </select>
+
+            <label>{L('operationRef.form.function', 'Function')}</label>
+            <select
+              value={operation.entityFunctionRef?.function ?? ''}
+              onChange={(e) => onChange({
+                kind: 'entityFunction',
+                entityFunctionRef: {
+                  ...(operation.entityFunctionRef ?? {}),
+                  function: e.target.value
+                }
+              })}
+            >
+              <option value="">—</option>
+              {getAvailableFunctions(
+                operation.entityFunctionRef?.namespaceAlias ?? 'local',
+                operation.entityFunctionRef?.entity ?? ''
+              ).map(fn => (
+                <option key={`${keyPrefix}-function-${fn}`} value={fn}>{fn}</option>
+              ))}
+            </select>
+
+            <label>{L('operationRef.form.parameterMap', 'parameterMap')}</label>
+            <VariableAssignList
+              value={normalizeParameterMap(operation.entityFunctionRef)}
+              onChange={(mapParameters) => onChange({
+                kind: 'entityFunction',
+                entityFunctionRef: {
+                  ...(operation.entityFunctionRef ?? {}),
+                  mapParameters
+                } as ReferenceEntityFunction
+              })}
+            />
+          </>
+        )}
+
+        {operation.kind === 'sqd' && (
+          <>
+            <label>{L('operationRef.form.namespaceAlias', 'Namespace alias')}</label>
+            <select
+              value={operation.sqdRef?.namespaceAlias ?? ''}
+              onChange={(e) => onChange({
+                kind: 'sqd',
+                sqdRef: {
+                  ...(operation.sqdRef ?? {}),
+                  namespaceAlias: e.target.value
+                }
+              })}
+            >
+              <option value="">—</option>
+              {sqdAliases.map(alias => (
+                <option key={`${keyPrefix}-sqd-ns-${alias}`} value={alias}>{alias}</option>
+              ))}
+            </select>
+
+            <label>{L('operationRef.form.parameterMap', 'parameterMap')}</label>
+            <VariableAssignList
+              value={normalizeParameterMap(operation.sqdRef)}
+              onChange={(mapParameters) => onChange({
+                kind: 'sqd',
+                sqdRef: {
+                  ...(operation.sqdRef ?? {}),
+                  mapParameters,
+                  mapInput: undefined,
+                  mapOutput: undefined
+                } as ReferenceSqd
+              })}
+            />
+          </>
+        )}
+
+        {operation.kind === 'event' && (
+          <>
+            <label>{L('operationRef.form.namespaceAlias', 'Namespace alias')}</label>
+            <select
+              value={operation.eventRef?.namespaceAlias ?? 'local'}
+              onChange={(e) => onChange({
+                kind: 'event',
+                eventRef: {
+                  ...(operation.eventRef ?? {}),
+                  namespaceAlias: e.target.value,
+                  event: ''
+                }
+              })}
+            >
+              <option value="">—</option>
+              {modelAliases.map(alias => (
+                <option key={`${keyPrefix}-event-ns-${alias}`} value={alias}>{alias}</option>
+              ))}
+            </select>
+
+            <label>{L('operationRef.form.event', 'Event')}</label>
+            <select
+              value={operation.eventRef?.event ?? ''}
+              onChange={(e) => onChange({
+                kind: 'event',
+                eventRef: {
+                  ...(operation.eventRef ?? {}),
+                  event: e.target.value
+                }
+              })}
+            >
+              <option value="">—</option>
+              {getAvailableEvents(operation.eventRef?.namespaceAlias ?? 'local').map(event => (
+                <option key={`${keyPrefix}-event-${event}`} value={event}>{event}</option>
+              ))}
+            </select>
+
+            <label>{L('operationRef.form.parameterMap', 'parameterMap')}</label>
+            <VariableAssignList
+              value={normalizeParameterMap(operation.eventRef)}
+              onChange={(mapParameters) => onChange({
+                kind: 'event',
+                eventRef: {
+                  ...(operation.eventRef ?? {}),
+                  mapParameters,
+                  mapInput: undefined,
+                  mapOutput: undefined
+                } as ReferenceEvent
+              })}
+            />
+          </>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="dm-root">
       <header className="dm-header">
         <div className="header-top">
-          <strong>{model.domain?.name ?? 'Domain Model'}</strong>
+          <strong>{(model as any).name ?? model.domain?.name ?? 'Domain Model'}</strong>
           <span>
             {entities.length} entit | {simpleTypeCount} simpleTypes | {relationshipCount} relationships | {glossaryCount} glossary | {eventGlossaryCount} eventGlossary | {actorCount} actors | {namespaceCount} namespace
           </span>
@@ -1282,46 +1713,108 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
       <main className="dm-detail">
         <div className="tab-row">
-          <button className={topTab === 'imports' ? 'tab active' : 'tab'} onClick={() => setTopTab('imports')}>
-            {DL('topTabs.imports', 'Imports')}
-          </button>
-          <button className={topTab === 'entities' ? 'tab active' : 'tab'} onClick={() => setTopTab('entities')}>
-            {DL('topTabs.entities', 'Entity')}
-          </button>
-          <button className={topTab === 'simpleTypes' ? 'tab active' : 'tab'} onClick={() => setTopTab('simpleTypes')}>
-            {DL('topTabs.simpleTypes', 'simpleTypes')}
-          </button>
-          <button className={topTab === 'relationships' ? 'tab active' : 'tab'} onClick={() => setTopTab('relationships')}>
-            {DL('topTabs.relationships', 'Relationships')}
-          </button>
-          <button className={topTab === 'glossary' ? 'tab active' : 'tab'} onClick={() => setTopTab('glossary')}>
-            {DL('topTabs.glossary', 'Glossary')}
-          </button>
-          <button className={topTab === 'businessRules' ? 'tab active' : 'tab'} onClick={() => setTopTab('businessRules')}>
-            {DL('topTabs.businessRules', 'Business Rules')}
-          </button>
-          <button className={topTab === 'eventGlossary' ? 'tab active' : 'tab'} onClick={() => setTopTab('eventGlossary')}>
-            {DL('topTabs.eventGlossary', 'eventGlossary')}
-          </button>
-          <button className={topTab === 'actors' ? 'tab active' : 'tab'} onClick={() => setTopTab('actors')}>
-            {DL('topTabs.actors', 'Actors')}
-          </button>
-          <button className={topTab === 'namespaceRef' ? 'tab active' : 'tab'} onClick={() => setTopTab('namespaceRef')}>
-            {DL('topTabs.namespaceRef', 'namespaceRef')}
-          </button>
+          {isTabVisible('metadata') && (
+            <button className={topTab === 'metadata' ? 'tab active' : 'tab'} onClick={() => setTopTab('metadata')}>
+              {DL('topTabs.metadata', 'Metadata')}
+            </button>
+          )}
+          {isTabVisible('imports') && (
+            <button className={topTab === 'imports' ? 'tab active' : 'tab'} onClick={() => setTopTab('imports')}>
+              {DL('topTabs.imports', 'Imports')}
+            </button>
+          )}
+          {isTabVisible('entities') && (
+            <button className={topTab === 'entities' ? 'tab active' : 'tab'} onClick={() => setTopTab('entities')}>
+              {DL('topTabs.entities', 'Entity')}
+            </button>
+          )}
+          {isTabVisible('simpleTypes') && (
+            <button className={topTab === 'simpleTypes' ? 'tab active' : 'tab'} onClick={() => setTopTab('simpleTypes')}>
+              {DL('topTabs.simpleTypes', 'simpleTypes')}
+            </button>
+          )}
+          {isTabVisible('relationships') && (
+            <button className={topTab === 'relationships' ? 'tab active' : 'tab'} onClick={() => setTopTab('relationships')}>
+              {DL('topTabs.relationships', 'Relationships')}
+            </button>
+          )}
+          {isTabVisible('glossary') && (
+            <button className={topTab === 'glossary' ? 'tab active' : 'tab'} onClick={() => setTopTab('glossary')}>
+              {DL('topTabs.glossary', 'Glossary')}
+            </button>
+          )}
+          {isTabVisible('businessRules') && (
+            <button className={topTab === 'businessRules' ? 'tab active' : 'tab'} onClick={() => setTopTab('businessRules')}>
+              {DL('topTabs.businessRules', 'Business Rules')}
+            </button>
+          )}
+          {isTabVisible('eventGlossary') && (
+            <button className={topTab === 'eventGlossary' ? 'tab active' : 'tab'} onClick={() => setTopTab('eventGlossary')}>
+              {DL('topTabs.eventGlossary', 'eventGlossary')}
+            </button>
+          )}
+          {isTabVisible('actors') && (
+            <button className={topTab === 'actors' ? 'tab active' : 'tab'} onClick={() => setTopTab('actors')}>
+              {DL('topTabs.actors', 'Actors')}
+            </button>
+          )}
+          {isTabVisible('namespaceRef') && (
+            <button className={topTab === 'namespaceRef' ? 'tab active' : 'tab'} onClick={() => setTopTab('namespaceRef')}>
+              {DL('topTabs.namespaceRef', 'namespaceRef')}
+            </button>
+          )}
         </div>
 
-        {topTab === 'imports' && (
+        {isTabVisible('metadata') && topTab === 'metadata' && (
+          <section className="panel">
+            <h3>{DL('metadata.title', 'Governance metadata')}</h3>
+
+            <label className="field-label">{DL('metadata.name', 'Name')}</label>
+            <input
+              className="field-input"
+              value={(model as any).name ?? ''}
+              onChange={(e) => updateModel(current => ({ ...current, name: e.target.value } as any))}
+            />
+
+            <label className="field-label">{DL('metadata.description', 'Description')}</label>
+            <textarea
+              className="field-input"
+              rows={3}
+              value={(model as any).description ?? ''}
+              onChange={(e) => updateModel(current => ({ ...current, description: e.target.value } as any))}
+            />
+
+            <label className="field-label">{DL('metadata.version', 'Version')}</label>
+            <input
+              className="field-input"
+              value={(model as any).version ?? ''}
+              onChange={(e) => updateModel(current => ({ ...current, version: e.target.value } as any))}
+            />
+
+            <label className="field-label">{DL('metadata.status', 'Status')}</label>
+            <select
+              className="field-input"
+              value={(model as any).status ?? 'draft'}
+              onChange={(e) => updateModel(current => ({ ...current, status: e.target.value } as any))}
+            >
+              <option value="draft">draft</option>
+              <option value="active">active</option>
+              <option value="deprecated">deprecated</option>
+            </select>
+          </section>
+        )}
+
+        {isTabVisible('imports') && topTab === 'imports' && (
           <section className="panel">
             <ImportsPanel
               imports={(model as any)?.imports ?? ['local']}
-              availableNamespaces={model?.namespaceRef ?? []}
+              availableNamespaces={globalNamespaces.length > 0 ? globalNamespaces : (model?.namespaceRef ?? [])}
               onChange={(imports) => updateModel(current => ({ ...current, imports } as any))}
             />
           </section>
         )}
 
-        {topTab === 'entities' && (
+        {isTabVisible('entities') && topTab === 'entities' && (
           <section className="panel">
             <div className="panel-head">
               <h3>{DL('entities.view.title', 'Entity')}</h3>
@@ -1336,6 +1829,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                   <th>{DL('entities.columns.attributes', 'Atributy')}</th>
                   <th>{DL('entities.columns.functions', 'Funkcie')}</th>
                   <th>{DL('entities.columns.stateModel', 'StateModel')}</th>
+                  <th>{DL('entities.columns.transitions', 'Transitions')}</th>
                   <th>{DL('entities.columns.actions', 'Akcie')}</th>
                 </tr>
               </thead>
@@ -1347,6 +1841,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                     <td>{entity.attributes?.length ?? 0}</td>
                     <td>{entity.functions?.length ?? 0}</td>
                     <td>{entity.stateModel?.length ?? 0}</td>
+                    <td>{entity.transitions?.length ?? 0}</td>
                     <td>
                       <div className="inline-actions">
                         <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveEntity(i, -1); }}>↑</button>
@@ -1375,6 +1870,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                   </button>
                   <button className={entityTab === 'stateModel' ? 'tab active' : 'tab'} onClick={() => setEntityTab('stateModel')}>
                     {DL('entities.view.subTabs.stateModel', 'stateModel')}
+                  </button>
+                  <button className={entityTab === 'transitions' ? 'tab active' : 'tab'} onClick={() => setEntityTab('transitions')}>
+                    {DL('entities.view.subTabs.transitions', 'transitions')}
                   </button>
                 </div>
 
@@ -2150,6 +2648,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                         <tr>
                           <th>{L('stateModel.columns.name', 'Name')}</th>
                           <th>{L('stateModel.columns.label', 'Label')}</th>
+                          <th>{L('stateModel.columns.type', 'Type')}</th>
                           <th>{L('stateModel.columns.final', 'Final')}</th>
                           <th>{L('stateModel.columns.actions', 'Akcie')}</th>
                         </tr>
@@ -2159,6 +2658,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                           <tr key={`${state.name}-${i}`} className={selectedStateModelIndex === i ? 'selected' : ''} onClick={() => setSelectedStateModelIndex(i)}>
                             <td>{state.name || '-'}</td>
                             <td>{state.label || '-'}</td>
+                            <td>{state.type || 'normal'}</td>
                             <td>{state.isFinal ? 'true' : 'false'}</td>
                             <td>
                               <div className="inline-actions">
@@ -2184,10 +2684,204 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                         <label>{L('stateModel.form.description', 'Popis')}</label>
                         <textarea rows={3} value={selectedStateModel.description ?? ''} onChange={(e) => updateEntityState(selectedStateModelIndex, { description: e.target.value })} />
 
+                        <label>{L('stateModel.form.type', 'Type')}</label>
+                        <select
+                          value={selectedStateModel.type ?? 'normal'}
+                          onChange={(e) => updateEntityState(selectedStateModelIndex, { type: e.target.value as StateEntry['type'] })}
+                        >
+                          {STATE_TYPES.map((stateType) => (
+                            <option key={stateType} value={stateType}>{stateType}</option>
+                          ))}
+                        </select>
+
+                        <div className="item-card compact">
+                          <h4>{L('stateModel.form.entryOperation', 'Entry operation')}</h4>
+                          {renderOperationEditor(
+                            selectedStateModel.entryOperation,
+                            (operation) => updateStateOperation(selectedStateModelIndex, 'entryOperation', operation),
+                            `state-entry-${selectedStateModelIndex}`
+                          )}
+                        </div>
+
+                        <div className="item-card compact">
+                          <h4>{L('stateModel.form.doOperation', 'Do operation')}</h4>
+                          {renderOperationEditor(
+                            selectedStateModel.doOperation,
+                            (operation) => updateStateOperation(selectedStateModelIndex, 'doOperation', operation),
+                            `state-do-${selectedStateModelIndex}`
+                          )}
+                        </div>
+
+                        <div className="item-card compact">
+                          <h4>{L('stateModel.form.exitOperation', 'Exit operation')}</h4>
+                          {renderOperationEditor(
+                            selectedStateModel.exitOperation,
+                            (operation) => updateStateOperation(selectedStateModelIndex, 'exitOperation', operation),
+                            `state-exit-${selectedStateModelIndex}`
+                          )}
+                        </div>
+
                         <label className="check-row">
                           <input type="checkbox" checked={selectedStateModel.isFinal ?? false} onChange={(e) => updateEntityState(selectedStateModelIndex, { isFinal: e.target.checked })} />
                           {L('stateModel.form.isFinal', 'isFinal')}
                         </label>
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {entityTab === 'transitions' && (
+                  <section className="panel nested">
+                    <div className="panel-head">
+                      <h4>{L('transitions.view.title', 'transitions')}</h4>
+                      <button onClick={addEntityTransition}>{L('transitions.view.add', '+ Transition')}</button>
+                    </div>
+
+                    <table className="dm-table">
+                      <thead>
+                        <tr>
+                          <th>{L('transitions.columns.from', 'From')}</th>
+                          <th>{L('transitions.columns.event', 'Event')}</th>
+                          <th>{L('transitions.columns.condition', 'Condition')}</th>
+                          <th>{L('transitions.columns.to', 'To')}</th>
+                          <th>{L('transitions.columns.actions', 'Akcie')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(selectedEntity.transitions ?? []).map((transition, i) => (
+                          <tr key={`${transition.id ?? 'transition'}-${i}`} className={selectedTransitionIndex === i ? 'selected' : ''} onClick={() => setSelectedTransitionIndex(i)}>
+                            <td>{transition.from || '-'}</td>
+                            <td>{formatTriggerEvent(transition)}</td>
+                            <td>{transition.condition || '-'}</td>
+                            <td>{transition.to || '-'}</td>
+                            <td>
+                              <div className="inline-actions">
+                                <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveEntityTransition(i, -1); }}>↑</button>
+                                <button disabled={i === (selectedEntity.transitions ?? []).length - 1} onClick={(e) => { e.stopPropagation(); moveEntityTransition(i, 1); }}>↓</button>
+                                <button onClick={(e) => { e.stopPropagation(); removeEntityTransition(i); }}>✕</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    {selectedTransition && selectedTransitionIndex !== null && (
+                      <div className="item-card compact">
+                        <h4>{L('transitions.view.detail', 'Detail transition')}</h4>
+
+                        <label>{L('transitions.form.id', 'ID')}</label>
+                        <input value={selectedTransition.id ?? ''} onChange={(e) => updateEntityTransition(selectedTransitionIndex, { id: e.target.value })} />
+
+                        <label>{L('transitions.form.from', 'From')}</label>
+                        <select value={selectedTransition.from ?? ''} onChange={(e) => updateEntityTransition(selectedTransitionIndex, { from: e.target.value })}>
+                          <option value="">—</option>
+                          {(selectedEntity.stateModel ?? []).map((state, i) => (
+                            <option key={`from-state-${i}-${state.name}`} value={state.name}>{state.name}</option>
+                          ))}
+                        </select>
+
+                        <label>{L('transitions.form.to', 'To')}</label>
+                        <select value={selectedTransition.to ?? ''} onChange={(e) => updateEntityTransition(selectedTransitionIndex, { to: e.target.value })}>
+                          <option value="">—</option>
+                          {(selectedEntity.stateModel ?? []).map((state, i) => (
+                            <option key={`to-state-${i}-${state.name}`} value={state.name}>{state.name}</option>
+                          ))}
+                        </select>
+
+                        <label>{L('transitions.form.namespaceAlias', 'Trigger namespace alias')}</label>
+                        <select
+                          value={selectedTransition.trigger?.eventRef?.namespaceAlias ?? 'local'}
+                          onChange={(e) => updateEntityTransition(selectedTransitionIndex, {
+                            trigger: {
+                              ...(selectedTransition.trigger ?? { eventRef: { namespaceAlias: 'local', event: '' } }),
+                              eventRef: {
+                                ...(selectedTransition.trigger?.eventRef ?? { namespaceAlias: 'local', event: '' }),
+                                namespaceAlias: e.target.value,
+                                event: ''
+                              }
+                            }
+                          })}
+                        >
+                          <option value="">—</option>
+                          {getImportedModelAliases().map((alias) => (
+                            <option key={`transition-ns-${alias}`} value={alias}>{alias}</option>
+                          ))}
+                        </select>
+
+                        <label>{L('transitions.form.event', 'Trigger event')}</label>
+                        <select
+                          value={selectedTransition.trigger?.eventRef?.event ?? ''}
+                          onChange={(e) => updateEntityTransition(selectedTransitionIndex, {
+                            trigger: {
+                              ...(selectedTransition.trigger ?? { eventRef: { namespaceAlias: 'local', event: '' } }),
+                              eventRef: {
+                                ...(selectedTransition.trigger?.eventRef ?? { namespaceAlias: 'local', event: '' }),
+                                event: e.target.value
+                              }
+                            }
+                          })}
+                        >
+                          <option value="">—</option>
+                          {getAvailableEvents(selectedTransition.trigger?.eventRef?.namespaceAlias ?? 'local').map((eventCode) => (
+                            <option key={`transition-event-${eventCode}`} value={eventCode}>{eventCode}</option>
+                          ))}
+                        </select>
+
+                        <label>{L('transitions.form.waitUntil', 'waitUntil')}</label>
+                        <input
+                          value={selectedTransition.trigger?.waitUntil ?? ''}
+                          onChange={(e) => updateEntityTransition(selectedTransitionIndex, {
+                            trigger: {
+                              ...(selectedTransition.trigger ?? { eventRef: { namespaceAlias: 'local', event: '' } }),
+                              waitUntil: e.target.value
+                            }
+                          })}
+                        />
+
+                        <label>{L('transitions.form.timeoutAction', 'timeoutAction')}</label>
+                        <input
+                          value={selectedTransition.trigger?.timeoutAction ?? ''}
+                          onChange={(e) => updateEntityTransition(selectedTransitionIndex, {
+                            trigger: {
+                              ...(selectedTransition.trigger ?? { eventRef: { namespaceAlias: 'local', event: '' } }),
+                              timeoutAction: e.target.value
+                            }
+                          })}
+                        />
+
+                        <label>{L('transitions.form.condition', 'Condition')}</label>
+                        <input value={selectedTransition.condition ?? ''} onChange={(e) => updateEntityTransition(selectedTransitionIndex, { condition: e.target.value })} />
+
+                        <label>{L('transitions.form.priority', 'Priority')}</label>
+                        <input
+                          type="number"
+                          value={selectedTransition.priority ?? 0}
+                          onChange={(e) => updateEntityTransition(selectedTransitionIndex, {
+                            priority: e.target.value === '' ? undefined : Number(e.target.value)
+                          })}
+                        />
+
+                        <label className="check-row">
+                          <input
+                            type="checkbox"
+                            checked={selectedTransition.automatic ?? false}
+                            onChange={(e) => updateEntityTransition(selectedTransitionIndex, { automatic: e.target.checked })}
+                          />
+                          {L('transitions.form.automatic', 'Automatic')}
+                        </label>
+
+                        <label>{L('transitions.form.description', 'Description')}</label>
+                        <textarea rows={3} value={selectedTransition.description ?? ''} onChange={(e) => updateEntityTransition(selectedTransitionIndex, { description: e.target.value })} />
+
+                        <div className="item-card compact">
+                          <h4>{L('transitions.form.operation', 'Operation')}</h4>
+                          {renderOperationEditor(
+                            selectedTransition.operation,
+                            (operation) => updateTransitionOperation(selectedTransitionIndex, operation),
+                            `transition-operation-${selectedTransitionIndex}`
+                          )}
+                        </div>
                       </div>
                     )}
                   </section>
@@ -2198,7 +2892,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           </section>
         )}
 
-        {topTab === 'simpleTypes' && (
+        {isTabVisible('simpleTypes') && topTab === 'simpleTypes' && (
           <section className="panel">
             <div className="panel-head">
               <h3>{L('simpleTypes.title', 'simpleTypes')}</h3>
@@ -2504,7 +3198,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           </section>
         )}
 
-        {topTab === 'relationships' && (
+        {isTabVisible('relationships') && topTab === 'relationships' && (
           <section className="panel">
             <div className="panel-head">
               <h3>{L('relationships.view.title', 'Relationships')}</h3>
@@ -2583,7 +3277,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           </section>
         )}
 
-        {topTab === 'glossary' && (
+        {isTabVisible('glossary') && topTab === 'glossary' && (
           <section className="panel">
             <div className="panel-head">
               <h3>{L('glossary.view.title', 'Glossary')}</h3>
@@ -2633,7 +3327,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           </section>
         )}
 
-        {topTab === 'businessRules' && (() => {
+        {isTabVisible('businessRules') && topTab === 'businessRules' && (() => {
           const rules: import('../types/sqd').BusinessRule[] = (model as any)?.businessRules ?? [];
           const selIdx = selectedBusinessRuleIndex;
           const setSelIdx = setSelectedBusinessRuleIndex;
@@ -2722,7 +3416,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           );
         })()}
 
-        {topTab === 'eventGlossary' && (
+        {isTabVisible('eventGlossary') && topTab === 'eventGlossary' && (
           <section className="panel">
             <div className="panel-head">
               <h3>{DL('eventGlossary.view.title', 'eventGlossary')}</h3>
@@ -2787,7 +3481,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           </section>
         )}
 
-        {topTab === 'actors' && (
+        {isTabVisible('actors') && topTab === 'actors' && (
           <section className="panel">
             <div className="panel-head">
               <h3>{L('actors.view.title', 'Actors')}</h3>
@@ -2852,7 +3546,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           </section>
         )}
 
-        {topTab === 'namespaceRef' && (
+        {isTabVisible('namespaceRef') && topTab === 'namespaceRef' && (
           <section className="panel">
             <div className="panel-head">
               <h3>{L('namespaceRef.view.title', 'namespaceRef')}</h3>

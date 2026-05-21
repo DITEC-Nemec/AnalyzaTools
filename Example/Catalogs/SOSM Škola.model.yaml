@@ -1,54 +1,63 @@
-namespaceRef:
-  - alias: local
-    filePath: Catalogs/SOSM Škola.model.yaml
-    sourceType: current
-  - alias: SOSM Priradenie
-    filePath: Catalogs/SOSM Priradenie.model.yaml
-    sourceType: model
-  - alias: Externy
-    filePath: Catalogs/Externe.model.yaml
-    sourceType: model
-name: SOSM Škola
-entities:
-  - name: SOSM Škola
-    attributes:
-      - namedType:
-          name: Kapacita
-          nullable: true
-          type: definition
-          definition:
-            restriction:
-              base: integer
-        states: []
-    functions:
-      - name: funkcia_1
-        parameters: []
-        behavior:
+domain:
+  metadata:
+    name: SOSM Škola
+  imports:
+    - SOSM Priradenie
+    - Externe
+  entities:
+    - name: SOSM Škola
+      attributes:
+        - namedType:
+            name: Kapacita
+            nullable: true
+            type: definition
+            definition:
+              restriction:
+                base: integer
+          states: []
+      functions:
+        - name: funkcia_1
+          parameters: []
+          behavior:
+            description: ''
+            preconditions: []
+            postconditions: []
+            errorEvents: []
+            affectedEntities: []
+            actors: []
+      stateModel:
+        - name: stav1
+          label: ''
           description: ''
-          preconditions: []
-          postconditions: []
-          errorEvents: []
-          affectedEntities: []
-          actors: []
-    stateModel: []
-simpleTypes: []
-relationships: []
-eventGlossary:
-  - code: event-1
-    title: ''
-    meaning: ''
-    severity: info
-    recommendedAction: ''
-imports:
-  - local
-glossary:
-  - term: pojem_1
-    meaning: ''
-    relatedEntity: SOSM Škola
-businessRules: []
-actors:
-  - code: actor_1
-    title: ''
-    type: user
-    meaning: ''
-    responsibilities: []
+          type: normal
+          isFinal: false
+        - name: stav2
+          label: ''
+          description: ''
+          type: normal
+          isFinal: false
+      transitions:
+        - id: ''
+          from: stav1
+          to: stav2
+          trigger:
+            eventRef:
+              namespaceAlias: SOSM Priradenie
+              event: event-1
+          condition: ''
+          priority: 0
+          automatic: false
+          description: ''
+          operation:
+            kind: event
+            eventRef:
+              namespaceAlias: SOSM Priradenie
+              event: ''
+  simpleTypes: []
+  relationships: []
+  eventGlossary:
+    - code: event-1
+      title: ''
+      meaning: ''
+      severity: info
+      recommendedAction: ''

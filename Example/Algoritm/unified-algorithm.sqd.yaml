@@ -1,54 +1,53 @@
-meta:
-  namespaceRef:
-    - alias: local
-      filePath: Example/Algoritm/unified-algorithm.sqd.yaml
-      sourceType: current
-    - alias: Externe
-      filePath: Catalogs/Externe.model.yaml
-      sourceType: model
 algorithm:
-  definitions:
-    - name: EnrollStudent
-      version: '1.0'
-      imports:
-        - local
-        - Externe
-      actors:
-        - namespaceAlias: local
-          actor: STUDENT
-        - namespaceAlias: local
-          actor: SYSTEM
-      behavior:
-        description: Enroll a new student in the school
-        preconditions:
-          - Student record exists
-          - No prior enrollment in this school
-        postconditions:
-          - Enrollment record created
-          - Confirmation sent to student
-      steps:
-        - id: '1'
-          type: step
-          text: Verify student data
-        - id: '2'
-          type: decision
-          text: Student already enrolled?
-          condition:
-            kind: attributeRef
-            description: Check if student has enrollment record
-            check: exists
-          branches:
-            - when: true
-              then:
-                - id: '3'
-                  type: step
-                  text: Log duplicate enrollment attempt
-            - when: false
-              then:
-                - id: '4'
-                  type: operation
-                  text: Create enrollment record
-                  operation: create
-        - id: '5'
-          type: step
-          text: Send confirmation to student
+  name: EnrollStudent
+  version: '1.0'
+  behavior:
+    description: Enroll a new student in the school
+    preconditions:
+      - Student record exists
+      - No prior enrollment in this school
+    postconditions:
+      - Enrollment record created
+      - Confirmation sent to student
+    actors: []
+steps:
+  - id: '1'
+    type: step
+    text: Verify student data
+    behavior:
+      description: ''
+      preconditions: []
+      postconditions: []
+      errorEvents: []
+      affectedEntities: []
+      actors: []
+  - id: '2'
+    type: decision
+    text: Student already enrolled?
+    condition:
+      kind: attributeRef
+      description: Check if student has enrollment record
+      check: exists
+    branches:
+      - when: true
+        then:
+          - id: '3'
+            type: step
+            text: Log duplicate enrollment attempt
+      - when: false
+        then:
+          - id: '4'
+            type: operation
+            text: Create enrollment record
+            operation: create
+  - id: '5'
+    type: step
+    text: Send confirmation to student
+imports:
+  - local
+  - Externe
+actors:
+  - namespaceAlias: local
+    actor: STUDENT
+  - namespaceAlias: local
+    actor: SYSTEM

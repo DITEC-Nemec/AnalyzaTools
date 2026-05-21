@@ -15,7 +15,15 @@ export interface NamespaceEntity {
   status?: "active" | "deprecated" | "draft";
 }
 
+export interface GovernanceMetadata {
+  name: string;
+  description?: string;
+  version?: string;
+  status?: "draft" | "active" | "deprecated";
+}
+
 export interface Meta {
+  metadata?: GovernanceMetadata;
   namespaceRef: NamespaceEntity[];
 }
 
@@ -352,12 +360,7 @@ export interface AlgorithmDefinition {
 // DOMAIN MODULE
 // ============================================================================
 
-export interface DomainMetadata {
-  name: string;
-  description?: string;
-  version?: string;
-  status?: "draft" | "active" | "deprecated";
-}
+export type DomainMetadata = GovernanceMetadata;
 
 export interface Domain {
   metadata?: DomainMetadata;
@@ -375,6 +378,7 @@ export interface Domain {
 // ============================================================================
 
 export interface Algorithm {
+  metadata?: GovernanceMetadata;
   imports?: string[];
   definitions?: AlgorithmDefinition[];
 }
@@ -384,6 +388,8 @@ export interface Algorithm {
 // ============================================================================
 
 export interface Dictionary {
+  metadata?: GovernanceMetadata;
+  imports?: string[];
   glossary?: GlossaryEntry[];
   businessRules?: BusinessRule[];
   actors?: ActorEntry[];

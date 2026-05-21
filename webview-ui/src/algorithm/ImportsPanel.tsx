@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { NamespaceEntity } from '../types/sqd';
 import { label as rawLabel } from '../ui-labels';
 
@@ -19,25 +19,13 @@ export const ImportsPanel: React.FC<ImportsPanelProps> = ({
   availableNamespaces,
   onChange
 }) => {
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const [filter, setFilter] = useState('');
 
   // Local is always imported
   const imports = currentImports.includes('local') 
     ? currentImports 
     : ['local', ...currentImports];
-
-  const toggleImport = (alias: string) => {
-    if (alias === 'local') {
-      // Cannot remove 'local'
-      return;
-    }
-
-    const updated = imports.includes(alias)
-      ? imports.filter(a => a !== alias)
-      : [...imports, alias];
-
-    onChange(updated);
-  };
 
   const removeImport = (alias: string) => {
     if (alias === 'local') {
@@ -49,10 +37,41 @@ export const ImportsPanel: React.FC<ImportsPanelProps> = ({
     onChange(updated);
   };
 
+  const availableByAlias = useMemo(
+    () => new Map(availableNamespaces.map(ns => [ns.alias, ns])),
+    [availableNamespaces]
+  );
+
   // Get aliases NOT yet imported
-  const unimportedAliases = availableNamespaces
-    .map(ns => ns.alias)
-    .filter(alias => !imports.includes(alias));
+  const unimportedAliases = useMemo(
+    () => availableNamespaces
+      .map(ns => ns.alias)
+      .filter(alias => !imports.includes(alias)),
+    [availableNamespaces, imports]
+  );
+
+  const filteredAliases = useMemo(() => {
+    const query = filter.trim().toLowerCase();
+    if (!query) {
+      return unimportedAliases;
+    }
+
+    return unimportedAliases.filter((alias) => {
+      const namespace = availableByAlias.get(alias);
+      const haystack = `${alias} ${namespace?.filePath ?? ''}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [availableByAlias, filter, unimportedAliases]);
+
+  const addImport = (alias: string) => {
+    if (!alias || alias === 'local' || imports.includes(alias)) {
+      return;
+    }
+
+    onChange([...imports, alias]);
+    setFilter('');
+    setShowPicker(false);
+  };
 
   return (
     <div className="imports-panel">
@@ -63,58 +82,74 @@ export const ImportsPanel: React.FC<ImportsPanelProps> = ({
         </span>
       </div>
 
-      <div className="imports-list">
-        {imports.map(alias => {
-          const namespace = availableNamespaces.find(ns => ns.alias === alias);
-          return (
-            <div key={alias} className="import-item">
-              <span className="import-alias">
-                {alias}
-                {alias === 'local' && <span className="badge">default</span>}
-              </span>
-              <span className="import-path">{namespace?.filePath || 'unknown'}</span>
-              {alias !== 'local' && (
-                <button
-                  className="import-remove"
-                  onClick={() => removeImport(alias)}
-                  title={L('remove', 'Remove this import')}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <table className="dm-table">
+        <thead>
+          <tr>
+            <th>{L('columns.alias', 'Alias')}</th>
+            <th>{L('columns.path', 'Path')}</th>
+            <th>{L('columns.actions', 'Actions')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {imports.map(alias => {
+            const namespace = availableByAlias.get(alias);
+            return (
+              <tr key={alias}>
+                <td>{alias === 'local' ? `${alias} (default)` : alias}</td>
+                <td>{namespace?.filePath || 'current file'}</td>
+                <td>
+                  {alias !== 'local' && (
+                    <button
+                      className="icon-btn"
+                      onClick={() => removeImport(alias)}
+                      title={L('remove', 'Remove this import')}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
 
       {unimportedAliases.length > 0 && (
         <div className="imports-add">
-          <div className="dropdown-wrapper">
+          <div className="imports-picker">
             <button
               className="add-import-btn"
-              onClick={() => setShowDropdown(!showDropdown)}
+              onClick={() => setShowPicker((prev) => !prev)}
             >
               {L('add', '+ Add Namespace')}
             </button>
 
-            {showDropdown && (
-              <div className="dropdown-menu">
-                {unimportedAliases.map(alias => {
-                  const namespace = availableNamespaces.find(ns => ns.alias === alias);
-                  return (
-                    <button
-                      key={alias}
-                      className="dropdown-item"
-                      onClick={() => {
-                        toggleImport(alias);
-                        setShowDropdown(false);
-                      }}
-                    >
-                      <span className="dropdown-alias">{alias}</span>
-                      <span className="dropdown-path">{namespace?.filePath}</span>
-                    </button>
-                  );
-                })}
+            {showPicker && (
+              <div className="imports-picker-menu">
+                <input
+                  className="field-input"
+                  placeholder={L('search', 'Search alias...')}
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                />
+                <div className="imports-picker-list">
+                  {filteredAliases.map(alias => {
+                    const namespace = availableByAlias.get(alias);
+                    return (
+                      <button
+                        key={alias}
+                        className="imports-picker-item"
+                        onClick={() => addImport(alias)}
+                      >
+                        <span>{alias}</span>
+                        <span>{namespace?.filePath}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {filteredAliases.length === 0 && (
+                  <div className="muted">{L('noResults', 'No aliases found')}</div>
+                )}
               </div>
             )}
           </div>

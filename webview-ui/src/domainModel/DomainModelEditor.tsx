@@ -29,9 +29,8 @@ import type {
 } from '../types/sqd';
 import { label as rawLabel } from '../ui-labels';
 import { ParametersEditor } from '../components/ParametersEditor';
-import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
 import { ActorRefsEditor } from '../components/ActorRefsEditor';
-import { ErrorEventsEditor } from '../components/ErrorEventsEditor';
+import { BehaviorDefinitionEditor } from '../components/BehaviorDefinitionEditor';
 import { VariableAssignList } from '../algorithm/VariableAssignList';
 import { ImportsPanel } from './ImportsPanel';
 import { displayType, displaySimpleTypeDefinition } from '../utils/displayType';
@@ -371,7 +370,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
     const modelAliasesToLoad = Array.from(new Set(imports))
       .map((alias) => mergedCatalog.get(alias))
-      .filter((ns): ns is NamespaceEntity => Boolean(ns && ns.sourceType !== 'sqd' && ns.alias !== 'local' && ns.filePath));
+      .filter((ns): ns is NamespaceEntity => Boolean(ns && ns.alias !== 'local' && ns.filePath));
 
     const aliasesInUse = new Set(modelAliasesToLoad.map(ns => ns.alias));
 
@@ -583,6 +582,33 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       .filter((code): code is string => Boolean(code));
   };
 
+  const getAvailableAlgorithms = (namespaceAlias?: string): string[] => {
+    const sourceModel = getModelByAlias(namespaceAlias) as any;
+    const names = new Set<string>();
+
+    if (typeof sourceModel?.algorithm?.name === 'string' && sourceModel.algorithm.name.trim().length > 0) {
+      names.add(sourceModel.algorithm.name.trim());
+    }
+
+    const algorithmList = Array.isArray(sourceModel?.algorithm?.algorithmList)
+      ? sourceModel.algorithm.algorithmList
+      : [];
+    for (const item of algorithmList) {
+      if (typeof item?.name === 'string' && item.name.trim().length > 0) {
+        names.add(item.name.trim());
+      }
+    }
+
+    return Array.from(names);
+  };
+
+  const getAvailableBusinessRules = (namespaceAlias?: string): string[] => {
+    const sourceModel = getModelByAlias(namespaceAlias) as any;
+    return ((sourceModel?.businessRuleList ?? []) as Array<{ code?: string }>)
+      .map((item) => item.code)
+      .filter((code): code is string => Boolean(code));
+  };
+
   const removeAttribute = (attrIndex: number) => {
     if (!selectedEntity || selectedEntityIndex === null) {
       return;
@@ -720,11 +746,13 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         parameters: [],
         behavior: {
           description: '',
-          preconditions: [],
-          postconditions: [],
-          errorEvents: [],
-          affectedEntities: [],
-          actors: []
+          preconditionList: [],
+          postconditionList: [],
+          errorEventList: [],
+          entityImpactList: [],
+          outputList: [],
+          businessRuleRefList: [],
+          actorRefList: []
         }
       }
     ];
@@ -1556,7 +1584,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         return;
       }
       if (kind === 'sqd') {
-        onChange({ kind: 'sqd', sqdRef: operation.sqdRef ?? { namespaceAlias: '' } });
+        onChange({ kind: 'sqd', sqdRef: operation.sqdRef ?? { namespaceAlias: '', algorithm: '' } });
         return;
       }
       onChange({ kind: 'event', eventRef: operation.eventRef ?? { namespaceAlias: 'local', event: '' } });
@@ -1663,13 +1691,32 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                 kind: 'sqd',
                 sqdRef: {
                   ...(operation.sqdRef ?? {}),
-                  namespaceAlias: e.target.value
+                  namespaceAlias: e.target.value,
+                  algorithm: ''
                 }
               })}
             >
               <option value="">—</option>
               {sqdAliases.map(alias => (
                 <option key={`${keyPrefix}-sqd-ns-${alias}`} value={alias}>{alias}</option>
+              ))}
+            </select>
+
+            <label>{L('operationRef.form.algorithm', 'Algorithm')}</label>
+            <select
+              value={operation.sqdRef?.algorithm ?? ''}
+              onChange={(e) => onChange({
+                kind: 'sqd',
+                sqdRef: {
+                  ...(operation.sqdRef ?? {}),
+                  algorithm: e.target.value
+                }
+              })}
+              disabled={!operation.sqdRef?.namespaceAlias}
+            >
+              <option value="">—</option>
+              {getAvailableAlgorithms(operation.sqdRef?.namespaceAlias).map(name => (
+                <option key={`${keyPrefix}-sqd-alg-${name}`} value={name}>{name}</option>
               ))}
             </select>
 
@@ -2639,33 +2686,39 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                             <textarea rows={3} value={selectedFunction.behavior?.description ?? ''} onChange={(e) => updateFunctionBehavior(selectedFunctionIndex, { description: e.target.value })} />
 
                             <label>{L('functions.form.preconditions', 'Preconditions')}</label>
-                            <textarea rows={4} value={(selectedFunction.behavior?.preconditions ?? []).join('\n')} onChange={(e) => updateFunctionBehavior(selectedFunctionIndex, { preconditions: e.target.value.split('\n').filter(s => s.trim().length > 0) })} />
+                            <textarea rows={4} value={(selectedFunction.behavior?.preconditionList ?? []).join('\n')} onChange={(e) => updateFunctionBehavior(selectedFunctionIndex, { preconditionList: e.target.value.split('\n').filter(s => s.trim().length > 0) })} />
 
                             <label>{L('functions.form.postconditions', 'Postconditions')}</label>
-                            <textarea rows={4} value={(selectedFunction.behavior?.postconditions ?? []).join('\n')} onChange={(e) => updateFunctionBehavior(selectedFunctionIndex, { postconditions: e.target.value.split('\n').filter(s => s.trim().length > 0) })} />
+                            <textarea rows={4} value={(selectedFunction.behavior?.postconditionList ?? []).join('\n')} onChange={(e) => updateFunctionBehavior(selectedFunctionIndex, { postconditionList: e.target.value.split('\n').filter(s => s.trim().length > 0) })} />
 
-                            <ErrorEventsEditor
-                              errorEvents={selectedFunction.behavior?.errorEvents ?? []}
+                            <BehaviorDefinitionEditor
+                              errorEventList={selectedFunction.behavior?.errorEventList ?? []}
+                              entityImpactList={selectedFunction.behavior?.entityImpactList ?? []}
+                              outputList={selectedFunction.behavior?.outputList ?? []}
+                              businessRuleRefList={selectedFunction.behavior?.businessRuleRefList ?? []}
+                              actorRefList={normalizeActorRefs(selectedFunction.behavior?.actorRefList)}
                               namespaceAliases={getNamespaceAliases()}
+                              modelAliases={getImportedModelAliases()}
+                              getEntitiesForAlias={getAvailableEntities}
+                              getAttributesForEntity={getAvailableAttributes}
                               getEventsForAlias={getAvailableEvents}
-                              onChange={(errorEvents) => updateFunctionBehavior(selectedFunctionIndex, { errorEvents })}
+                              getBusinessRulesForAlias={getAvailableBusinessRules}
+                              getActorsForAlias={getAvailableActors}
+                              onChange={(patch) => updateFunctionBehavior(selectedFunctionIndex, {
+                                ...(patch.errorEventList ? { errorEventList: patch.errorEventList } : {}),
+                                ...(patch.entityImpactList ? { entityImpactList: patch.entityImpactList } : {}),
+                                ...(patch.outputList ? { outputList: patch.outputList } : {}),
+                                ...(patch.businessRuleRefList ? { businessRuleRefList: patch.businessRuleRefList } : {}),
+                                ...(patch.actorRefList ? { actorRefList: patch.actorRefList } : {}),
+                                affectedEntityList: undefined
+                              })}
                             />
 
-                            <div style={{ marginTop: 16 }}>
-                              <AffectedEntitiesEditor
-                                affectedEntities={selectedFunction.behavior?.affectedEntities ?? []}
-                                modelAliases={getNamespaceAliases()}
-                                getEntitiesForAlias={getAvailableEntities}
-                                getAttributesForEntity={getAvailableAttributes}
-                                onChange={(affectedEntities) => updateFunctionBehavior(selectedFunctionIndex, { affectedEntities })}
-                              />
-                            </div>
-
                             <ActorRefsEditor
-                              actorRefs={normalizeActorRefs(selectedFunction.behavior?.actors)}
+                              actorRefs={normalizeActorRefs(selectedFunction.behavior?.actorRefList)}
                               namespaceAliases={getNamespaceAliases()}
                               getAvailableActors={getAvailableActors}
-                              onChange={(actors) => updateFunctionBehavior(selectedFunctionIndex, { actors })}
+                              onChange={(actorRefList) => updateFunctionBehavior(selectedFunctionIndex, { actorRefList })}
                               prefix="domain"
                             />
                           </div>

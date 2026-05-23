@@ -40,13 +40,10 @@ export const ActorRefsEditor: React.FC<Props> = ({
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <strong>{LV('title', 'Actors')}</strong>
-        <button type="button" onClick={addActorRef}>{LV('add', '+ Actor')}</button>
-      </div>
+      <label className="field-label">{LV('title', 'Actors')}</label>
 
       {(actorRefs ?? []).length === 0 && (
-        <p style={{ opacity: 0.75 }}>{LV('empty', 'No actors')}</p>
+        <div className="muted">{LV('empty', 'No actors')}</div>
       )}
 
       {(actorRefs ?? []).map((item, index) => {
@@ -54,7 +51,7 @@ export const ActorRefsEditor: React.FC<Props> = ({
         const showSelect = options.length > 0;
 
         return (
-          <div key={`${item.namespaceAlias}-${item.actor}-${index}`} style={{ marginBottom: 16 }}>
+          <div key={`${item.namespaceAlias}-${item.actor}-${index}`} className="impact-summary" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
             <label>{LF('namespaceAlias', 'namespaceAlias')}</label>
             <select
               value={item.namespaceAlias}
@@ -84,9 +81,7 @@ export const ActorRefsEditor: React.FC<Props> = ({
               />
             )}
 
-            <div style={{ marginTop: 8 }}>
-              <button type="button" onClick={() => removeActorRef(index)}>{label(`${prefix}.common.delete`, 'Delete')}</button>
-            </div>
+            <button className="btn-link" type="button" onClick={() => removeActorRef(index)}>[ {label(`${prefix}.common.delete`, 'Delete')} ]</button>
           </div>
         );
       })}

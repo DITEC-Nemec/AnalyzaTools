@@ -639,8 +639,25 @@
             "$ref": "#/$defs/errorEventDef"
           }
         },
-        "affectedEntityList": {
-          "$ref": "#/$defs/affectedEntityList"
+        "entityImpacList": {
+            "type": "array",
+             "items": {
+                "$ref": "#/$defs/entityImpactDef"
+          }
+        },
+        "outputList": {
+            "type": "array",
+             "items":
+          {
+            "$ref": "#/$defs/outputDef"
+          }
+        },
+  
+        "businessRuleRefList": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/businessRuleRef"
+          }
         },
         "actorRefList": {
           "type": "array",
@@ -854,6 +871,25 @@
         },
         "attribute": {
           "type": "string"
+        }
+      }
+    },
+    "businessRuleRef": {
+      "type": "object",
+      "required": [
+        "namespaceAlias",
+        "ruleCode"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "namespaceAlias": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Namespace alias from imports"
+        },
+        "ruleCode": {
+          "type": "string",
+          "description": "Business rule code/identifier in that namespace"
         }
       }
     },
@@ -1314,16 +1350,20 @@
         }
       }
     },
-    "sqdRef": {
+    "c": {
       "type": "object",
       "required": [
-        "namespaceAlias"
+        "namespaceAlias","algorithm"
       ],
       "additionalProperties": false,
       "properties": {
         "namespaceAlias": {
           "type": "string",
           "minLength": 1
+        },
+        "algorithm": {
+          "type": "string"
+    
         },
         "parameterMapList": {
           "type": "array",

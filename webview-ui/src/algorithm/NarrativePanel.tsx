@@ -1,15 +1,13 @@
 import React from 'react';
 import * as yaml from 'js-yaml';
 import { ImportsPanel } from './ImportsPanel';
-import { normalizeModelFormat } from '../domainModel/schemaNormalization';
 import { ParametersEditor } from '../components/ParametersEditor';
-import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
 import { ActorRefsEditor } from '../components/ActorRefsEditor';
-import { ErrorEventsEditor } from '../components/ErrorEventsEditor';
-import type { ActorRef, AlgorithmMeta, NamespaceEntity, Parameter, SqdAlgorithm, SqdStep, StepCondition } from '../types/sqd';
+import type { ActorRef, AlgorithmDef, AlgorithmMeta, NamespaceEntity, Parameter, SqdAlgorithm, SqdStep, StepCondition } from '../types/sqd';
 import { StepCard } from './StepCard';
 import { label } from '../ui-labels';
 import { vscodeApi } from './main';
+import { BehaviorDefinitionEditor } from '../components/BehaviorDefinitionEditor';
 
 interface Props {
   model: SqdAlgorithm;
@@ -18,8 +16,8 @@ interface Props {
 }
 
 type StepType = SqdStep['stepType'];
-type TopTab = 'metadata' | 'imports' | 'algorithm' | 'steps';
-type AlgorithmSubTab = 'detail' | 'parameters';
+type TopTab = 'imports' | 'algorithms';
+type AlgorithmSubTab = 'algorithm' | 'parameters' | 'steps';
 
 interface OwnerContext {
   parentItems: SqdStep[];
@@ -39,6 +37,67 @@ type NamespaceReferencedModel = {
   }>;
   eventGlossary?: Array<{ code?: string; title?: string }>;
   actors?: Array<{ code?: string }>;
+  businessRules?: Array<{ code?: string }>;
+  algorithms?: Array<{ name?: string }>;
+};
+
+const asObject = (value: unknown): Record<string, unknown> | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+};
+
+const toNamespaceReferencedModel = (parsed: unknown): NamespaceReferencedModel => {
+  const root = asObject(parsed) ?? {};
+  const domain = asObject(root.domain);
+  const dictionary = asObject(root.dictionary);
+  const algorithmModule = asObject(root.algorithm);
+
+  const legacyEntities = Array.isArray(root.entityList) ? root.entityList : Array.isArray(root.entities) ? root.entities : [];
+  const unifiedEntities = Array.isArray(domain?.entityList) ? domain.entityList : [];
+  const entitiesSource = (legacyEntities.length > 0 ? legacyEntities : unifiedEntities) as Array<Record<string, unknown>>;
+
+  const legacyEvents = Array.isArray(root.eventGlossaryList) ? root.eventGlossaryList : Array.isArray(root.eventGlossary) ? root.eventGlossary : [];
+  const unifiedEvents = Array.isArray(domain?.eventGlossaryList) ? domain.eventGlossaryList : [];
+  const eventsSource = (legacyEvents.length > 0 ? legacyEvents : unifiedEvents) as Array<Record<string, unknown>>;
+
+  const legacyActors = Array.isArray(root.actorList) ? root.actorList : Array.isArray(root.actors) ? root.actors : [];
+  const unifiedActors = Array.isArray(dictionary?.actorList) ? dictionary.actorList : [];
+  const actorsSource = (legacyActors.length > 0 ? legacyActors : unifiedActors) as Array<Record<string, unknown>>;
+
+  const legacyRules = Array.isArray(root.businessRuleList) ? root.businessRuleList : [];
+  const unifiedRules = Array.isArray(dictionary?.businessRuleList) ? dictionary.businessRuleList : [];
+  const rulesSource = (legacyRules.length > 0 ? legacyRules : unifiedRules) as Array<Record<string, unknown>>;
+
+  const algorithmList = Array.isArray(algorithmModule?.algorithmList)
+    ? (algorithmModule?.algorithmList as Array<Record<string, unknown>>)
+    : [];
+  const topLevelAlgorithm = asObject(root.algorithm);
+  const topLevelAlgorithmName = typeof topLevelAlgorithm?.name === 'string' ? topLevelAlgorithm.name : undefined;
+
+  return {
+    entities: entitiesSource.map((item) => ({
+      name: typeof item.name === 'string' ? item.name : undefined,
+      functions: (Array.isArray(item.functionList) ? item.functionList : Array.isArray(item.functions) ? item.functions : [])
+        .map((fn) => ({ name: typeof (fn as Record<string, unknown>)?.name === 'string' ? String((fn as Record<string, unknown>).name) : undefined })),
+      attributes: (Array.isArray(item.attributeList) ? item.attributeList : Array.isArray(item.attributes) ? item.attributes : []) as Array<{ name?: string; namedType?: { name?: string } } | string>
+    })),
+    eventGlossary: eventsSource.map((item) => ({
+      code: typeof item.code === 'string' ? item.code : undefined,
+      title: typeof item.title === 'string' ? item.title : undefined
+    })),
+    actors: actorsSource.map((item) => ({
+      code: typeof item.code === 'string' ? item.code : undefined
+    })),
+    businessRules: rulesSource.map((item) => ({
+      code: typeof item.code === 'string' ? item.code : undefined
+    })),
+    algorithms: [
+      ...(topLevelAlgorithmName ? [{ name: topLevelAlgorithmName }] : []),
+      ...algorithmList.map((item) => ({ name: typeof item.name === 'string' ? item.name : undefined }))
+    ]
+  };
 };
 
 const STEP_TYPE_LABELS: Record<StepType, string> = {
@@ -91,7 +150,7 @@ const setStepChildren = (step: SqdStep, children: SqdStep[]): SqdStep => {
   return { ...step, subStepList: children };
 };
 
-const normalizeAlgorithmParameters = (algorithm: AlgorithmMeta | undefined): Parameter[] => {
+const normalizeAlgorithmParameters = (algorithm: AlgorithmDef | AlgorithmMeta | undefined): Parameter[] => {
   if (!algorithm) {
     return [];
   }
@@ -112,8 +171,9 @@ const normalizeActorRefs = (items: ActorRef[] | undefined): ActorRef[] => {
 export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespaces = [] }) => {
   const L = (path: string, fallback: string) => label(`algorithm.${path}`, fallback);
 
-  const [tab, setTab] = React.useState<TopTab>('steps');
-  const [algorithmTab, setAlgorithmTab] = React.useState<AlgorithmSubTab>('detail');
+  const [tab, setTab] = React.useState<TopTab>('algorithms');
+  const [algorithmTab, setAlgorithmTab] = React.useState<AlgorithmSubTab>('algorithm');
+  const [selectedAlgorithmIndex, setSelectedAlgorithmIndex] = React.useState<number | null>(null);
   const [namespaceModels, setNamespaceModels] = React.useState<Record<string, NamespaceReferencedModel>>({});
   const pendingNamespaceByRequestKey = React.useRef<Map<string, string>>(new Map());
 
@@ -194,20 +254,18 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
     return base;
   };
 
-  const updateAlgorithm = (patch: Partial<AlgorithmMeta>) => {
-    onChange({ ...model, algorithm: { ...model.algorithm, ...patch } });
+  const updateAlgorithm = (idx: number, patch: Partial<AlgorithmDef>) => {
+    const list = [...(model.algorithmList ?? [])];
+    list[idx] = { ...list[idx], ...patch };
+    onChange({ ...model, algorithmList: list });
+  };
+
+  const updateAlgorithmMeta = (patch: Partial<AlgorithmMeta>) => {
+    onChange({ ...model, algorithm: { ...(model.algorithm ?? { name: '' }), ...patch } });
   };
 
   const updateGovernance = (patch: Partial<Pick<SqdAlgorithm, 'name' | 'description' | 'version' | 'status'>>) => {
-    onChange({
-      ...model,
-      ...patch,
-      algorithm: {
-        ...model.algorithm,
-        ...(patch.name !== undefined ? { name: patch.name } : {}),
-        ...(patch.version !== undefined ? { version: patch.version } : {})
-      }
-    });
+    onChange({ ...model, metadata: { ...(model.metadata ?? { name: '' }), ...patch } });
   };
 
   const namespaceItems = (model.namespaceRefList ?? []).map((item) => ({
@@ -234,8 +292,8 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
 
         try {
           const parsed = yaml.load(msg.content);
-          const normalized = normalizeModelFormat(parsed) as unknown as NamespaceReferencedModel;
-          if (!normalized || typeof normalized !== 'object') {
+          const normalized = toNamespaceReferencedModel(parsed);
+          if (!normalized) {
             return;
           }
 
@@ -340,6 +398,18 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
       .filter((code): code is string => Boolean(code));
   }, [model.actorList, namespaceModels]);
 
+  const getBusinessRulesForAlias = React.useCallback((alias: string): string[] => {
+    return (namespaceModels[alias]?.businessRules ?? [])
+      .map(rule => rule.code)
+      .filter((code): code is string => Boolean(code));
+  }, [namespaceModels]);
+
+  const getAlgorithmsForAlias = React.useCallback((alias: string): string[] => {
+    return (namespaceModels[alias]?.algorithms ?? [])
+      .map(item => item.name)
+      .filter((name): name is string => Boolean(name));
+  }, [namespaceModels]);
+
   const renderStepList = (
     items: SqdStep[],
     setItems: (updated: SqdStep[]) => void,
@@ -413,12 +483,14 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
                 getFunctionsForEntity={getFunctionsForEntity}
                 getEventsForAlias={getEventsForAlias}
                 getActorsForAlias={getActorsForAlias}
+                getBusinessRulesForAlias={getBusinessRulesForAlias}
+                getAlgorithmsForAlias={getAlgorithmsForAlias}
                 onChange={updateCurrent}
                 actions={(
                   <>
                     <AddMenu onAdd={insertAfter} />
                     {!step.behavior && (
-                      <button className="icon-btn" title={L('actions.addBehavior', 'Pridat behavior')} onClick={() => updateCurrent({ ...step, behavior: { description: '', preconditions: [], postconditions: [], errorEvents: [], affectedEntities: [], actors: [] } })}>💬</button>
+                      <button className="icon-btn" title={L('actions.addBehavior', 'Pridat behavior')} onClick={() => updateCurrent({ ...step, behavior: { description: '', preconditionList: [], postconditionList: [], errorEventList: [], entityImpactList: [], outputList: [], businessRuleRefList: [], actorRefList: [] } })}>💬</button>
                     )}
                     {step.behavior && (
                       <button className="icon-btn" title={L('actions.removeBehavior', 'Odstranit behavior')} onClick={() => { const { behavior, ...rest } = step; updateCurrent(rest); }}>✕</button>
@@ -498,59 +570,15 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
     <div className="narrative-panel">
       <div className="panel-title">{L('panelTitle', 'SQD Editor')}</div>
       <div className="tab-row">
-        <button className={tab === 'metadata' ? 'tab active' : 'tab'} onClick={() => setTab('metadata')}>
-          {L('tabs.metadata', 'metadata')}
-        </button>
         <button className={tab === 'imports' ? 'tab active' : 'tab'} onClick={() => setTab('imports')}>
           {L('tabs.imports', 'imports')}
         </button>
-        <button className={tab === 'algorithm' ? 'tab active' : 'tab'} onClick={() => setTab('algorithm')}>
-          {L('tabs.algorithm', 'algorithm')}
-        </button>
-        <button className={tab === 'steps' ? 'tab active' : 'tab'} onClick={() => setTab('steps')}>
-          {L('tabs.steps', 'steps')}
+        <button className={tab === 'algorithms' ? 'tab active' : 'tab'} onClick={() => setTab('algorithms')}>
+          {L('tabs.algorithms', 'algorithms')}
         </button>
       </div>
 
       <div className="steps-tree">
-        {tab === 'metadata' && (
-          <section className="panel">
-            <h4>{L('metadata.title', 'Governance metadata')}</h4>
-            <label className="field-label">{L('metadata.name', 'Name')}</label>
-            <input
-              className="field-input"
-              value={model.name ?? model.algorithm?.name ?? ''}
-              onChange={(e) => updateGovernance({ name: e.target.value })}
-            />
-
-            <label className="field-label">{L('metadata.description', 'Description')}</label>
-            <textarea
-              className="field-input"
-              rows={3}
-              value={model.description ?? ''}
-              onChange={(e) => updateGovernance({ description: e.target.value })}
-            />
-
-            <label className="field-label">{L('metadata.version', 'Version')}</label>
-            <input
-              className="field-input"
-              value={model.version ?? model.algorithm?.version ?? ''}
-              onChange={(e) => updateGovernance({ version: e.target.value })}
-            />
-
-            <label className="field-label">{L('metadata.status', 'Status')}</label>
-            <select
-              className="field-input"
-              value={model.status ?? 'draft'}
-              onChange={(e) => updateGovernance({ status: e.target.value as SqdAlgorithm['status'] })}
-            >
-              <option value="draft">draft</option>
-              <option value="active">active</option>
-              <option value="deprecated">deprecated</option>
-            </select>
-          </section>
-        )}
-
         {tab === 'imports' && (
           <ImportsPanel
             imports={(model as any).importList ?? (model as any).imports ?? ['local']}
@@ -559,133 +587,201 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
           />
         )}
 
-        {tab === 'algorithm' && (
-          <div className="item-card">
-            <h4>{L('algorithmForm.title', 'Algorithm')}</h4>
-            <div className="tab-row">
-              <button className={algorithmTab === 'detail' ? 'tab active' : 'tab'} onClick={() => setAlgorithmTab('detail')}>
-                {L('algorithmForm.tabs.detail', 'Detail')}
-              </button>
-              <button className={algorithmTab === 'parameters' ? 'tab active' : 'tab'} onClick={() => setAlgorithmTab('parameters')}>
-                {L('algorithmForm.tabs.parameters', 'Parametre')}
-              </button>
+        {tab === 'algorithms' && selectedAlgorithmIndex === null && (
+          <section className="panel">
+            <div className="panel-head">
+              <h4>{L('algorithmList.title', 'Algorithms')}</h4>
+              <button
+                className="icon-btn"
+                title={L('algorithmList.add', 'Pridat algoritmus')}
+                onClick={() => {
+                  const list = [...(model.algorithmList ?? [])];
+                  list.push({ name: `algorithm${list.length + 1}`, stepList: [] });
+                  onChange({ ...model, algorithmList: list });
+                  setSelectedAlgorithmIndex(list.length - 1);
+                  setAlgorithmTab('algorithm');
+                }}
+              >+</button>
             </div>
+            {(model.algorithmList ?? []).length === 0 && (
+              <div className="muted">{L('algorithmList.empty', 'Ziadne algoritmy')}</div>
+            )}
+            {(model.algorithmList ?? []).length > 0 && (
+              <table className="dm-table">
+                <thead>
+                  <tr>
+                    <th>{L('algorithmList.col.name', 'Nazov')}</th>
+                    <th>{L('algorithmList.col.version', 'Verzia')}</th>
+                    <th>{L('algorithmList.col.steps', 'Kroky')}</th>
+                    <th>{L('algorithmList.col.actions', 'Akcie')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(model.algorithmList ?? []).map((alg, idx) => (
+                    <tr
+                      key={`alg-${idx}`}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => { setSelectedAlgorithmIndex(idx); setAlgorithmTab('algorithm'); }}
+                    >
+                      <td><strong>{alg.name}</strong></td>
+                      <td>{alg.version ?? '-'}</td>
+                      <td>{(alg.stepList ?? []).length}</td>
+                      <td onClick={(e) => e.stopPropagation()} style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          className="icon-btn"
+                          title={L('algorithmList.moveUp', 'Posun hore')}
+                          disabled={idx === 0}
+                          onClick={() => {
+                            const list = [...(model.algorithmList ?? [])];
+                            [list[idx - 1], list[idx]] = [list[idx], list[idx - 1]];
+                            onChange({ ...model, algorithmList: list });
+                          }}
+                        >↑</button>
+                        <button
+                          className="icon-btn"
+                          title={L('algorithmList.moveDown', 'Posun dole')}
+                          disabled={idx === (model.algorithmList ?? []).length - 1}
+                          onClick={() => {
+                            const list = [...(model.algorithmList ?? [])];
+                            [list[idx], list[idx + 1]] = [list[idx + 1], list[idx]];
+                            onChange({ ...model, algorithmList: list });
+                          }}
+                        >↓</button>
+                        <button
+                          className="icon-btn"
+                          title={L('algorithmList.delete', 'Zmazat')}
+                          onClick={() => {
+                            if (!confirm(`Zmazat algoritmus "${alg.name}"?`)) return;
+                            const list = (model.algorithmList ?? []).filter((_, i) => i !== idx);
+                            onChange({ ...model, algorithmList: list });
+                          }}
+                        >🗑</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+        )}
 
-            {algorithmTab === 'detail' && (
-              <>
-                <label className="field-label">{L('algorithmForm.name', 'name')}</label>
-                <input
-                  className="field-input"
-                  value={model.algorithm?.name ?? ''}
-                  onChange={(e) => updateAlgorithm({ name: e.target.value })}
-                />
+        {tab === 'algorithms' && selectedAlgorithmIndex !== null && (() => {
+          const alg = (model.algorithmList ?? [])[selectedAlgorithmIndex];
+          if (!alg) { setSelectedAlgorithmIndex(null); return null; }
+          return (
+            <div className="item-card">
+              <div className="panel-head">
+                <button className="btn-link" onClick={() => setSelectedAlgorithmIndex(null)}>← {L('algorithmList.back', 'Algoritmy')}</button>
+                <strong style={{ marginLeft: 8 }}>{alg.name}</strong>
+              </div>
+              <div className="tab-row">
+                <button className={algorithmTab === 'algorithm' ? 'tab active' : 'tab'} onClick={() => setAlgorithmTab('algorithm')}>
+                  {L('algorithmTabs.algorithm', 'algorithm')}
+                </button>
+                <button className={algorithmTab === 'parameters' ? 'tab active' : 'tab'} onClick={() => setAlgorithmTab('parameters')}>
+                  {L('algorithmTabs.parameters', 'parametre')}
+                </button>
+                <button className={algorithmTab === 'steps' ? 'tab active' : 'tab'} onClick={() => setAlgorithmTab('steps')}>
+                  {L('algorithmTabs.steps', 'kroky')}
+                </button>
+              </div>
 
-                <label className="field-label">{L('algorithmForm.description', 'description')}</label>
-                <textarea
-                  className="step-text"
-                  rows={4}
-                  value={model.algorithm?.behavior?.description ?? ''}
-                  onChange={(e) => updateAlgorithm({
-                    behavior: {
-                      ...(model.algorithm?.behavior ?? {}),
-                      description: e.target.value
-                    }
-                  })}
-                />
+              {algorithmTab === 'algorithm' && (
+                <>
+                  <label className="field-label">{L('algorithmForm.name', 'name')}</label>
+                  <input
+                    className="field-input"
+                    value={alg.name}
+                    onChange={(e) => updateAlgorithm(selectedAlgorithmIndex, { name: e.target.value })}
+                  />
 
-                <label className="field-label">{L('algorithmForm.preconditions', 'Preconditions')}</label>
-                <textarea
-                  className="field-input"
-                  rows={4}
-                  value={(model.algorithm?.behavior?.preconditionList ?? (model.algorithm?.behavior as any)?.preconditions ?? []).join('\n')}
-                  onChange={(e) => updateAlgorithm({
-                    behavior: {
-                      ...(model.algorithm?.behavior ?? {}),
-                      preconditionList: e.target.value.split('\n').filter(s => s.trim().length > 0)
-                    }
-                  })}
-                />
+                  <label className="field-label">{L('algorithmForm.version', 'version')}</label>
+                  <input
+                    className="field-input"
+                    value={alg.version ?? ''}
+                    onChange={(e) => updateAlgorithm(selectedAlgorithmIndex, { version: e.target.value })}
+                  />
 
-                <label className="field-label">{L('algorithmForm.postconditions', 'Postconditions')}</label>
-                <textarea
-                  className="field-input"
-                  rows={4}
-                  value={(model.algorithm?.behavior?.postconditionList ?? (model.algorithm?.behavior as any)?.postconditions ?? []).join('\n')}
-                  onChange={(e) => updateAlgorithm({
-                    behavior: {
-                      ...(model.algorithm?.behavior ?? {}),
-                      postconditionList: e.target.value.split('\n').filter(s => s.trim().length > 0)
-                    }
-                  })}
-                />
+                  <label className="field-label">{L('algorithmForm.description', 'description')}</label>
+                  <textarea
+                    className="step-text"
+                    rows={4}
+                    value={alg.behavior?.description ?? ''}
+                    onChange={(e) => updateAlgorithm(selectedAlgorithmIndex, { behavior: { ...(alg.behavior ?? {}), description: e.target.value } })}
+                  />
 
-                <ErrorEventsEditor
-                  errorEvents={model.algorithm?.behavior?.errorEventList ?? (model.algorithm?.behavior as any)?.errorEvents ?? []}
-                  namespaceAliases={(model.namespaceRefList ?? []).map(ns => ns.alias).filter((alias): alias is string => Boolean(alias))}
-                  getEventsForAlias={getEventsForAlias}
-                  onChange={(errorEvents) => updateAlgorithm({
-                    behavior: {
-                      ...(model.algorithm?.behavior ?? {}),
-                      errorEventList: errorEvents
-                    }
-                  })}
-                />
+                  <label className="field-label">{L('algorithmForm.preconditions', 'Preconditions')}</label>
+                  <textarea
+                    className="field-input"
+                    rows={3}
+                    value={(alg.behavior?.preconditionList ?? []).join('\n')}
+                    onChange={(e) => updateAlgorithm(selectedAlgorithmIndex, { behavior: { ...(alg.behavior ?? {}), preconditionList: e.target.value.split('\n').filter(s => s.trim().length > 0) } })}
+                  />
 
-                <div style={{ marginTop: 16 }}>
-                  <AffectedEntitiesEditor
-                    affectedEntities={model.algorithm?.behavior?.affectedEntityList ?? (model.algorithm?.behavior as any)?.affectedEntities ?? []}
+                  <label className="field-label">{L('algorithmForm.postconditions', 'Postconditions')}</label>
+                  <textarea
+                    className="field-input"
+                    rows={3}
+                    value={(alg.behavior?.postconditionList ?? []).join('\n')}
+                    onChange={(e) => updateAlgorithm(selectedAlgorithmIndex, { behavior: { ...(alg.behavior ?? {}), postconditionList: e.target.value.split('\n').filter(s => s.trim().length > 0) } })}
+                  />
+
+                  <BehaviorDefinitionEditor
+                    errorEventList={alg.behavior?.errorEventList ?? []}
+                    entityImpactList={alg.behavior?.entityImpactList ?? []}
+                    outputList={alg.behavior?.outputList ?? []}
+                    businessRuleRefList={alg.behavior?.businessRuleRefList ?? []}
+                    actorRefList={normalizeActorRefs(alg.behavior?.actorRefList ?? (alg.behavior as any)?.actors)}
+                    namespaceAliases={(model.namespaceRefList ?? []).map(ns => ns.alias).filter((alias): alias is string => Boolean(alias))}
                     modelAliases={modelAliases}
-                    sqdAliases={sqdAliases}
                     getEntitiesForAlias={getEntitiesForAlias}
                     getAttributesForEntity={getAttributesForEntity}
-                    onChange={(affectedEntities) => updateAlgorithm({
+                    getEventsForAlias={getEventsForAlias}
+                    getBusinessRulesForAlias={getBusinessRulesForAlias}
+                    getActorsForAlias={getActorsForAlias}
+                    onChange={(patch) => updateAlgorithm(selectedAlgorithmIndex, {
                       behavior: {
-                        ...(model.algorithm?.behavior ?? {}),
-                        affectedEntityList: affectedEntities
+                        ...(alg.behavior ?? {}),
+                        ...(patch.errorEventList ? { errorEventList: patch.errorEventList } : {}),
+                        ...(patch.entityImpactList ? { entityImpactList: patch.entityImpactList } : {}),
+                        ...(patch.outputList ? { outputList: patch.outputList } : {}),
+                        ...(patch.businessRuleRefList ? { businessRuleRefList: patch.businessRuleRefList } : {}),
+                        ...(patch.actorRefList ? { actorRefList: patch.actorRefList } : {}),
+                        affectedEntityList: undefined
                       }
                     })}
                   />
+
+                  <ActorRefsEditor
+                    actorRefs={normalizeActorRefs(alg.behavior?.actorRefList ?? (alg.behavior as any)?.actors)}
+                    namespaceAliases={(model.namespaceRefList ?? []).map(ns => ns.alias).filter((alias): alias is string => Boolean(alias))}
+                    getAvailableActors={getActorsForAlias}
+                    onChange={(actorRefList) => updateAlgorithm(selectedAlgorithmIndex, { behavior: { ...(alg.behavior ?? {}), actorRefList } })}
+                    prefix="algorithm"
+                  />
+                </>
+              )}
+
+              {algorithmTab === 'parameters' && (
+                <div style={{ marginTop: 8 }}>
+                  <ParametersEditor
+                    value={normalizeAlgorithmParameters(alg)}
+                    onChange={(parameterList) => updateAlgorithm(selectedAlgorithmIndex, { parameterList })}
+                    namespaceRef={model.namespaceRefList}
+                    vscodeApi={vscodeApi}
+                    showDirection
+                  />
                 </div>
+              )}
 
-                <ActorRefsEditor
-                  actorRefs={normalizeActorRefs(model.algorithm?.behavior?.actorRefList ?? (model.algorithm?.behavior as any)?.actors)}
-                  namespaceAliases={(model.namespaceRefList ?? []).map(ns => ns.alias).filter((alias): alias is string => Boolean(alias))}
-                  getAvailableActors={getActorsForAlias}
-                  onChange={(actors) => updateAlgorithm({
-                    behavior: {
-                      ...(model.algorithm?.behavior ?? {}),
-                      actorRefList: actors
-                    }
-                  })}
-                  prefix="algorithm"
-                />
-
-                <label className="field-label">{L('algorithmForm.version', 'version')}</label>
-                <input
-                  className="field-input"
-                  value={model.algorithm?.version ?? ''}
-                  onChange={(e) => updateAlgorithm({ version: e.target.value })}
-                />
-              </>
-            )}
-
-            {algorithmTab === 'parameters' && (
-              <div style={{ marginTop: 8 }}>
-                <ParametersEditor
-                  value={normalizeAlgorithmParameters(model.algorithm)}
-                  onChange={(parameters) => updateAlgorithm({
-                    parameterList: parameters
-                  })}
-                  namespaceRef={model.namespaceRefList}
-                  vscodeApi={vscodeApi}
-                  showDirection
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {tab === 'steps' && renderStepList(model.stepList ?? [], (stepList) => onChange({ ...model, stepList }), 0)}
+              {algorithmTab === 'steps' && renderStepList(
+                alg.stepList ?? [],
+                (stepList) => updateAlgorithm(selectedAlgorithmIndex, { stepList }),
+                0
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

@@ -91,10 +91,32 @@ const sanitizeStep = (step: SqdStep): SqdStep => {
   return result;
 };
 
-const sanitizeAlgorithmForSave = (model: SqdAlgorithm): SqdAlgorithm => ({
-  ...model,
-  stepList: (model.stepList ?? []).map(sanitizeStep),
-});
+const sanitizeAlgorithmForSave = (model: SqdAlgorithm): Record<string, unknown> => {
+  const metadata = {
+    name: model.metadata?.name ?? model.algorithm?.name ?? model.name ?? 'algorithm',
+    ...(model.metadata?.description ? { description: model.metadata.description } : {}),
+    ...(model.metadata?.version ? { version: model.metadata.version } : {}),
+    ...(model.metadata?.status ? { status: model.metadata.status } : {}),
+  };
+
+  const importList = (model.importList ?? model.imports ?? []).filter(a => a !== 'local');
+
+  const algorithmList = (model.algorithmList ?? []).map((alg) => ({
+    name: alg.name,
+    ...(alg.version ? { version: alg.version } : {}),
+    ...(alg.behavior ? { behavior: alg.behavior } : {}),
+    ...(alg.parameterList?.length ? { parameterList: alg.parameterList } : {}),
+    stepList: (alg.stepList ?? []).map(sanitizeStep)
+  }));
+
+  return {
+    algorithm: {
+      metadata,
+      ...(importList.length ? { importList } : {}),
+      algorithmList
+    }
+  };
+};
 
 export const AlgorithmEditor: React.FC = () => {
   const L = (path: string, fallback: string) => label(`algorithm.${path}`, fallback);
@@ -105,30 +127,26 @@ export const AlgorithmEditor: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [globalNamespaces, setGlobalNamespaces] = useState<NamespaceEntity[]>([]);
 
-  const countWarnings = (stepList: SqdAlgorithm['stepList']): number => {
+  const countWarnings = (model: SqdAlgorithm): number => {
     let warnings = 0;
 
-    const walk = (items: SqdAlgorithm['stepList']) => {
+    const walk = (items: SqdStep[]) => {
       for (const step of items) {
         if (!step.description || step.description.trim().length === 0) {
           warnings += 1;
         }
-
-        if (step.stepList && step.stepList.length > 0) {
-          walk(step.stepList);
-        }
-
-        if (step.branchList && step.branchList.length > 0) {
+        if (step.stepList && step.stepList.length > 0) walk(step.stepList);
+        if (step.branchList) {
           for (const branch of step.branchList) {
-            if (branch.then && branch.then.length > 0) {
-              walk(branch.then);
-            }
+            if (branch.then && branch.then.length > 0) walk(branch.then);
           }
         }
       }
     };
 
-    walk(stepList);
+    for (const alg of (model.algorithmList ?? [])) {
+      walk(alg.stepList ?? []);
+    }
     return warnings;
   };
 
@@ -171,7 +189,7 @@ export const AlgorithmEditor: React.FC = () => {
     return <div className="loading">{L('loading', 'Nacitavam...')}</div>;
   }
 
-  const warningCount = countWarnings(model.stepList ?? []);
+  const warningCount = countWarnings(model);
 
   return (
     <div className="editor-root">

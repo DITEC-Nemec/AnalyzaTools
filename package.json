@@ -170,6 +170,8 @@
   },
   "dependencies": {
     "@xyflow/react": "^12.10.2",
-    "js-yaml": "^4.1.0"
+    "cytoscape": "^3.33.4",
+    "js-yaml": "^4.1.0",
+    "jsonc-parser": "^3.3.1"
   }
 }

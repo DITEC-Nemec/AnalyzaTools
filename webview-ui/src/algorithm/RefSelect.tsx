@@ -168,6 +168,8 @@ interface SqdRefSelectProps {
 
 export const SqdRefSelect: React.FC<SqdRefSelectProps> = ({ value, namespaceData, onChange }) => {
   const aliases = aliasOptions(namespaceData, 'sqd');
+  const nsEntry = value.namespaceAlias ? namespaceData[value.namespaceAlias] : undefined;
+  const algorithms = nsEntry?.algorithms ?? [];
 
   return (
     <div className="ref-group">
@@ -175,7 +177,13 @@ export const SqdRefSelect: React.FC<SqdRefSelectProps> = ({ value, namespaceData
         label="namespaceAlias"
         value={value.namespaceAlias ?? ''}
         options={aliases}
-        onChange={(v) => onChange({ ...value, namespaceAlias: v })}
+        onChange={(v) => onChange({ ...value, namespaceAlias: v, algorithm: '' })}
+      />
+      <ComboSelect
+        label="algorithm"
+        value={value.algorithm ?? ''}
+        options={algorithms}
+        onChange={(v) => onChange({ ...value, algorithm: v })}
       />
     </div>
   );

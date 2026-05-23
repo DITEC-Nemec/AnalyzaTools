@@ -236,70 +236,98 @@ export const parseAndNormalizeYaml = (content: string): DomainModel | null => {
 };
 
 /**
- * Normalize unified algorithm format to legacy format
- * Handles algorithm.definitions[0] (unified) -> root level (legacy)
+ * Normalize unified algorithm format.
+ * Always produces a model with `algorithmList` populated.
  */
 export const normalizeAlgorithmFormat = (parsed: unknown): SqdAlgorithm => {
   if (!isPlainObject(parsed)) {
     return parsed as SqdAlgorithm;
   }
 
-  // Check if it's unified format (has algorithm.algorithmList[0].importList)
-  const hasAlgorithmModule = isPlainObject(parsed.algorithm);
-
-  if (hasAlgorithmModule) {
+  // --- Unified format: { algorithm: { metadata, importList, algorithmList } } ---
+  if (isPlainObject(parsed.algorithm)) {
     const alg = parsed.algorithm as Record<string, unknown>;
-    const definitions = Array.isArray(alg.algorithmList) ? alg.algorithmList : [];
+    const rawList = Array.isArray(alg.algorithmList) ? alg.algorithmList as Record<string, unknown>[] : [];
+    const metadata = isPlainObject(alg.metadata) ? (alg.metadata as Record<string, unknown>) : null;
+    const importList = Array.isArray(alg.importList)
+      ? (alg.importList as string[])
+      : Array.isArray(alg.imports) ? (alg.imports as string[]) : undefined;
+    const namespaceRefList = Array.isArray((parsed as any).namespaceRefList)
+      ? (parsed as any).namespaceRefList
+      : undefined;
 
-    // Check if first definition has importList/imports (indicator of unified format)
-    if (definitions.length > 0 && isPlainObject(definitions[0])) {
-      const firstDef = definitions[0] as Record<string, unknown>;
-      if ('importList' in firstDef || 'imports' in firstDef || 'stepList' in firstDef) {
-        const moduleMetadata = isPlainObject(alg.metadata)
-          ? (alg.metadata as Record<string, unknown>)
-          : null;
-
-        // It's unified format - convert to legacy
-        const legacy: Record<string, unknown> = {
-          algorithm: {
-            name: firstDef.name ?? 'algorithm',
-            version: firstDef.version,
-            behavior: firstDef.behavior
-          },
-          stepList: (firstDef.stepList as any) ?? [],
-          importList: (firstDef.importList as string[] | undefined) ?? (firstDef.imports as string[] | undefined),
-          name: moduleMetadata?.name ?? firstDef.name,
-          description: moduleMetadata?.description,
-          version: moduleMetadata?.version ?? firstDef.version,
-          status: moduleMetadata?.status
-        };
-
-        if (firstDef.actorList) legacy.actorList = firstDef.actorList;
-        if (firstDef.namespaceRefList) legacy.namespaceRefList = firstDef.namespaceRefList;
-
-        return legacy as SqdAlgorithm;
-      }
+    if (rawList.length > 0) {
+      // Proper unified format with algorithmList
+      return {
+        metadata: metadata ? {
+          name: String(metadata.name ?? ''),
+          description: typeof metadata.description === 'string' ? metadata.description : undefined,
+          version: typeof metadata.version === 'string' ? metadata.version : undefined,
+          status: typeof metadata.status === 'string' ? metadata.status as any : undefined
+        } : undefined,
+        importList,
+        namespaceRefList,
+        algorithmList: rawList.map((def) => ({
+          name: String(def.name ?? 'algorithm'),
+          version: typeof def.version === 'string' ? def.version : undefined,
+          parameterList: Array.isArray(def.parameterList) ? def.parameterList as any[] : undefined,
+          behavior: def.behavior as any,
+          stepList: Array.isArray(def.stepList) ? def.stepList as any[] : []
+        })),
+        // compat fields for helper functions that still read model.algorithm
+        algorithm: { name: String(rawList[0]?.name ?? 'algorithm') }
+      } as SqdAlgorithm;
     }
+
+    // Legacy-ish: { algorithm: { name, ... }, stepList: [...] }
+    const singleAlgorithmName = typeof alg.name === 'string' ? alg.name : String(metadata?.name ?? 'algorithm');
+    const stepList = Array.isArray((parsed as any).stepList) ? (parsed as any).stepList : [];
+    const singleImportList = importList ?? (Array.isArray((parsed as any).importList) ? (parsed as any).importList : Array.isArray((parsed as any).imports) ? (parsed as any).imports : undefined);
+
+    return {
+      metadata: metadata ? {
+        name: singleAlgorithmName,
+        description: typeof metadata.description === 'string' ? metadata.description : undefined,
+        version: typeof metadata.version === 'string' ? metadata.version : undefined,
+        status: typeof metadata.status === 'string' ? metadata.status as any : undefined
+      } : {
+        name: singleAlgorithmName
+      },
+      importList: singleImportList,
+      namespaceRefList: Array.isArray((parsed as any).namespaceRefList) ? (parsed as any).namespaceRefList : undefined,
+      algorithmList: [{
+        name: singleAlgorithmName,
+        version: typeof alg.version === 'string' ? alg.version : undefined,
+        parameterList: Array.isArray(alg.parameterList) ? alg.parameterList as any[] : undefined,
+        behavior: alg.behavior as any,
+        stepList
+      }],
+      algorithm: { name: singleAlgorithmName, version: typeof alg.version === 'string' ? alg.version : undefined, behavior: alg.behavior as any }
+    } as SqdAlgorithm;
   }
 
-  // It's already legacy-ish format; normalize keys expected by the editor.
-  const legacy = parsed as SqdAlgorithm & Record<string, unknown>;
-  if (!legacy.name && legacy.algorithm?.name) {
-    legacy.name = legacy.algorithm.name;
-  }
-  if (!legacy.version && legacy.algorithm?.version) {
-    legacy.version = legacy.algorithm.version;
-  }
-  if (!Array.isArray(legacy.stepList) && Array.isArray((legacy as any).steps)) {
-    legacy.stepList = (legacy as any).steps;
-  }
-  if (!Array.isArray((legacy as any).importList) && Array.isArray((legacy as any).imports)) {
-    (legacy as any).importList = (legacy as any).imports;
-  }
-  if (!Array.isArray((legacy as any).namespaceRefList) && Array.isArray((legacy as any).namespaceRef)) {
-    (legacy as any).namespaceRefList = (legacy as any).namespaceRef;
-  }
-  return legacy;
+  // --- Root-level legacy format: { name, stepList, algorithm?, ... } ---
+  const legacy = parsed as Record<string, unknown>;
+  const name = typeof legacy.name === 'string' ? legacy.name : typeof (legacy.algorithm as any)?.name === 'string' ? (legacy.algorithm as any).name : 'algorithm';
+  const stepList = Array.isArray(legacy.stepList) ? legacy.stepList : Array.isArray((legacy as any).steps) ? (legacy as any).steps : [];
+  const singleAlgorithmMeta = isPlainObject(legacy.algorithm) ? legacy.algorithm as Record<string, unknown> : {};
+  const importList = Array.isArray(legacy.importList) ? legacy.importList as string[]
+    : Array.isArray(legacy.imports) ? legacy.imports as string[] : undefined;
+
+  return {
+    metadata: { name, version: typeof legacy.version === 'string' ? legacy.version : undefined, status: legacy.status as any },
+    importList,
+    namespaceRefList: Array.isArray(legacy.namespaceRefList) ? legacy.namespaceRefList as any : undefined,
+    algorithmList: [{
+      name,
+      version: typeof (singleAlgorithmMeta.version ?? legacy.version) === 'string' ? String(singleAlgorithmMeta.version ?? legacy.version) : undefined,
+      parameterList: Array.isArray(singleAlgorithmMeta.parameterList) ? singleAlgorithmMeta.parameterList as any[] : undefined,
+      behavior: singleAlgorithmMeta.behavior as any,
+      stepList: stepList as any[]
+    }],
+    algorithm: { name, ...singleAlgorithmMeta } as any,
+    actorList: Array.isArray(legacy.actorList) ? legacy.actorList as any[] : undefined
+  } as SqdAlgorithm;
 };
 
 /**

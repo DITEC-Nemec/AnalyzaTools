@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { VariableAssignList } from './VariableAssignList';
-import { AffectedEntitiesEditor } from '../components/AffectedEntitiesEditor';
 import { ActorRefsEditor } from '../components/ActorRefsEditor';
-import { ErrorEventsEditor } from '../components/ErrorEventsEditor';
+import { BehaviorDefinitionEditor } from '../components/BehaviorDefinitionEditor';
 import type {
   ActorRef,
+  BusinessRuleRef,
   EntityImpact,
+  Output,
   ParameterMap,
   ReferenceAttribute,
   ReferenceEntity,
@@ -29,6 +30,8 @@ interface Props {
   getFunctionsForEntity?: (alias: string, entity: string) => string[];
   getEventsForAlias?: (alias: string) => string[];
   getActorsForAlias?: (alias?: string) => string[];
+  getBusinessRulesForAlias?: (alias: string) => string[];
+  getAlgorithmsForAlias?: (alias: string) => string[];
   onChange: (updated: SqdStep) => void;
 }
 
@@ -80,7 +83,7 @@ const summaryOperation = (operation: ReferenceOperation | null): string => {
     return `entityFunction:${operation.entityFunctionRef?.entity ?? '-'}:${operation.entityFunctionRef?.function ?? '-'}`;
   }
   if (operation.callType === 'sqd') {
-    return `sqd:${operation.sqdRef?.namespaceAlias ?? '-'}`;
+    return `sqd:${operation.sqdRef?.namespaceAlias ?? '-'}:${operation.sqdRef?.algorithm ?? '-'}`;
   }
   return `event:${operation.emitEventRef?.namespaceAlias ?? '-'}:${operation.emitEventRef?.event ?? '-'}`;
 };
@@ -132,6 +135,24 @@ const normalizeActorRefs = (items: ActorRef[] | undefined): ActorRef[] => {
   }));
 };
 
+const normalizeLegacyEntityImpactList = (step: SqdStep): EntityImpact[] => {
+  if ((step.behavior?.entityImpactList ?? []).length > 0) {
+    return step.behavior?.entityImpactList ?? [];
+  }
+  return (step.behavior?.affectedEntityList ?? []).filter((item): item is EntityImpact => 'impact' in item);
+};
+
+const normalizeLegacyOutputList = (step: SqdStep): Output[] => {
+  if ((step.behavior?.outputList ?? []).length > 0) {
+    return step.behavior?.outputList ?? [];
+  }
+  return (step.behavior?.affectedEntityList ?? []).filter((item): item is Output => 'variable' in item && !('impact' in item));
+};
+
+const normalizeBusinessRuleRefList = (step: SqdStep): BusinessRuleRef[] => {
+  return step.behavior?.businessRuleRefList ?? [];
+};
+
 export const StepCard: React.FC<Props> = ({
   step,
   depth = 0,
@@ -143,6 +164,8 @@ export const StepCard: React.FC<Props> = ({
   getFunctionsForEntity = () => [],
   getEventsForAlias = () => [],
   getActorsForAlias = (_alias?: string) => [],
+  getBusinessRulesForAlias = () => [],
+  getAlgorithmsForAlias = () => [],
   onChange
 }) => {
   const L = (path: string, fallback: string) => label(`algorithm.${path}`, fallback);
@@ -155,6 +178,7 @@ export const StepCard: React.FC<Props> = ({
   const condition = useMemo(() => step.condition ?? defaultCondition(), [step.condition]);
   const operation = useMemo(() => normalizeOperation(step), [step]);
   const emitEventRef = useMemo(() => condition.waitEvent?.emitEventRef ?? null, [condition]);
+  const eventRef = emitEventRef;
 
   const upsertOperationObject = (patch: Partial<ReferenceOperation>) => {
     const next: ReferenceOperation = {
@@ -389,20 +413,27 @@ export const StepCard: React.FC<Props> = ({
                 onChange={(e) => updateBehavior({ postconditionList: e.target.value.split('\n').filter(s => s.trim().length > 0) })}
               />
 
-              <ErrorEventsEditor
-                errorEvents={step.behavior.errorEventList ?? []}
+              <BehaviorDefinitionEditor
+                errorEventList={step.behavior.errorEventList ?? []}
+                entityImpactList={normalizeLegacyEntityImpactList(step)}
+                outputList={normalizeLegacyOutputList(step)}
+                businessRuleRefList={normalizeBusinessRuleRefList(step)}
+                actorRefList={normalizeActorRefs(step.behavior.actorRefList)}
                 namespaceAliases={Array.from(new Set(['local', ...modelAliases, ...sqdAliases]))}
-                getEventsForAlias={getEventsForAlias}
-                onChange={(errorEventList) => updateBehavior({ errorEventList })}
-              />
-
-              <AffectedEntitiesEditor
-                affectedEntities={step.behavior.affectedEntityList ?? []}
                 modelAliases={modelAliases}
-                sqdAliases={sqdAliases}
                 getEntitiesForAlias={getEntitiesForAlias}
                 getAttributesForEntity={getAttributesForEntity}
-                onChange={affectedEntityList => updateBehavior({ affectedEntityList })}
+                getEventsForAlias={getEventsForAlias}
+                getBusinessRulesForAlias={getBusinessRulesForAlias}
+                getActorsForAlias={getActorsForAlias}
+                onChange={(patch) => updateBehavior({
+                  ...(patch.errorEventList ? { errorEventList: patch.errorEventList } : {}),
+                  ...(patch.entityImpactList ? { entityImpactList: patch.entityImpactList } : {}),
+                  ...(patch.outputList ? { outputList: patch.outputList } : {}),
+                  ...(patch.businessRuleRefList ? { businessRuleRefList: patch.businessRuleRefList } : {}),
+                  ...(patch.actorRefList ? { actorRefList: patch.actorRefList } : {}),
+                  affectedEntityList: undefined
+                })}
               />
 
               <ActorRefsEditor
@@ -421,6 +452,9 @@ export const StepCard: React.FC<Props> = ({
                     || (step.behavior?.preconditionList?.length ?? 0) > 0
                     || (step.behavior?.postconditionList?.length ?? 0) > 0
                     || (step.behavior?.errorEventList?.length ?? 0) > 0
+                    || (step.behavior?.entityImpactList?.length ?? 0) > 0
+                    || (step.behavior?.outputList?.length ?? 0) > 0
+                    || (step.behavior?.businessRuleRefList?.length ?? 0) > 0
                     || (step.behavior?.affectedEntityList?.length ?? 0) > 0
                     || (step.behavior?.actorRefList?.length ?? 0) > 0;
 
@@ -560,7 +594,7 @@ export const StepCard: React.FC<Props> = ({
                           ...step,
                           condition: {
                             ...condition,
-                            operationRef: { ...(condition.operationRef ?? { kind: 'step' }), kind: 'step', stepRef: e.target.value }
+                            operationRef: { ...(condition.operationRef ?? { callType: 'step' }), callType: 'step', stepRef: e.target.value }
                           }
                         })
                       }
@@ -580,8 +614,8 @@ export const StepCard: React.FC<Props> = ({
                           condition: {
                             ...condition,
                             operationRef: {
-                              ...(condition.operationRef ?? { kind: 'entityFunction' }),
-                              kind: 'entityFunction',
+                              ...(condition.operationRef ?? { callType: 'entityFunction' }),
+                              callType: 'entityFunction',
                               entityFunctionRef: { ...currentRef, namespaceAlias: e.target.value, entity: '', function: '' }
                             }
                           }
@@ -604,8 +638,8 @@ export const StepCard: React.FC<Props> = ({
                           condition: {
                             ...condition,
                             operationRef: {
-                              ...(condition.operationRef ?? { kind: 'entityFunction' }),
-                              kind: 'entityFunction',
+                              ...(condition.operationRef ?? { callType: 'entityFunction' }),
+                              callType: 'entityFunction',
                               entityFunctionRef: { ...currentRef, entity: e.target.value, function: '' }
                             }
                           }
@@ -628,8 +662,8 @@ export const StepCard: React.FC<Props> = ({
                           condition: {
                             ...condition,
                             operationRef: {
-                              ...(condition.operationRef ?? { kind: 'entityFunction' }),
-                              kind: 'entityFunction',
+                              ...(condition.operationRef ?? { callType: 'entityFunction' }),
+                              callType: 'entityFunction',
                               entityFunctionRef: { ...currentRef, function: e.target.value }
                             }
                           }
@@ -677,9 +711,9 @@ export const StepCard: React.FC<Props> = ({
                           condition: {
                             ...condition,
                             operationRef: {
-                              ...(condition.operationRef ?? { kind: 'sqd' }),
-                              kind: 'sqd',
-                              sqdRef: { ...currentRef, namespaceAlias: e.target.value }
+                              ...(condition.operationRef ?? { callType: 'sqd' }),
+                              callType: 'sqd',
+                              sqdRef: { ...currentRef, namespaceAlias: e.target.value, algorithm: '' }
                             }
                           }
                         });
@@ -688,6 +722,31 @@ export const StepCard: React.FC<Props> = ({
                       <option value="">—</option>
                       {sqdAliases.map(alias => (
                         <option key={alias} value={alias}>{alias}</option>
+                      ))}
+                    </select>
+                    <label className="field-label">SQD algorithm</label>
+                    <select
+                      className="field-input"
+                      value={condition.operationRef?.sqdRef?.algorithm ?? ''}
+                      onChange={(e) => {
+                        const currentRef: ReferenceSqd = condition.operationRef?.sqdRef ?? {};
+                        onChange({
+                          ...step,
+                          condition: {
+                            ...condition,
+                            operationRef: {
+                              ...(condition.operationRef ?? { callType: 'sqd' }),
+                              callType: 'sqd',
+                              sqdRef: { ...currentRef, algorithm: e.target.value }
+                            }
+                          }
+                        });
+                      }}
+                      disabled={!condition.operationRef?.sqdRef?.namespaceAlias}
+                    >
+                      <option value="">—</option>
+                      {getAlgorithmsForAlias(condition.operationRef?.sqdRef?.namespaceAlias ?? '').map(algorithm => (
+                        <option key={algorithm} value={algorithm}>{algorithm}</option>
                       ))}
                     </select>
                     <label className="field-label">parameterMapList</label>
@@ -756,23 +815,23 @@ export const StepCard: React.FC<Props> = ({
                       }}
                     >
                       <option value="">—</option>
-                      {getEventsForAlias(condition.operationRef?.eventRef?.namespaceAlias ?? '').map(event => (
+                      {getEventsForAlias(condition.operationRef?.emitEventRef?.namespaceAlias ?? '').map(event => (
                         <option key={event} value={event}>{event}</option>
                       ))}
                     </select>
                     <label className="field-label">parameterMap</label>
                     <VariableAssignList
-                      value={normalizeParameterMap(condition.operationRef?.eventRef)}
+                      value={normalizeParameterMap(condition.operationRef?.emitEventRef)}
                       onChange={(mapParameters) => {
-                        const currentRef: ReferenceEvent = condition.operationRef?.eventRef ?? {};
+                        const currentRef: ReferenceEvent = condition.operationRef?.emitEventRef ?? {};
                         onChange({
                           ...step,
                           condition: {
                             ...condition,
                             operationRef: {
-                              ...(condition.operationRef ?? { kind: 'event' }),
-                              kind: 'event',
-                              eventRef: { ...currentRef, mapParameters, mapInput: undefined, mapOutput: undefined }
+                              ...(condition.operationRef ?? { callType: 'event' }),
+                              callType: 'event',
+                              emitEventRef: { ...currentRef, mapParameters, mapInput: undefined, mapOutput: undefined }
                             }
                           }
                         });
@@ -788,14 +847,14 @@ export const StepCard: React.FC<Props> = ({
                 <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
                 <select
                   className="field-input"
-                  value={condition.waitEvent?.eventRef?.namespaceAlias ?? ''}
+                  value={condition.waitEvent?.emitEventRef?.namespaceAlias ?? ''}
                   onChange={(e) => onChange({
                     ...step,
                     condition: {
                       ...condition,
                       waitEvent: {
-                        ...(condition.waitEvent ?? { eventRef: { namespaceAlias: '', event: '' } }),
-                        eventRef: { ...condition.waitEvent?.eventRef, namespaceAlias: e.target.value, event: '' }
+                        ...(condition.waitEvent ?? { emitEventRef: { namespaceAlias: '', event: '' } }),
+                        emitEventRef: { ...condition.waitEvent?.emitEventRef, namespaceAlias: e.target.value, event: '' }
                       }
                     }
                   })}
@@ -808,33 +867,33 @@ export const StepCard: React.FC<Props> = ({
                 <label className="field-label">{L('dialogs.event', 'Event')}</label>
                 <select
                   className="field-input"
-                  value={condition.waitEvent?.eventRef?.event ?? ''}
+                  value={condition.waitEvent?.emitEventRef?.event ?? ''}
                   onChange={(e) => onChange({
                     ...step,
                     condition: {
                       ...condition,
                       waitEvent: {
-                        ...(condition.waitEvent ?? { eventRef: { namespaceAlias: '', event: '' } }),
-                        eventRef: { ...condition.waitEvent?.eventRef, event: e.target.value }
+                        ...(condition.waitEvent ?? { emitEventRef: { namespaceAlias: '', event: '' } }),
+                        emitEventRef: { ...condition.waitEvent?.emitEventRef, event: e.target.value }
                       }
                     }
                   })}
                 >
                   <option value="">—</option>
-                  {getEventsForAlias(condition.waitEvent?.eventRef?.namespaceAlias ?? '').map(event => (
+                  {getEventsForAlias(condition.waitEvent?.emitEventRef?.namespaceAlias ?? '').map(event => (
                     <option key={event} value={event}>{event}</option>
                   ))}
                 </select>
                 <label className="field-label">parameterMap</label>
                 <VariableAssignList
-                  value={normalizeParameterMap(condition.waitEvent?.eventRef)}
+                  value={normalizeParameterMap(condition.waitEvent?.emitEventRef)}
                   onChange={(mapParameters) => onChange({
                     ...step,
                     condition: {
                       ...condition,
                       waitEvent: {
-                        ...(condition.waitEvent ?? { eventRef: {} }),
-                        eventRef: { ...condition.waitEvent?.eventRef, mapParameters, mapInput: undefined, mapOutput: undefined }
+                        ...(condition.waitEvent ?? { emitEventRef: {} }),
+                        emitEventRef: { ...condition.waitEvent?.emitEventRef, mapParameters, mapInput: undefined, mapOutput: undefined }
                       }
                     }
                   })}
@@ -854,25 +913,25 @@ export const StepCard: React.FC<Props> = ({
           <div className="dialog-card" onClick={(e) => e.stopPropagation()}>
             <h4>{L('dialogs.operation', 'Operation detail')}</h4>
 
-            {operation.kind === 'step' && (
+            {operation.callType === 'step' && (
               <>
                 <label className="field-label">{L('dialogs.stepRef', 'Step ref')}</label>
                 <input
                   className="field-input"
                   value={operation.stepRef ?? ''}
-                  onChange={(e) => upsertOperationObject({ kind: 'step', stepRef: e.target.value })}
+                  onChange={(e) => upsertOperationObject({ callType: 'step', stepRef: e.target.value })}
                 />
               </>
             )}
 
-            {operation.kind === 'entityFunction' && (
+            {operation.callType === 'entityFunction' && (
               <>
                 <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
                 <select
                   className="field-input"
                   value={operation.entityFunctionRef?.namespaceAlias ?? ''}
                   onChange={(e) => upsertOperationObject({
-                    kind: 'entityFunction',
+                    callType: 'entityFunction',
                     entityFunctionRef: { ...(operation.entityFunctionRef ?? {}), namespaceAlias: e.target.value, entity: '', function: '' }
                   })}
                 >
@@ -886,7 +945,7 @@ export const StepCard: React.FC<Props> = ({
                   className="field-input"
                   value={operation.entityFunctionRef?.entity ?? ''}
                   onChange={(e) => upsertOperationObject({
-                    kind: 'entityFunction',
+                    callType: 'entityFunction',
                     entityFunctionRef: { ...(operation.entityFunctionRef ?? {}), entity: e.target.value, function: '' }
                   })}
                 >
@@ -900,7 +959,7 @@ export const StepCard: React.FC<Props> = ({
                   className="field-input"
                   value={operation.entityFunctionRef?.function ?? ''}
                   onChange={(e) => upsertOperationObject({
-                    kind: 'entityFunction',
+                    callType: 'entityFunction',
                     entityFunctionRef: { ...(operation.entityFunctionRef ?? {}), function: e.target.value }
                   })}
                 >
@@ -916,7 +975,7 @@ export const StepCard: React.FC<Props> = ({
                 <VariableAssignList
                   value={normalizeParameterMap(operation.entityFunctionRef)}
                   onChange={(mapParameters) => upsertOperationObject({
-                    kind: 'entityFunction',
+                    callType: 'entityFunction',
                     entityFunctionRef: {
                       ...(operation.entityFunctionRef ?? {}),
                       mapParameters
@@ -926,15 +985,15 @@ export const StepCard: React.FC<Props> = ({
               </>
             )}
 
-            {operation.kind === 'sqd' && (
+            {operation.callType === 'sqd' && (
               <>
                 <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
                 <select
                   className="field-input"
                   value={operation.sqdRef?.namespaceAlias ?? ''}
                   onChange={(e) => upsertOperationObject({
-                    kind: 'sqd',
-                    sqdRef: { ...(operation.sqdRef ?? {}), namespaceAlias: e.target.value }
+                    callType: 'sqd',
+                    sqdRef: { ...(operation.sqdRef ?? {}), namespaceAlias: e.target.value, algorithm: '' }
                   })}
                 >
                   <option value="">—</option>
@@ -942,11 +1001,26 @@ export const StepCard: React.FC<Props> = ({
                     <option key={alias} value={alias}>{alias}</option>
                   ))}
                 </select>
+                <label className="field-label">SQD algorithm</label>
+                <select
+                  className="field-input"
+                  value={operation.sqdRef?.algorithm ?? ''}
+                  onChange={(e) => upsertOperationObject({
+                    callType: 'sqd',
+                    sqdRef: { ...(operation.sqdRef ?? {}), algorithm: e.target.value }
+                  })}
+                  disabled={!operation.sqdRef?.namespaceAlias}
+                >
+                  <option value="">—</option>
+                  {getAlgorithmsForAlias(operation.sqdRef?.namespaceAlias ?? '').map(algorithm => (
+                    <option key={algorithm} value={algorithm}>{algorithm}</option>
+                  ))}
+                </select>
                 <label className="field-label">parameterMap</label>
                 <VariableAssignList
                   value={normalizeParameterMap(operation.sqdRef)}
                   onChange={(mapParameters) => upsertOperationObject({
-                    kind: 'sqd',
+                    callType: 'sqd',
                     sqdRef: {
                       ...(operation.sqdRef ?? {}),
                       mapParameters,
@@ -958,15 +1032,15 @@ export const StepCard: React.FC<Props> = ({
               </>
             )}
 
-            {operation.kind === 'event' && (
+            {operation.callType === 'event' && (
               <>
                 <label className="field-label">{L('dialogs.namespaceAlias', 'Namespace alias')}</label>
                 <select
                   className="field-input"
-                  value={operation.eventRef?.namespaceAlias ?? ''}
+                  value={operation.emitEventRef?.namespaceAlias ?? ''}
                   onChange={(e) => upsertOperationObject({
-                    kind: 'event',
-                    eventRef: { ...(operation.eventRef ?? {}), namespaceAlias: e.target.value, event: '' }
+                    callType: 'event',
+                    emitEventRef: { ...(operation.emitEventRef ?? {}), namespaceAlias: e.target.value, event: '' }
                   })}
                 >
                   <option value="">—</option>
@@ -977,24 +1051,24 @@ export const StepCard: React.FC<Props> = ({
                 <label className="field-label">{L('dialogs.event', 'Event')}</label>
                 <select
                   className="field-input"
-                  value={operation.eventRef?.event ?? ''}
+                  value={operation.emitEventRef?.event ?? ''}
                   onChange={(e) => upsertOperationObject({
-                    kind: 'event',
-                    eventRef: { ...(operation.eventRef ?? {}), event: e.target.value }
+                    callType: 'event',
+                    emitEventRef: { ...(operation.emitEventRef ?? {}), event: e.target.value }
                   })}
                 >
                   <option value="">—</option>
-                  {getEventsForAlias(operation.eventRef?.namespaceAlias ?? '').map(event => (
+                  {getEventsForAlias(operation.emitEventRef?.namespaceAlias ?? '').map(event => (
                     <option key={event} value={event}>{event}</option>
                   ))}
                 </select>
                 <label className="field-label">parameterMap</label>
                 <VariableAssignList
-                  value={normalizeParameterMap(operation.eventRef)}
+                  value={normalizeParameterMap(operation.emitEventRef)}
                   onChange={(mapParameters) => upsertOperationObject({
-                    kind: 'event',
-                    eventRef: {
-                      ...(operation.eventRef ?? {}),
+                    callType: 'event',
+                    emitEventRef: {
+                      ...(operation.emitEventRef ?? {}),
                       mapParameters,
                       mapInput: undefined,
                       mapOutput: undefined

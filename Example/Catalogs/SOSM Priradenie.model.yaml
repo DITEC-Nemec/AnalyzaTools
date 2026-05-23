@@ -40,7 +40,8 @@ domain:
                 nullable: false
                 readOnly: false
                 multiplicity: '1'
-          behavior: {}
+          behavior:
+            actorRefList: []
       stateList:
         - name: ''
           label: ''

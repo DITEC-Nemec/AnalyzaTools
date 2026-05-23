@@ -356,6 +356,20 @@ select.field-input {
   gap: 8px;
 }
 
+.behavior-add-toolbar {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.impact-summary {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+}
+
 .btn-link {
   background: none;
   border: none;

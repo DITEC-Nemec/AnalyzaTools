@@ -16,8 +16,11 @@ export interface GovernanceMetadata {
 }
 
 export interface SqdAlgorithm {
-  algorithm: AlgorithmMeta;
-  stepList: SqdStep[];
+  algorithm?: AlgorithmMeta;
+  stepList?: SqdStep[];
+  algorithmList?: AlgorithmDef[];
+  metadata?: GovernanceMetadata;
+  importList?: string[];
   actorList?: ActorEntry[];
   namespaceRefList?: NamespaceEntity[];
   imports?: string[];
@@ -25,6 +28,14 @@ export interface SqdAlgorithm {
   description?: string;
   version?: string;
   status?: GovernanceStatus;
+}
+
+export interface AlgorithmDef {
+  name: string;
+  version?: string;
+  parameterList?: Parameter[];
+  behavior?: Behavior;
+  stepList: SqdStep[];
 }
 
 export interface AlgorithmMeta {
@@ -103,6 +114,7 @@ export interface NamespaceDataEntry {
   sourceType: 'current' | 'model' | 'sqd';
   entities?: Array<{ name: string; attributes?: string[]; functions?: string[] }>;
   events?: string[];
+  algorithms?: string[];
   simpleTypes?: string[];
 }
 
@@ -130,10 +142,16 @@ export interface ReferenceEntityFunction {
 
 export interface ReferenceSqd {
   namespaceAlias?: string;
+  algorithm?: string;
   parameterMapList?: ParameterMap[];
   // Spatna kompatibilita so starsim formatom mapovania
   mapInput?: ParameterMap[];
   mapOutput?: ParameterMap[];
+}
+
+export interface BusinessRuleRef {
+  namespaceAlias?: string;
+  ruleCode?: string;
 }
 
 export interface ReferenceEvent {
@@ -238,6 +256,11 @@ export interface Behavior {
   preconditionList?: string[];
   postconditionList?: string[];
   errorEventList?: ErrorEvent[];
+  entityImpactList?: EntityImpact[];
+  outputList?: Output[];
+  businessRuleRefList?: BusinessRuleRef[];
+
+  // Spatna kompatibilita so starsimi datami
   affectedEntityList?: AffectedEntity[];
   actorRefList?: ActorRef[];
 }

@@ -1,132 +1,119 @@
 meta:
-  namespaceRef:
+  namespaceRefList:
     - alias: local
       filePath: Example/Models/unified-model.yaml
       sourceType: current
     - alias: SOSM
       filePath: Example/Catalogs/SOSM Škola.model.yaml
       sourceType: model
-
 domain:
   metadata:
     name: TestDomain
     description: Test domain model with namespace imports
-    version: "1.0.0"
+    version: 1.0.0
     status: draft
-
-  imports:
+  importList:
     - local
     - SOSM
-
-  entities:
+  entityList:
     - name: Žiak
-      type: business_concept
+      entityType: business_concept
       description: Student in the school system
-      attributes:
-        - namedType:
+      attributeList:
+        - variable:
             name: id
-            type: definition
+            varType: definition
             definition:
               restriction:
                 base: integer
-        - namedType:
+        - variable:
             name: meno
-            type: definition
+            varType: definition
             definition:
               restriction:
                 base: string
-        - namedType:
+        - variable:
             name: priezvisko
-            type: definition
+            varType: definition
             definition:
               restriction:
                 base: string
-        - namedType:
+        - variable:
             name: skola
-            type: entityRef
+            varType: entityRef
             entityRef:
               namespaceAlias: SOSM
               entity: Škola
-
     - name: Trieda
-      type: business_concept
+      entityType: business_concept
       description: Class in local domain
-      attributes:
-        - namedType:
+      attributeList:
+        - variable:
             name: oznacenie
-            type: definition
+            varType: definition
             definition:
               restriction:
                 base: string
-
-  simpleTypes:
+  typeList:
     - name: VekCategory
       definition:
         restriction:
           base: string
-          enumeration:
-            - "6-7"
-            - "8-9"
-            - "10-11"
-            - "12-13"
-            - "14-15"
-            - "16-18"
-
-  relationships:
-    - type: contains
-      start_role:
-        nazov: trieda
-        multiplicity: "1"
+          enumerationList:
+            - 6-7
+            - 8-9
+            - 10-11
+            - 12-13
+            - 14-15
+            - 16-18
+  relationshipList:
+    - relationshipType: contains
+      startRoleRef:
+        name: trieda
+        multiplicity: '1'
         entityRef:
           namespaceAlias: local
           entity: Trieda
-      end_role:
-        nazov: ziaci
-        multiplicity: "*"
+      endRoleRef:
+        name: ziaci
+        multiplicity: '*'
         entityRef:
           namespaceAlias: local
           entity: Žiak
-
-  eventGlossary:
+  eventGlossaryList:
     - code: evt-001
       title: Student Enrolled
-      meaning: A new student has been enrolled in the school
+      definition: A new student has been enrolled in the school
       severity: info
-
 dictionary:
-  glossary:
+  glossaryList:
     - term: Školský rok
-      meaning: Academic year from September to June
+      definition: Academic year from September to June
       relatedEntity: Žiak
-
     - term: Trieda
-      meaning: Group of students taught together
+      definition: Group of students taught together
       relatedEntity: Trieda
-
-  businessRules:
+  businessRuleList:
     - code: BR-001
       description: A student must belong to exactly one class
       severity: mandatory
-      affectedEntities:
+      affectedEntityNameList:
         - Žiak
-
-  actors:
+  actorList:
     - code: STUDENT
-      type: user
-      meaning: Student user in the system
-      responsibilities:
+      actorType: user
+      definition: Student user in the system
+      responsibilityList:
         - View own grades
         - Submit assignments
-
     - code: TEACHER
-      type: user
-      meaning: Teacher user in the system
-      responsibilities:
+      actorType: user
+      definition: Teacher user in the system
+      responsibilityList:
         - Create assignments
         - Grade submissions
-
     - code: SYSTEM
-      type: system
-      meaning: Automated system processes
-      responsibilities:
+      actorType: system
+      definition: Automated system processes
+      responsibilityList:
         - Calculate final grades

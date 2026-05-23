@@ -24,7 +24,7 @@ export interface GovernanceMetadata {
 
 export interface Meta {
   metadata?: GovernanceMetadata;
-  namespaceRef: NamespaceEntity[];
+  namespaceRefList: NamespaceEntity[];
 }
 
 // ============================================================================
@@ -140,13 +140,13 @@ export interface NamedType {
 }
 
 export interface Attribute {
-  namedType: NamedType;
+  variable: NamedType;
   states?: CodeLabel[];
 }
 
 export interface Function {
   name: string;
-  parameters?: Parameter[];
+  parameterList?: Parameter[];
   behavior?: Behavior;
 }
 
@@ -158,12 +158,12 @@ export interface Parameter {
 export interface Entity {
   name: string;
   description?: string;
-  type?: "business_concept" | "database_table" | "code_list" | "conceptual_system" | "computational_system" | "other";
+  entityType?: "business_concept" | "database_table" | "code_list" | "conceptual_system" | "computational_system" | "other";
   agregationStatus?: "root" | "leaf" | "intermediate";
   status?: "active" | "deprecated";
-  stateModel?: StateEntry[];
-  attributes: Attribute[];
-  functions?: Function[];
+  stateList?: StateEntry[];
+  attributeList: Attribute[];
+  functionList?: Function[];
 }
 
 // ============================================================================
@@ -181,8 +181,8 @@ export type RelationshipType = "contains" | "references" | "belongs_to" | "aggre
 
 export interface Relationship {
   type: RelationshipType;
-  start_role: Role;
-  end_role: Role;
+  startRoleRef: Role;
+  endRoleRef: Role;
   description?: string;
 }
 
@@ -243,11 +243,11 @@ export type AffectedEntity = EntityImpact | Output;
 
 export interface Behavior {
   description?: string;
-  preconditions?: string[];
-  postconditions?: string[];
-  errorEvents?: ErrorEvent[];
-  affectedEntities?: AffectedEntity[];
-  actors?: ActorRef[];
+  preconditionList?: string[];
+  postconditionList?: string[];
+  errorEventList?: ErrorEvent[];
+  affectedEntityList?: AffectedEntity[];
+  actorRefList?: ActorRef[];
 }
 
 export interface GlossaryEntry {
@@ -337,23 +337,23 @@ export type StepType = "step" | "decision" | "loop" | "foreach" | "operation" | 
 export interface Step {
   id: string;
   legacyId?: string;
-  type: StepType;
+  stepType: StepType;
   text: string;
-  collection?: string;
-  item?: string;
-  operation?: string | ReferenceOperation;
+  sourceCollectionRef?: string;
+  iteratorItemName?: string;
+  operationRef?: string | ReferenceOperation;
   condition?: Condition;
-  branches?: Branch[];
-  body?: Step[];
+  branchList?: Branch[];
+  subStepList?: Step[];
   behavior?: Behavior;
 }
 
 export interface AlgorithmDefinition {
   name: string;
   version?: string;
-  parameters?: Parameter[];
+  parameterList?: Parameter[];
   behavior?: Behavior;
-  steps: Step[];
+  stepList: Step[];
 }
 
 // ============================================================================
@@ -364,10 +364,10 @@ export type DomainMetadata = GovernanceMetadata;
 
 export interface Domain {
   metadata?: DomainMetadata;
-  imports?: string[];
-  entities?: Entity[];
-  simpleTypes?: SimpleType[];
-  relationships?: Relationship[];
+  importList?: string[];
+  entityList?: Entity[];
+  typeList?: SimpleType[];
+  relationshipList?: Relationship[];
   eventGlossary?: EventGlossaryEntry[];
   // Legacy support
   name?: string;
@@ -379,8 +379,8 @@ export interface Domain {
 
 export interface Algorithm {
   metadata?: GovernanceMetadata;
-  imports?: string[];
-  definitions?: AlgorithmDefinition[];
+  importList?: string[];
+  algorithmList?: AlgorithmDefinition[];
 }
 
 // ============================================================================
@@ -389,10 +389,10 @@ export interface Algorithm {
 
 export interface Dictionary {
   metadata?: GovernanceMetadata;
-  imports?: string[];
+  importList?: string[];
   glossary?: GlossaryEntry[];
   businessRules?: BusinessRule[];
-  actors?: ActorEntry[];
+  actorList?: ActorEntry[];
 }
 
 // ============================================================================

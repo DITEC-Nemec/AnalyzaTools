@@ -14,11 +14,11 @@ const sanitizeMapRef = (ref: AnyObject): AnyObject => {
 };
 
 const sanitizeRefOperation = (op: AnyObject): AnyObject => {
-  const cleaned: AnyObject = { kind: op.kind };
+  const cleaned: AnyObject = { callType: op.callType ?? op.kind };
   if (op.stepRef !== undefined) cleaned.stepRef = op.stepRef;
   if (op.entityFunctionRef) cleaned.entityFunctionRef = sanitizeMapRef(op.entityFunctionRef as AnyObject);
   if (op.sqdRef) cleaned.sqdRef = sanitizeMapRef(op.sqdRef as AnyObject);
-  if (op.eventRef) cleaned.eventRef = sanitizeMapRef(op.eventRef as AnyObject);
+  if (op.emitEventRef) cleaned.emitEventRef = sanitizeMapRef(op.emitEventRef as AnyObject);
   return cleaned;
 };
 
@@ -41,20 +41,20 @@ const sanitizeStep = (step: SqdStep): SqdStep => {
   const s = step as SqdStep & AnyObject;
 
   // migrate legacy steps -> body
-  const legacySteps = s.steps as SqdStep[] | undefined;
-  const childSteps = (s.body ?? legacySteps ?? []).map(sanitizeStep);
+  const legacySteps = s.stepList as SqdStep[] | undefined;
+  const childSteps = (s.subStepList ?? legacySteps ?? []).map(sanitizeStep);
 
-  const result: SqdStep = { id: s.id, type: s.type, text: s.text };
+  const result: SqdStep = { id: s.id, stepType: s.stepType, description: s.description };
 
   if (s.legacyId) result.legacyId = s.legacyId;
-  if (s.collection !== undefined) result.collection = s.collection;
-  if (s.item !== undefined) result.item = s.item;
+  if (s.sourceCollectionRef !== undefined) result.sourceCollectionRef = s.sourceCollectionRef;
+  if (s.iteratorItemName !== undefined) result.iteratorItemName = s.iteratorItemName;
 
-  if (s.operation !== undefined) {
-    result.operation =
-      typeof s.operation === 'object' && s.operation !== null
-        ? (sanitizeRefOperation(s.operation as unknown as AnyObject) as unknown as ReferenceOperation)
-        : (s.operation as string);
+  if (s.operationRef !== undefined) {
+    result.operationRef =
+      typeof s.operationRef === 'object' && s.operationRef !== null
+        ? (sanitizeRefOperation(s.operationRef as unknown as AnyObject) as unknown as ReferenceOperation)
+        : (s.operationRef as string);
   }
 
   if (s.condition) {
@@ -70,22 +70,22 @@ const sanitizeStep = (step: SqdStep): SqdStep => {
       waitEvent: cond.waitEvent
         ? {
             ...cond.waitEvent,
-            eventRef: cond.waitEvent.eventRef
-              ? (sanitizeMapRef(cond.waitEvent.eventRef as unknown as AnyObject) as ReferenceEvent)
-              : cond.waitEvent.eventRef,
+            emitEventRef: cond.waitEvent.emitEventRef
+              ? (sanitizeMapRef(cond.waitEvent.emitEventRef as unknown as AnyObject) as ReferenceEvent)
+              : cond.waitEvent.emitEventRef,
           }
         : undefined,
     };
   }
 
-  if (s.branches) {
-    result.branches = s.branches.map(branch => ({
+  if (s.branchList) {
+    result.branchList = s.branchList.map(branch => ({
       ...branch,
       then: (branch.then ?? []).map(sanitizeStep),
     }));
   }
 
-  if (childSteps.length > 0) result.body = childSteps;
+  if (childSteps.length > 0) result.subStepList = childSteps;
   if (s.behavior) result.behavior = s.behavior;
 
   return result;
@@ -93,7 +93,7 @@ const sanitizeStep = (step: SqdStep): SqdStep => {
 
 const sanitizeAlgorithmForSave = (model: SqdAlgorithm): SqdAlgorithm => ({
   ...model,
-  steps: (model.steps ?? []).map(sanitizeStep),
+  stepList: (model.stepList ?? []).map(sanitizeStep),
 });
 
 export const AlgorithmEditor: React.FC = () => {
@@ -105,21 +105,21 @@ export const AlgorithmEditor: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [globalNamespaces, setGlobalNamespaces] = useState<NamespaceEntity[]>([]);
 
-  const countWarnings = (steps: SqdAlgorithm['steps']): number => {
+  const countWarnings = (stepList: SqdAlgorithm['stepList']): number => {
     let warnings = 0;
 
-    const walk = (items: SqdAlgorithm['steps']) => {
+    const walk = (items: SqdAlgorithm['stepList']) => {
       for (const step of items) {
-        if (!step.text || step.text.trim().length === 0) {
+        if (!step.description || step.description.trim().length === 0) {
           warnings += 1;
         }
 
-        if (step.steps && step.steps.length > 0) {
-          walk(step.steps);
+        if (step.stepList && step.stepList.length > 0) {
+          walk(step.stepList);
         }
 
-        if (step.branches && step.branches.length > 0) {
-          for (const branch of step.branches) {
+        if (step.branchList && step.branchList.length > 0) {
+          for (const branch of step.branchList) {
             if (branch.then && branch.then.length > 0) {
               walk(branch.then);
             }
@@ -128,7 +128,7 @@ export const AlgorithmEditor: React.FC = () => {
       }
     };
 
-    walk(steps);
+    walk(stepList);
     return warnings;
   };
 
@@ -171,7 +171,7 @@ export const AlgorithmEditor: React.FC = () => {
     return <div className="loading">{L('loading', 'Nacitavam...')}</div>;
   }
 
-  const warningCount = countWarnings(model.steps ?? []);
+  const warningCount = countWarnings(model.stepList ?? []);
 
   return (
     <div className="editor-root">

@@ -12,7 +12,7 @@ interface ImportsPanelProps {
 
 /**
  * ImportsPanel - allows users to select which namespaces to import
- * Shows available namespaces from meta.namespaceRef and lets user toggle them
+ * Shows available namespaces from meta.namespaceRefList and lets user toggle them
  */
 export const ImportsPanel: React.FC<ImportsPanelProps> = ({
   imports: currentImports,

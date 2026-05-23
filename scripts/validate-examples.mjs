@@ -43,8 +43,8 @@ function detectFormat(parsed, filePath) {
   }
 
   if (filePath.endsWith('.sqd.yaml') || filePath.endsWith('.sqd.yml')) {
-    const hasUnifiedAlgorithm = isPlainObject(parsed.algorithm) && Array.isArray(parsed.algorithm.definitions);
-    const hasFlatAlgorithm = isPlainObject(parsed.algorithm) && Array.isArray(parsed.steps);
+    const hasUnifiedAlgorithm = isPlainObject(parsed.algorithm) && Array.isArray(parsed.algorithm.algorithmList);
+    const hasFlatAlgorithm = isPlainObject(parsed.algorithm) && Array.isArray(parsed.stepList);
     if (hasUnifiedAlgorithm || hasFlatAlgorithm) {
       return 'algorithm';
     }
@@ -91,8 +91,8 @@ function loadGlobalAliases(errors) {
       return new Set(['local']);
     }
 
-    const namespaceRef = parsed?.meta?.namespaceRef;
-    const aliases = validateNamespaceCatalog(namespaceRef, errors, `${candidate}:meta.namespaceRef`) ?? new Set();
+    const namespaceRef = parsed?.meta?.namespaceRefList;
+    const aliases = validateNamespaceCatalog(namespaceRef, errors, `${candidate}:meta.namespaceRefList`) ?? new Set();
     aliases.add('local');
     return aliases;
   }
@@ -106,31 +106,31 @@ function validateDomainModel(parsed, errors, availableAliases) {
 
   if (!isPlainObject(domain)) { errors.push('domain is missing'); return; }
 
-  if (!Array.isArray(domain.imports) || domain.imports.length === 0) {
-    errors.push('domain.imports must be a non-empty array');
+  if (!Array.isArray(domain.importList) || domain.importList.length === 0) {
+    errors.push('domain.importList must be a non-empty array');
   } else {
-    for (const imp of domain.imports) {
+    for (const imp of domain.importList) {
       if (!availableAliases.has(imp)) {
-        errors.push(`domain.imports references unknown namespace alias: "${imp}"`);
+        errors.push(`domain.importList references unknown namespace alias: "${imp}"`);
       }
     }
   }
 
-  const entities = domain.entities ?? [];
-  if (!Array.isArray(entities)) { errors.push('domain.entities must be an array'); return; }
+  const entities = domain.entityList ?? [];
+  if (!Array.isArray(entities)) { errors.push('domain.entityList must be an array'); return; }
 
   for (const entity of entities) {
     if (!entity.name) errors.push(`Entity is missing name: ${JSON.stringify(entity).slice(0, 60)}`);
 
-    for (const attr of (entity.attributes ?? [])) {
-      const namedType = attr.namedType;
-      if (!namedType) errors.push(`Entity "${entity.name}" has attribute without namedType`);
-      else if (!namedType.name) errors.push(`Entity "${entity.name}" has namedType without name`);
+    for (const attr of (entity.attributeList ?? [])) {
+      const namedType = attr.variable;
+      if (!namedType) errors.push(`Entity "${entity.name}" has attribute without variable`);
+      else if (!namedType.name) errors.push(`Entity "${entity.name}" has variable without name`);
     }
   }
 
-  for (const rel of (domain.relationships ?? [])) {
-    for (const role of ['start_role', 'end_role']) {
+  for (const rel of (domain.relationshipList ?? [])) {
+    for (const role of ['startRoleRef', 'endRoleRef']) {
       const r = rel[role];
       if (!r) { errors.push(`Relationship missing ${role}`); continue; }
       if (!isPlainObject(r.entityRef)) { errors.push(`${role}.entityRef is missing`); continue; }
@@ -146,39 +146,39 @@ function validateAlgorithm(parsed, errors, availableAliases) {
 
   if (!isPlainObject(alg)) { errors.push('algorithm is missing'); return; }
 
-  const definitions = Array.isArray(alg.definitions)
-    ? alg.definitions
+  const definitions = Array.isArray(alg.algorithmList)
+    ? alg.algorithmList
     : [{
         name: alg.name,
-        imports: parsed.imports,
-        steps: parsed.steps,
+        importList: parsed.importList,
+        stepList: parsed.stepList,
       }];
 
   if (!Array.isArray(definitions) || definitions.length === 0) {
-    errors.push('algorithm.definitions or flat algorithm shape must be present');
+    errors.push('algorithm.algorithmList or flat algorithm shape must be present');
     return;
   }
 
   for (const [i, def] of definitions.entries()) {
-    const prefix = `algorithm.definitions[${i}]`;
+    const prefix = `algorithm.algorithmList[${i}]`;
     if (!def.name) errors.push(`${prefix} is missing name`);
 
-    if (!Array.isArray(def.imports) || def.imports.length === 0) {
-      errors.push(`${prefix}.imports must be a non-empty array`);
+    if (!Array.isArray(def.importList) || def.importList.length === 0) {
+      errors.push(`${prefix}.importList must be a non-empty array`);
     } else {
-      for (const imp of def.imports) {
+      for (const imp of def.importList) {
         if (!availableAliases.has(imp)) {
-          errors.push(`${prefix}.imports references unknown namespace alias: "${imp}"`);
+          errors.push(`${prefix}.importList references unknown namespace alias: "${imp}"`);
         }
       }
     }
 
-    if (!Array.isArray(def.steps)) {
-      errors.push(`${prefix}.steps must be an array`);
+    if (!Array.isArray(def.stepList)) {
+      errors.push(`${prefix}.stepList must be an array`);
       continue;
     }
 
-    validateSteps(def.steps, prefix, errors);
+    validateSteps(def.stepList, prefix, errors);
   }
 }
 
@@ -187,18 +187,18 @@ const VALID_STEP_TYPES = new Set(['step', 'decision', 'loop', 'foreach', 'operat
 function validateSteps(steps, prefix, errors) {
   for (const step of steps) {
     if (!step.id) errors.push(`${prefix}: step is missing id`);
-    if (!VALID_STEP_TYPES.has(step.type)) {
-      errors.push(`${prefix} step "${step.id}" has invalid type: ${step.type}`);
+    if (!VALID_STEP_TYPES.has(step.stepType)) {
+      errors.push(`${prefix} step "${step.id}" has invalid stepType: ${step.stepType}`);
     }
-    if (step.type === 'decision') {
+    if (step.stepType === 'decision') {
       if (!isPlainObject(step.condition)) errors.push(`${prefix} step "${step.id}" decision missing condition`);
-      if (!Array.isArray(step.branches)) errors.push(`${prefix} step "${step.id}" decision missing branches`);
+      if (!Array.isArray(step.branchList)) errors.push(`${prefix} step "${step.id}" decision missing branchList`);
     }
-    if (step.type === 'operation' && step.operation === undefined) {
-      errors.push(`${prefix} step "${step.id}" operation type missing operation field`);
+    if (step.stepType === 'operation' && step.operationRef === undefined) {
+      errors.push(`${prefix} step "${step.id}" operation type missing operationRef field`);
     }
-    if (step.body) validateSteps(step.body, `${prefix}/${step.id}`, errors);
-    for (const branch of (step.branches ?? [])) {
+    if (step.subStepList) validateSteps(step.subStepList, `${prefix}/${step.id}`, errors);
+    for (const branch of (step.branchList ?? [])) {
       if (branch.then) validateSteps(branch.then, `${prefix}/${step.id}/branch`, errors);
     }
   }

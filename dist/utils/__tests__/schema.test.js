@@ -76,9 +76,9 @@ function testRoundTrip(legacyModel, testName) {
     console.log(`\n2. Converting legacy → unified...`);
     const unified = (0, schemaMigration_1.convertLegacyDomainToUnified)(legacyModel);
     console.log(`   ✓ Conversion successful`);
-    console.log(`     - meta.namespaceRef: ${unified.meta?.namespaceRef?.length || 0} entries`);
-    console.log(`     - domain.entities: ${unified.domain?.entities?.length || 0}`);
-    console.log(`     - domain.imports: ${JSON.stringify(unified.domain?.imports)}`);
+    console.log(`     - meta.namespaceRefList: ${unified.meta?.namespaceRefList?.length || 0} entries`);
+    console.log(`     - domain.entityList: ${unified.domain?.entityList?.length || 0}`);
+    console.log(`     - domain.importList: ${JSON.stringify(unified.domain?.importList)}`);
     // Step 3: Validate unified schema
     console.log(`\n3. Validating unified schema...`);
     const validationResult = (0, schemaValidator_1.validateUnifiedModel)(unified);

@@ -24,9 +24,9 @@ exports.fromUnified = fromUnified;
 function convertLegacyDomainToUnified(legacyModel) {
     const result = {};
     // Extract namespace references (legacy: root.namespaceRef)
-    const namespaceRef = [];
+    const namespaceRefList = [];
     // Always add "local" namespace
-    namespaceRef.push({
+    namespaceRefList.push({
         alias: "local",
         filePath: "current",
         sourceType: "current",
@@ -35,11 +35,11 @@ function convertLegacyDomainToUnified(legacyModel) {
     if (legacyModel.namespaceRef && Array.isArray(legacyModel.namespaceRef)) {
         for (const ns of legacyModel.namespaceRef) {
             if (ns.alias !== "local") {
-                namespaceRef.push(ns);
+                namespaceRefList.push(ns);
             }
         }
     }
-    result.meta = { namespaceRef };
+    result.meta = { namespaceRefList };
     // Extract domain metadata and content
     const domain = {};
     // Create metadata (legacy has flat structure)
@@ -55,11 +55,11 @@ function convertLegacyDomainToUnified(legacyModel) {
         };
     }
     // Set default imports to "local" only (user adds more via imports panel)
-    domain.imports = ["local"];
+    domain.importList = ["local"];
     // Copy domain content
-    domain.entities = legacyModel.entities;
-    domain.simpleTypes = legacyModel.simpleTypes;
-    domain.relationships = legacyModel.relationships;
+    domain.entityList = legacyModel.entities;
+    domain.typeList = legacyModel.simpleTypes;
+    domain.relationshipList = legacyModel.relationships;
     domain.eventGlossary = legacyModel.eventGlossary;
     result.domain = domain;
     // Extract cross-domain dictionary
@@ -70,7 +70,7 @@ function convertLegacyDomainToUnified(legacyModel) {
         if (legacyModel.businessRules)
             dictionary.businessRules = legacyModel.businessRules;
         if (legacyModel.actors)
-            dictionary.actors = legacyModel.actors;
+            dictionary.actorList = legacyModel.actors;
         result.dictionary = dictionary;
     }
     return result;
@@ -82,23 +82,23 @@ function convertLegacyDomainToUnified(legacyModel) {
 function convertLegacySqdToUnified(legacySqd) {
     const result = {};
     // Extract namespace references from SQD (if any)
-    const namespaceRef = [];
-    namespaceRef.push({
+    const namespaceRefList = [];
+    namespaceRefList.push({
         alias: "local",
         filePath: "current",
         sourceType: "current",
     });
-    result.meta = { namespaceRef };
+    result.meta = { namespaceRefList };
     // Create algorithm definition from flat SQD structure
     const algorithmName = legacySqd.algorithm?.name || "Algorithm";
     const algorithm = {
-        imports: ["local"],
-        definitions: [
+        importList: ["local"],
+        algorithmList: [
             {
                 name: algorithmName,
-                parameters: legacySqd.parameters,
+                parameterList: legacySqd.parameters,
                 behavior: legacySqd.behavior,
-                steps: legacySqd.steps || [],
+                stepList: legacySqd.steps || [],
             },
         ],
     };
@@ -111,15 +111,15 @@ function convertLegacySqdToUnified(legacySqd) {
  */
 function mergeUnifiedModels(...models) {
     const merged = {
-        meta: { namespaceRef: [] },
+        meta: { namespaceRefList: [] },
     };
     for (const model of models) {
         // Merge namespace references
-        if (model.meta?.namespaceRef) {
-            const aliases = new Set(merged.meta.namespaceRef.map((n) => n.alias));
-            for (const ns of model.meta.namespaceRef) {
+        if (model.meta?.namespaceRefList) {
+            const aliases = new Set(merged.meta.namespaceRefList.map((n) => n.alias));
+            for (const ns of model.meta.namespaceRefList) {
                 if (!aliases.has(ns.alias)) {
-                    merged.meta.namespaceRef.push(ns);
+                    merged.meta.namespaceRefList.push(ns);
                     aliases.add(ns.alias);
                 }
             }
@@ -149,10 +149,10 @@ function mergeUnifiedModels(...models) {
                     ...model.dictionary.businessRules,
                 ];
             }
-            if (model.dictionary.actors) {
-                merged.dictionary.actors = [
-                    ...(merged.dictionary.actors || []),
-                    ...model.dictionary.actors,
+            if (model.dictionary.actorList) {
+                merged.dictionary.actorList = [
+                    ...(merged.dictionary.actorList || []),
+                    ...model.dictionary.actorList,
                 ];
             }
         }
@@ -174,19 +174,19 @@ function convertUnifiedToLegacyDomain(unified) {
         legacy.domain = unified.domain.metadata;
     }
     // Flatten namespace references
-    if (unified.meta?.namespaceRef) {
-        legacy.namespaceRef = unified.meta.namespaceRef;
+    if (unified.meta?.namespaceRefList) {
+        legacy.namespaceRef = unified.meta.namespaceRefList;
     }
     // Copy domain content directly to root (legacy structure)
-    legacy.entities = unified.domain?.entities;
-    legacy.simpleTypes = unified.domain?.simpleTypes;
-    legacy.relationships = unified.domain?.relationships;
+    legacy.entities = unified.domain?.entityList;
+    legacy.simpleTypes = unified.domain?.typeList;
+    legacy.relationships = unified.domain?.relationshipList;
     legacy.eventGlossary = unified.domain?.eventGlossary;
     // Copy dictionary back to root level
     if (unified.dictionary) {
         legacy.glossary = unified.dictionary.glossary;
         legacy.businessRules = unified.dictionary.businessRules;
-        legacy.actors = unified.dictionary.actors;
+        legacy.actors = unified.dictionary.actorList;
     }
     return legacy;
 }
@@ -197,16 +197,16 @@ function convertUnifiedToLegacyDomain(unified) {
  */
 function convertUnifiedToLegacySqd(unified) {
     const legacy = {};
-    const algorithmDef = unified.algorithm?.definitions?.[0];
+    const algorithmDef = unified.algorithm?.algorithmList?.[0];
     if (!algorithmDef) {
         return legacy;
     }
     legacy.algorithm = {
         name: algorithmDef.name,
     };
-    legacy.parameters = algorithmDef.parameters;
+    legacy.parameters = algorithmDef.parameterList;
     legacy.behavior = algorithmDef.behavior;
-    legacy.steps = algorithmDef.steps;
+    legacy.steps = algorithmDef.stepList;
     return legacy;
 }
 // ============================================================================
@@ -214,14 +214,14 @@ function convertUnifiedToLegacySqd(unified) {
 // ============================================================================
 /**
  * Detect if object is in unified format
- * Looks for meta.namespaceRef + domain.imports or algorithm.imports
+ * Looks for meta.namespaceRefList + domain.importList or algorithm.importList
  */
 function isUnifiedFormat(obj) {
     if (typeof obj !== "object" || obj === null) {
         return false;
     }
     const candidate = obj;
-    // Unified format has meta.namespaceRef at root
+    // Unified format has meta.namespaceRefList at root
     if (candidate.meta && typeof candidate.meta === "object") {
         const meta = candidate.meta;
         if (Array.isArray(meta.namespaceRef)) {

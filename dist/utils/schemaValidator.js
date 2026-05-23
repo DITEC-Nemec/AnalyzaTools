@@ -13,34 +13,34 @@ exports.formatValidationErrors = formatValidationErrors;
 // NAMESPACE VALIDATION
 // ============================================================================
 /**
- * Validate that all imports[] in domain/algorithm exist in meta.namespaceRef
- * Returns errors if imports reference non-existent namespaces
+ * Validate that all importList[] in domain/algorithm exist in meta.namespaceRefList
+ * Returns errors if importList reference non-existent namespaces
  */
 function validateImportsExist(model) {
     const errors = [];
-    const domainImports = model.domain?.imports ?? [];
-    const algorithmImports = model.algorithm?.imports ?? [];
-    const dictionaryImports = model.dictionary?.imports ?? [];
+    const domainImports = model.domain?.importList ?? [];
+    const algorithmImports = model.algorithm?.importList ?? [];
+    const dictionaryImports = model.dictionary?.importList ?? [];
     const hasAnyImports = domainImports.length > 0 || algorithmImports.length > 0 || dictionaryImports.length > 0;
-    if (!model.meta?.namespaceRef) {
+    if (!model.meta?.namespaceRefList) {
         if (hasAnyImports) {
             errors.push({
                 type: "warning",
-                path: "meta.namespaceRef",
-                message: "Cannot validate imports without meta.namespaceRef catalog",
+                path: "meta.namespaceRefList",
+                message: "Cannot validate imports without meta.namespaceRefList catalog",
             });
         }
         return errors;
     }
-    const validAliases = new Set(model.meta.namespaceRef.map((n) => n.alias));
+    const validAliases = new Set(model.meta.namespaceRefList.map((n) => n.alias));
     validAliases.add("local"); // local is always implicit
     // Check domain imports
     for (const alias of domainImports) {
         if (!validAliases.has(alias)) {
             errors.push({
                 type: "error",
-                path: `domain.imports`,
-                message: `Import alias "${alias}" not found in meta.namespaceRef`,
+                path: `domain.importList`,
+                message: `Import alias "${alias}" not found in meta.namespaceRefList`,
             });
         }
     }
@@ -49,8 +49,8 @@ function validateImportsExist(model) {
         if (!validAliases.has(alias)) {
             errors.push({
                 type: "error",
-                path: `algorithm.imports`,
-                message: `Import alias "${alias}" not found in meta.namespaceRef`,
+                path: `algorithm.importList`,
+                message: `Import alias "${alias}" not found in meta.namespaceRefList`,
             });
         }
     }
@@ -59,22 +59,22 @@ function validateImportsExist(model) {
         if (!validAliases.has(alias)) {
             errors.push({
                 type: "error",
-                path: `dictionary.imports`,
-                message: `Import alias "${alias}" not found in meta.namespaceRef`,
+                path: `dictionary.importList`,
+                message: `Import alias "${alias}" not found in meta.namespaceRefList`,
             });
         }
     }
     return errors;
 }
 /**
- * Validate that all namespace references in domain/algorithm are in imports[]
- * e.g., entity references using namespaceAlias="SOSM" when domain.imports doesn't include "SOSM"
+ * Validate that all namespace references in domain/algorithm are in importList[]
+ * e.g., entity references using namespaceAlias="SOSM" when domain.importList doesn't include "SOSM"
  */
 function validateNamespaceReferences(model) {
     const errors = [];
     // Collect valid namespaces per module
-    const domainImports = new Set([...(model.domain?.imports ?? []), "local"]);
-    const algorithmImports = new Set([...(model.algorithm?.imports ?? []), "local"]);
+    const domainImports = new Set([...(model.domain?.importList ?? []), "local"]);
+    const algorithmImports = new Set([...(model.algorithm?.importList ?? []), "local"]);
     // Validate domain namespace usages
     if (model.domain) {
         const domainErrors = validateModuleNamespaceUsage(model.domain, domainImports, "domain");
@@ -92,24 +92,24 @@ function validateNamespaceReferences(model) {
  */
 function validateModuleNamespaceUsage(module, allowedImports, moduleName) {
     const errors = [];
-    if ("entities" in module && module.entities) {
-        for (let i = 0; i < module.entities.length; i++) {
-            const entity = module.entities[i];
-            const entityErrors = validateEntityNamespaces(entity, allowedImports, `${moduleName}.entities[${i}]`);
+    if ("entityList" in module && module.entityList) {
+        for (let i = 0; i < module.entityList.length; i++) {
+            const entity = module.entityList[i];
+            const entityErrors = validateEntityNamespaces(entity, allowedImports, `${moduleName}.entityList[${i}]`);
             errors.push(...entityErrors);
         }
     }
-    if ("relationships" in module && module.relationships) {
-        for (let i = 0; i < module.relationships.length; i++) {
-            const rel = module.relationships[i];
-            const relErrors = validateRelationshipNamespaces(rel, allowedImports, `${moduleName}.relationships[${i}]`);
+    if ("relationshipList" in module && module.relationshipList) {
+        for (let i = 0; i < module.relationshipList.length; i++) {
+            const rel = module.relationshipList[i];
+            const relErrors = validateRelationshipNamespaces(rel, allowedImports, `${moduleName}.relationshipList[${i}]`);
             errors.push(...relErrors);
         }
     }
-    if ("definitions" in module && module.definitions) {
-        for (let i = 0; i < module.definitions.length; i++) {
-            const def = module.definitions[i];
-            const defErrors = validateAlgorithmNamespaces(def, allowedImports, `${moduleName}.definitions[${i}]`);
+    if ("algorithmList" in module && module.algorithmList) {
+        for (let i = 0; i < module.algorithmList.length; i++) {
+            const def = module.algorithmList[i];
+            const defErrors = validateAlgorithmNamespaces(def, allowedImports, `${moduleName}.algorithmList[${i}]`);
             errors.push(...defErrors);
         }
     }
@@ -120,35 +120,35 @@ function validateModuleNamespaceUsage(module, allowedImports, moduleName) {
  */
 function validateEntityNamespaces(entity, allowedImports, path) {
     const errors = [];
-    if (entity.attributes) {
-        for (let i = 0; i < entity.attributes.length; i++) {
-            const attr = entity.attributes[i];
-            const namedType = attr.namedType;
-            if (namedType.entityRef?.namespaceAlias) {
-                if (!allowedImports.has(namedType.entityRef.namespaceAlias)) {
+    if (entity.attributeList) {
+        for (let i = 0; i < entity.attributeList.length; i++) {
+            const attr = entity.attributeList[i];
+            const variable = attr.variable;
+            if (variable.entityRef?.namespaceAlias) {
+                if (!allowedImports.has(variable.entityRef.namespaceAlias)) {
                     errors.push({
                         type: "error",
-                        path: `${path}.attributes[${i}].namedType.entityRef.namespaceAlias`,
-                        message: `Namespace alias "${namedType.entityRef.namespaceAlias}" not in imports`,
+                        path: `${path}.attributeList[${i}].variable.entityRef.namespaceAlias`,
+                        message: `Namespace alias "${variable.entityRef.namespaceAlias}" not in imports`,
                     });
                 }
             }
-            if (namedType.typeRef?.namespaceAlias) {
-                if (!allowedImports.has(namedType.typeRef.namespaceAlias)) {
+            if (variable.typeRef?.namespaceAlias) {
+                if (!allowedImports.has(variable.typeRef.namespaceAlias)) {
                     errors.push({
                         type: "error",
-                        path: `${path}.attributes[${i}].namedType.typeRef.namespaceAlias`,
-                        message: `Namespace alias "${namedType.typeRef.namespaceAlias}" not in imports`,
+                        path: `${path}.attributeList[${i}].variable.typeRef.namespaceAlias`,
+                        message: `Namespace alias "${variable.typeRef.namespaceAlias}" not in imports`,
                     });
                 }
             }
         }
     }
-    if (entity.functions) {
-        for (let i = 0; i < entity.functions.length; i++) {
-            const func = entity.functions[i];
+    if (entity.functionList) {
+        for (let i = 0; i < entity.functionList.length; i++) {
+            const func = entity.functionList[i];
             if (func.behavior) {
-                const behErrors = validateBehaviorNamespaces(func.behavior, allowedImports, `${path}.functions[${i}].behavior`);
+                const behErrors = validateBehaviorNamespaces(func.behavior, allowedImports, `${path}.functionList[${i}].behavior`);
                 errors.push(...behErrors);
             }
         }
@@ -160,21 +160,21 @@ function validateEntityNamespaces(entity, allowedImports, path) {
  */
 function validateRelationshipNamespaces(rel, allowedImports, path) {
     const errors = [];
-    if (rel.start_role?.entityRef?.namespaceAlias) {
-        if (!allowedImports.has(rel.start_role.entityRef.namespaceAlias)) {
+    if (rel.startRoleRef?.entityRef?.namespaceAlias) {
+        if (!allowedImports.has(rel.startRoleRef.entityRef.namespaceAlias)) {
             errors.push({
                 type: "error",
-                path: `${path}.start_role.entityRef.namespaceAlias`,
-                message: `Namespace alias "${rel.start_role.entityRef.namespaceAlias}" not in imports`,
+                path: `${path}.startRoleRef.entityRef.namespaceAlias`,
+                message: `Namespace alias "${rel.startRoleRef.entityRef.namespaceAlias}" not in imports`,
             });
         }
     }
-    if (rel.end_role?.entityRef?.namespaceAlias) {
-        if (!allowedImports.has(rel.end_role.entityRef.namespaceAlias)) {
+    if (rel.endRoleRef?.entityRef?.namespaceAlias) {
+        if (!allowedImports.has(rel.endRoleRef.entityRef.namespaceAlias)) {
             errors.push({
                 type: "error",
-                path: `${path}.end_role.entityRef.namespaceAlias`,
-                message: `Namespace alias "${rel.end_role.entityRef.namespaceAlias}" not in imports`,
+                path: `${path}.endRoleRef.entityRef.namespaceAlias`,
+                message: `Namespace alias "${rel.endRoleRef.entityRef.namespaceAlias}" not in imports`,
             });
         }
     }
@@ -189,9 +189,9 @@ function validateAlgorithmNamespaces(def, allowedImports, path) {
         const behErrors = validateBehaviorNamespaces(def.behavior, allowedImports, `${path}.behavior`);
         errors.push(...behErrors);
     }
-    if (def.steps) {
-        for (let i = 0; i < def.steps.length; i++) {
-            const stepErrors = validateStepNamespaces(def.steps[i], allowedImports, `${path}.steps[${i}]`);
+    if (def.stepList) {
+        for (let i = 0; i < def.stepList.length; i++) {
+            const stepErrors = validateStepNamespaces(def.stepList[i], allowedImports, `${path}.stepList[${i}]`);
             errors.push(...stepErrors);
         }
     }
@@ -202,40 +202,40 @@ function validateAlgorithmNamespaces(def, allowedImports, path) {
  */
 function validateBehaviorNamespaces(behavior, allowedImports, path) {
     const errors = [];
-    if (behavior.actors) {
-        for (let i = 0; i < behavior.actors.length; i++) {
-            const actor = behavior.actors[i];
+    if (behavior.actorRefList) {
+        for (let i = 0; i < behavior.actorRefList.length; i++) {
+            const actor = behavior.actorRefList[i];
             if (!allowedImports.has(actor.namespaceAlias)) {
                 errors.push({
                     type: "error",
-                    path: `${path}.actors[${i}].namespaceAlias`,
+                    path: `${path}.actorRefList[${i}].namespaceAlias`,
                     message: `Namespace alias "${actor.namespaceAlias}" not in imports`,
                 });
             }
         }
     }
-    if (behavior.affectedEntities) {
-        for (let i = 0; i < behavior.affectedEntities.length; i++) {
-            const entity = behavior.affectedEntities[i];
+    if (behavior.affectedEntityList) {
+        for (let i = 0; i < behavior.affectedEntityList.length; i++) {
+            const entity = behavior.affectedEntityList[i];
             if (entity.attributeRef?.namespaceAlias) {
                 if (!allowedImports.has(entity.attributeRef.namespaceAlias)) {
                     errors.push({
                         type: "error",
-                        path: `${path}.affectedEntities[${i}].attributeRef.namespaceAlias`,
+                        path: `${path}.affectedEntityList[${i}].attributeRef.namespaceAlias`,
                         message: `Namespace alias "${entity.attributeRef.namespaceAlias}" not in imports`,
                     });
                 }
             }
         }
     }
-    if (behavior.errorEvents) {
-        for (let i = 0; i < behavior.errorEvents.length; i++) {
-            const errorEvent = behavior.errorEvents[i];
+    if (behavior.errorEventList) {
+        for (let i = 0; i < behavior.errorEventList.length; i++) {
+            const errorEvent = behavior.errorEventList[i];
             if (errorEvent.eventRef?.namespaceAlias) {
                 if (!allowedImports.has(errorEvent.eventRef.namespaceAlias)) {
                     errors.push({
                         type: "error",
-                        path: `${path}.errorEvents[${i}].eventRef.namespaceAlias`,
+                        path: `${path}.errorEventList[${i}].eventRef.namespaceAlias`,
                         message: `Namespace alias "${errorEvent.eventRef.namespaceAlias}" not in imports`,
                     });
                 }
@@ -250,8 +250,8 @@ function validateBehaviorNamespaces(behavior, allowedImports, path) {
 function validateStepNamespaces(step, allowedImports, path) {
     const errors = [];
     // Check operation references
-    if (step.operation && typeof step.operation === "object") {
-        const opErrors = validateOperationNamespaces(step.operation, allowedImports, `${path}.operation`);
+    if (step.operationRef && typeof step.operationRef === "object") {
+        const opErrors = validateOperationNamespaces(step.operationRef, allowedImports, `${path}.operationRef`);
         errors.push(...opErrors);
     }
     // Check condition
@@ -260,21 +260,21 @@ function validateStepNamespaces(step, allowedImports, path) {
         errors.push(...condErrors);
     }
     // Check branches recursively
-    if (step.branches) {
-        for (let i = 0; i < step.branches.length; i++) {
-            const branch = step.branches[i];
+    if (step.branchList) {
+        for (let i = 0; i < step.branchList.length; i++) {
+            const branch = step.branchList[i];
             if (branch.then) {
                 for (let j = 0; j < branch.then.length; j++) {
-                    const subErrors = validateStepNamespaces(branch.then[j], allowedImports, `${path}.branches[${i}].then[${j}]`);
+                    const subErrors = validateStepNamespaces(branch.then[j], allowedImports, `${path}.branchList[${i}].then[${j}]`);
                     errors.push(...subErrors);
                 }
             }
         }
     }
     // Check body recursively
-    if (step.body) {
-        for (let i = 0; i < step.body.length; i++) {
-            const subErrors = validateStepNamespaces(step.body[i], allowedImports, `${path}.body[${i}]`);
+    if (step.subStepList) {
+        for (let i = 0; i < step.subStepList.length; i++) {
+            const subErrors = validateStepNamespaces(step.subStepList[i], allowedImports, `${path}.subStepList[${i}]`);
             errors.push(...subErrors);
         }
     }
@@ -361,11 +361,15 @@ function validateConditionNamespaces(condition, allowedImports, path) {
 function validateUnifiedModel(model) {
     const errors = [];
     // Local alias is implicit and should not be listed explicitly in namespace catalog.
-    if (model.meta?.namespaceRef?.some((n) => n.alias === "local")) {
+    // Checks:
+    // - meta.namespaceRefList exists and has "local"
+    // - domain/algorithm importList exist in namespaceRefList
+    // - all namespace references are in importList
+    if (model.meta?.namespaceRefList?.some((n) => n.alias === "local")) {
         errors.push({
             type: "warning",
-            path: "meta.namespaceRef",
-            message: 'Alias "local" is implicit and should not be listed in meta.namespaceRef',
+            path: "meta.namespaceRefList",
+            message: 'Alias "local" is implicit and should not be listed in meta.namespaceRefList',
         });
     }
     // Validate imports exist

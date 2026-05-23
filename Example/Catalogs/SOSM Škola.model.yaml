@@ -1,42 +1,42 @@
 domain:
   metadata:
     name: SOSM Škola
-  imports:
+  importList:
     - SOSM Priradenie
     - Externe
-  entities:
+  entityList:
     - name: SOSM Škola
-      attributes:
-        - namedType:
+      attributeList:
+        - variable:
             name: Kapacita
             nullable: true
-            type: definition
+            varType: definition
             definition:
               restriction:
                 base: integer
-          states: []
-      functions:
+          codeLabelList: []
+      functionList:
         - name: funkcia_1
-          parameters: []
+          parameterList: []
           behavior:
             description: ''
-            preconditions: []
-            postconditions: []
-            errorEvents: []
-            affectedEntities: []
-            actors: []
-      stateModel:
+            preconditionList: []
+            postconditionList: []
+            errorEventList: []
+            affectedEntityList: []
+            actorRefList: []
+      stateList:
         - name: stav1
           label: ''
           description: ''
-          type: normal
+          stateType: normal
           isFinal: false
         - name: stav2
           label: ''
           description: ''
-          type: normal
+          stateType: normal
           isFinal: false
-      transitions:
+      transitionList:
         - id: ''
           from: stav1
           to: stav2
@@ -48,15 +48,26 @@ domain:
           priority: 0
           automatic: false
           description: ''
-          operation:
-            kind: event
-            eventRef:
+          operationRef:
+            callType: event
+            emitEventRef:
               namespaceAlias: SOSM Priradenie
               event: ''
-  simpleTypes: []
-  relationships: []
-  eventGlossary:
+  typeList:
+    - name: simpleType_1
+      definition:
+        restriction:
+          base:
+            namespaceAlias: ''
+            simpleType: ''
+  relationshipList: []
+  eventGlossaryList:
     - code: event-1
+      title: ''
+      definition: ''
+      severity: info
+      recommendedAction: ''
+    - code: event-2
       title: ''
       meaning: ''
       severity: info

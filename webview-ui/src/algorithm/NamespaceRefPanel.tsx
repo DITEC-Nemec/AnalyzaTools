@@ -4,26 +4,26 @@ import { vscodeApi } from './main';
 import { label } from '../ui-labels';
 
 interface Props {
-  namespaceRef: NamespaceEntity[];
+  namespaceRefList: NamespaceEntity[];
   onChange: (updated: NamespaceEntity[]) => void;
 }
 
-export const NamespaceRefPanel: React.FC<Props> = ({ namespaceRef, onChange }) => {
+export const NamespaceRefPanel: React.FC<Props> = ({ namespaceRefList, onChange }) => {
   const L = (p: string, fallback: string) => label(`algorithm.namespaceRef.${p}`, fallback);
 
   const [selectedIndex, setSelectedIndex] = React.useState<number | null>(
-    namespaceRef.length > 0 ? 0 : null
+    namespaceRefList.length > 0 ? 0 : null
   );
 
   React.useEffect(() => {
-    if (namespaceRef.length === 0) {
+    if (namespaceRefList.length === 0) {
       setSelectedIndex(null);
     } else if (selectedIndex === null) {
       setSelectedIndex(0);
-    } else if (selectedIndex >= namespaceRef.length) {
-      setSelectedIndex(namespaceRef.length - 1);
+    } else if (selectedIndex >= namespaceRefList.length) {
+      setSelectedIndex(namespaceRefList.length - 1);
     }
-  }, [namespaceRef, selectedIndex]);
+  }, [namespaceRefList, selectedIndex]);
 
   // Listen for filePicked messages from extension
   React.useEffect(() => {
@@ -35,7 +35,7 @@ export const NamespaceRefPanel: React.FC<Props> = ({ namespaceRef, onChange }) =
         filePath: msg.filePath ?? '',
         sourceType: msg.sourceType ?? 'model'
       };
-      const next = [...namespaceRef, newEntry];
+      const next = [...namespaceRefList, newEntry];
       onChange(next);
       setSelectedIndex(next.length - 1);
     };
@@ -48,23 +48,23 @@ export const NamespaceRefPanel: React.FC<Props> = ({ namespaceRef, onChange }) =
   };
 
   const addManual = () => {
-    const next = [...namespaceRef, { alias: '', filePath: '', sourceType: 'model' as const }];
+    const next = [...namespaceRefList, { alias: '', filePath: '', sourceType: 'model' as const }];
     onChange(next);
     setSelectedIndex(next.length - 1);
   };
 
   const remove = (index: number) => {
-    const next = namespaceRef.filter((_, i) => i !== index);
+    const next = namespaceRefList.filter((_, i) => i !== index);
     onChange(next);
     setSelectedIndex(next.length === 0 ? null : Math.min(index, next.length - 1));
   };
 
   const update = (index: number, patch: Partial<NamespaceEntity>) => {
-    const next = namespaceRef.map((item, i) => i === index ? { ...item, ...patch } : item);
+    const next = namespaceRefList.map((item, i) => i === index ? { ...item, ...patch } : item);
     onChange(next);
   };
 
-  const selected = selectedIndex !== null ? namespaceRef[selectedIndex] ?? null : null;
+  const selected = selectedIndex !== null ? namespaceRefList[selectedIndex] ?? null : null;
 
   return (
     <div className="namespace-panel">
@@ -80,7 +80,7 @@ export const NamespaceRefPanel: React.FC<Props> = ({ namespaceRef, onChange }) =
         </div>
       </div>
 
-      {namespaceRef.length === 0 ? (
+      {namespaceRefList.length === 0 ? (
         <p className="namespace-empty">{L('empty', 'Žiadne menné priestory.')}</p>
       ) : (
         <table className="namespace-table">
@@ -93,7 +93,7 @@ export const NamespaceRefPanel: React.FC<Props> = ({ namespaceRef, onChange }) =
             </tr>
           </thead>
           <tbody>
-            {namespaceRef.map((item, i) => (
+            {namespaceRefList.map((item, i) => (
               <tr
                 key={`${item.alias}-${i}`}
                 className={selectedIndex === i ? 'selected' : ''}

@@ -1,48 +1,7 @@
-
 domain:
-  metadata: {}
-  imports:
-    - local
-  entities:
-    - name: ŠaŠZ z prihlášky
-      label: ''
-      attributes: []
-      functions: []
-      stateModel: []
-    - name: Odbor pre prihlášky
-      label: ''
-      attributes: []
-      functions: []
-      stateModel: []
-    - name: ŠaŠZ
-      label: ''
-      attributes: []
-      functions: []
-      stateModel: []
-    - name: Dôvod prijatia alebo neprijatia
-      label: ''
-      attributes: []
-      functions: []
-      stateModel: []
-    - name: Prihláška
-      label: ''
-      attributes: []
-      functions: []
-      stateModel: []
-    - name: Školský rok
-      label: ''
-      attributes: []
-      functions: []
-      stateModel: []
-    - name: Typ prihlášky
-      label: ''
-      attributes: []
-      functions: []
-      stateModel: []
-  simpleTypes: []
-  relationships: []
-  eventGlossary: []
-dictionary:
-  glossary: []
-  businessRules: []
-  actors: []
+  metadata:
+    name: Externe
+  entityList: []
+  typeList: []
+  relationshipList: []
+  eventGlossaryList: []

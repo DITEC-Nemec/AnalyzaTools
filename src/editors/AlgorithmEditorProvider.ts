@@ -56,8 +56,10 @@ export class AlgorithmEditorProvider implements vscode.CustomTextEditorProvider 
   private extractNamespaceCatalog(content: string): NamespaceEntity[] {
     try {
       const parsed = yaml.load(content) as any;
-      const namespaceRef = Array.isArray(parsed?.meta?.namespaceRef)
-        ? parsed.meta.namespaceRef
+      const namespaceRef = Array.isArray(parsed?.meta?.namespaceRefList)
+        ? parsed.meta.namespaceRefList
+        : Array.isArray(parsed?.meta?.namespaceRef)
+          ? parsed.meta.namespaceRef
         : Array.isArray(parsed?.namespaceRef)
           ? parsed.namespaceRef
           : [];

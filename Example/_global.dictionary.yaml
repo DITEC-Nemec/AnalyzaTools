@@ -1,8 +1,20 @@
 dictionary:
-  imports:
-    - local
-    - SOSM Škola
-    - Externe
-  glossary: []
-  businessRules: []
-  actors: []
+  metadata:
+    name: _global
+  glossaryList:
+    - term: pojem_1
+      meaning: ''
+      relatedEntity: ''
+    - term: pojem_2
+      meaning: ''
+      relatedEntity: ''
+  businessRuleList:
+    - code: BR-001
+      description: ''
+      severity: recommended
+  actorList:
+    - code: actor_1
+      title: ''
+      actorType: user
+      definition: ''
+      responsibilityList: []

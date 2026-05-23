@@ -17,7 +17,7 @@ interface Props {
   globalNamespaces?: NamespaceEntity[];
 }
 
-type StepType = SqdStep['type'];
+type StepType = SqdStep['stepType'];
 type TopTab = 'metadata' | 'imports' | 'algorithm' | 'steps';
 type AlgorithmSubTab = 'detail' | 'parameters';
 
@@ -82,13 +82,13 @@ const AddMenu: React.FC<AddMenuProps> = ({ onAdd }) => {
 
 const defaultCondition = (): StepCondition => ({ kind: 'simple', description: '', check: 'exists' });
 
-const getStepChildren = (step: SqdStep): SqdStep[] => step.body ?? step.steps ?? [];
+const getStepChildren = (step: SqdStep): SqdStep[] => step.subStepList ?? step.stepList ?? [];
 
 const setStepChildren = (step: SqdStep, children: SqdStep[]): SqdStep => {
-  if (step.steps) {
-    return { ...step, body: children, steps: children };
+  if (step.stepList) {
+    return { ...step, subStepList: children, stepList: children };
   }
-  return { ...step, body: children };
+  return { ...step, subStepList: children };
 };
 
 const normalizeAlgorithmParameters = (algorithm: AlgorithmMeta | undefined): Parameter[] => {
@@ -96,7 +96,7 @@ const normalizeAlgorithmParameters = (algorithm: AlgorithmMeta | undefined): Par
     return [];
   }
 
-  return (algorithm.parameters ?? []).map((param) => ({
+  return (algorithm.parameterList ?? []).map((param) => ({
     ...param,
     direction: param.direction ?? 'in'
   }));
@@ -132,26 +132,26 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
           walk(children);
         }
 
-        if (step.branches) {
-          for (const branch of step.branches) {
+        if (step.branchList) {
+          for (const branch of step.branchList) {
             walk(branch.then ?? []);
           }
         }
       }
     };
 
-    walk(model.steps);
+    walk(model.stepList);
     return String(maxId + 1);
   };
 
   const createStep = (type: StepType): SqdStep => {
-    const base: SqdStep = { id: nextStepId(), type, text: '' };
+    const base: SqdStep = { id: nextStepId(), stepType: type, description: '' };
 
     if (type === 'decision') {
       return {
         ...base,
         condition: defaultCondition(),
-        branches: [
+        branchList: [
           { when: true, then: [] },
           { when: false, then: [] }
         ]
@@ -162,21 +162,21 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
       return {
         ...base,
         condition: defaultCondition(),
-        body: []
+        subStepList: []
       };
     }
 
     if (type === 'foreach') {
       return {
         ...base,
-        collection: '',
-        item: '',
-        body: []
+        sourceCollectionRef: '',
+        iteratorItemName: '',
+        subStepList: []
       };
     }
 
     if (type === 'operation') {
-      return { ...base, operation: '' };
+      return { ...base, operationRef: '' };
     }
 
     if (type === 'return') {
@@ -188,7 +188,7 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
     }
 
     if (type === 'block') {
-      return { ...base, body: [] };
+      return { ...base, subStepList: [] };
     }
 
     return base;
@@ -210,7 +210,7 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
     });
   };
 
-  const namespaceItems = (model.namespaceRef ?? []).map((item) => ({
+  const namespaceItems = (model.namespaceRefList ?? []).map((item) => ({
     alias: item.alias ?? '',
     filePath: item.filePath ?? '',
     sourceType: item.sourceType ?? (item.alias === 'local' ? 'current' : 'model')
@@ -332,13 +332,13 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
 
   const getActorsForAlias = React.useCallback((alias: string | undefined): string[] => {
     if (!alias || alias === 'local') {
-      return (model.actors ?? []).map(actor => actor.code).filter((code): code is string => Boolean(code));
+      return (model.actorList ?? []).map(actor => actor.code).filter((code): code is string => Boolean(code));
     }
 
     return (namespaceModels[alias]?.actors ?? [])
       .map(actor => actor.code)
       .filter((code): code is string => Boolean(code));
-  }, [model.actors, namespaceModels]);
+  }, [model.actorList, namespaceModels]);
 
   const renderStepList = (
     items: SqdStep[],
@@ -395,9 +395,9 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
             owner.setParentItems(nextParent);
           };
 
-          const branches = step.branches && step.branches.length > 0
-            ? step.branches
-            : (step.type === 'decision'
+          const branches = step.branchList && step.branchList.length > 0
+            ? step.branchList
+            : (step.stepType === 'decision'
               ? [{ when: true, then: [] }, { when: false, then: [] }]
               : []);
 
@@ -553,9 +553,9 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
 
         {tab === 'imports' && (
           <ImportsPanel
-            imports={(model as any).imports ?? ['local']}
+            imports={(model as any).importList ?? (model as any).imports ?? ['local']}
             availableNamespaces={importNamespaceOptions}
-            onChange={(imports) => onChange({ ...model, imports } as any)}
+            onChange={(importList) => onChange({ ...model, importList } as any)}
           />
         )}
 
@@ -597,11 +597,11 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
                 <textarea
                   className="field-input"
                   rows={4}
-                  value={(model.algorithm?.behavior?.preconditions ?? []).join('\n')}
+                  value={(model.algorithm?.behavior?.preconditionList ?? (model.algorithm?.behavior as any)?.preconditions ?? []).join('\n')}
                   onChange={(e) => updateAlgorithm({
                     behavior: {
                       ...(model.algorithm?.behavior ?? {}),
-                      preconditions: e.target.value.split('\n').filter(s => s.trim().length > 0)
+                      preconditionList: e.target.value.split('\n').filter(s => s.trim().length > 0)
                     }
                   })}
                 />
@@ -610,30 +610,30 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
                 <textarea
                   className="field-input"
                   rows={4}
-                  value={(model.algorithm?.behavior?.postconditions ?? []).join('\n')}
+                  value={(model.algorithm?.behavior?.postconditionList ?? (model.algorithm?.behavior as any)?.postconditions ?? []).join('\n')}
                   onChange={(e) => updateAlgorithm({
                     behavior: {
                       ...(model.algorithm?.behavior ?? {}),
-                      postconditions: e.target.value.split('\n').filter(s => s.trim().length > 0)
+                      postconditionList: e.target.value.split('\n').filter(s => s.trim().length > 0)
                     }
                   })}
                 />
 
                 <ErrorEventsEditor
-                  errorEvents={model.algorithm?.behavior?.errorEvents ?? []}
-                  namespaceAliases={(model.namespaceRef ?? []).map(ns => ns.alias).filter((alias): alias is string => Boolean(alias))}
+                  errorEvents={model.algorithm?.behavior?.errorEventList ?? (model.algorithm?.behavior as any)?.errorEvents ?? []}
+                  namespaceAliases={(model.namespaceRefList ?? []).map(ns => ns.alias).filter((alias): alias is string => Boolean(alias))}
                   getEventsForAlias={getEventsForAlias}
                   onChange={(errorEvents) => updateAlgorithm({
                     behavior: {
                       ...(model.algorithm?.behavior ?? {}),
-                      errorEvents
+                      errorEventList: errorEvents
                     }
                   })}
                 />
 
                 <div style={{ marginTop: 16 }}>
                   <AffectedEntitiesEditor
-                    affectedEntities={model.algorithm?.behavior?.affectedEntities ?? []}
+                    affectedEntities={model.algorithm?.behavior?.affectedEntityList ?? (model.algorithm?.behavior as any)?.affectedEntities ?? []}
                     modelAliases={modelAliases}
                     sqdAliases={sqdAliases}
                     getEntitiesForAlias={getEntitiesForAlias}
@@ -641,20 +641,20 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
                     onChange={(affectedEntities) => updateAlgorithm({
                       behavior: {
                         ...(model.algorithm?.behavior ?? {}),
-                        affectedEntities
+                        affectedEntityList: affectedEntities
                       }
                     })}
                   />
                 </div>
 
                 <ActorRefsEditor
-                  actorRefs={normalizeActorRefs(model.algorithm?.behavior?.actors)}
-                  namespaceAliases={(model.namespaceRef ?? []).map(ns => ns.alias).filter((alias): alias is string => Boolean(alias))}
+                  actorRefs={normalizeActorRefs(model.algorithm?.behavior?.actorRefList ?? (model.algorithm?.behavior as any)?.actors)}
+                  namespaceAliases={(model.namespaceRefList ?? []).map(ns => ns.alias).filter((alias): alias is string => Boolean(alias))}
                   getAvailableActors={getActorsForAlias}
                   onChange={(actors) => updateAlgorithm({
                     behavior: {
                       ...(model.algorithm?.behavior ?? {}),
-                      actors
+                      actorRefList: actors
                     }
                   })}
                   prefix="algorithm"
@@ -674,9 +674,9 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
                 <ParametersEditor
                   value={normalizeAlgorithmParameters(model.algorithm)}
                   onChange={(parameters) => updateAlgorithm({
-                    parameters
+                    parameterList: parameters
                   })}
-                  namespaceRef={model.namespaceRef}
+                  namespaceRef={model.namespaceRefList}
                   vscodeApi={vscodeApi}
                   showDirection
                 />
@@ -685,7 +685,7 @@ export const NarrativePanel: React.FC<Props> = ({ model, onChange, globalNamespa
           </div>
         )}
 
-        {tab === 'steps' && renderStepList(model.steps, (steps) => onChange({ ...model, steps }), 0)}
+        {tab === 'steps' && renderStepList(model.stepList ?? [], (stepList) => onChange({ ...model, stepList }), 0)}
       </div>
     </div>
   );

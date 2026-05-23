@@ -54,7 +54,7 @@ const CONDITION_CHECKS: StepCondition['check'][] = [
   'less than'
 ];
 const IMPACT_TYPES: EntityImpact['impact'][] = ['read', 'write', 'affect'];
-const OPERATION_KINDS: ReferenceOperation['kind'][] = ['entityFunction', 'sqd', 'step', 'event'];
+const OPERATION_KINDS: ReferenceOperation['callType'][] = ['entityFunction', 'sqd', 'step', 'event'];
 
 const defaultCondition = (): StepCondition => ({
   kind: 'simple',
@@ -63,26 +63,26 @@ const defaultCondition = (): StepCondition => ({
 });
 
 const normalizeOperation = (step: SqdStep): ReferenceOperation | null => {
-  if (!step.operation || typeof step.operation === 'string') {
+  if (!step.operationRef || typeof step.operationRef === 'string') {
     return null;
   }
-  return step.operation;
+  return step.operationRef;
 };
 
 const summaryOperation = (operation: ReferenceOperation | null): string => {
   if (!operation) {
     return label('algorithm.steps.simpleText', 'simple text');
   }
-  if (operation.kind === 'step') {
+  if (operation.callType === 'step') {
     return `step:${operation.stepRef ?? '-'}`;
   }
-  if (operation.kind === 'entityFunction') {
+  if (operation.callType === 'entityFunction') {
     return `entityFunction:${operation.entityFunctionRef?.entity ?? '-'}:${operation.entityFunctionRef?.function ?? '-'}`;
   }
-  if (operation.kind === 'sqd') {
+  if (operation.callType === 'sqd') {
     return `sqd:${operation.sqdRef?.namespaceAlias ?? '-'}`;
   }
-  return `event:${operation.eventRef?.namespaceAlias ?? '-'}:${operation.eventRef?.event ?? '-'}`;
+  return `event:${operation.emitEventRef?.namespaceAlias ?? '-'}:${operation.emitEventRef?.event ?? '-'}`;
 };
 
 const summaryCondition = (condition: StepCondition | undefined): string => {
@@ -95,22 +95,22 @@ const summaryCondition = (condition: StepCondition | undefined): string => {
   return `${kind} | ${check}${desc ? ` | ${desc}` : ''}`;
 };
 
-const summaryEventRef = (eventRef: ReferenceEvent | null): string => {
-  if (!eventRef) {
+const summaryEventRef = (emitEventRef: ReferenceEvent | null): string => {
+  if (!emitEventRef) {
     return label('algorithm.steps.eventRefNone', 'nepridany');
   }
-  return `event:${eventRef.namespaceAlias ?? '-'}:${eventRef.event ?? '-'}`;
+  return `event:${emitEventRef.namespaceAlias ?? '-'}:${emitEventRef.event ?? '-'}`;
 };
 
 const normalizeParameterMap = (
-  ref?: { mapParameters?: ParameterMap[]; mapInput?: ParameterMap[]; mapOutput?: ParameterMap[] }
+  ref?: { parameterMapList?: ParameterMap[]; mapInput?: ParameterMap[]; mapOutput?: ParameterMap[] }
 ): ParameterMap[] => {
   if (!ref) {
     return [];
   }
 
-  if ((ref.mapParameters ?? []).length > 0) {
-    return (ref.mapParameters ?? []).map(item => ({
+  if ((ref.parameterMapList ?? []).length > 0) {
+    return (ref.parameterMapList ?? []).map(item => ({
       parameter: item.parameter ?? item.variable ?? '',
       value: item.value ?? ''
     }));
@@ -154,40 +154,40 @@ export const StepCard: React.FC<Props> = ({
 
   const condition = useMemo(() => step.condition ?? defaultCondition(), [step.condition]);
   const operation = useMemo(() => normalizeOperation(step), [step]);
-  const eventRef = useMemo(() => condition.waitEvent?.eventRef ?? null, [condition]);
+  const emitEventRef = useMemo(() => condition.waitEvent?.emitEventRef ?? null, [condition]);
 
   const upsertOperationObject = (patch: Partial<ReferenceOperation>) => {
     const next: ReferenceOperation = {
-      kind: operation?.kind ?? 'step',
+      callType: operation?.callType ?? 'step',
       ...operation,
       ...patch
     };
-    onChange({ ...step, operation: next });
+    onChange({ ...step, operationRef: next });
   };
 
-  const setOperationKind = (kind: string) => {
-    if (!kind) {
-      onChange({ ...step, operation: typeof step.operation === 'string' ? step.operation : '' });
+  const setOperationKind = (callType: string) => {
+    if (!callType) {
+      onChange({ ...step, operationRef: typeof step.operationRef === 'string' ? step.operationRef : '' });
       return;
     }
 
-    const resolvedKind = kind as ReferenceOperation['kind'];
+    const resolvedKind = callType as ReferenceOperation['callType'];
     const next: ReferenceOperation = {
-      kind: resolvedKind,
+      callType: resolvedKind,
       ...(resolvedKind === 'step' ? { stepRef: operation?.stepRef ?? '' } : {}),
       ...(resolvedKind === 'entityFunction'
         ? { entityFunctionRef: operation?.entityFunctionRef ?? { namespaceAlias: '', entity: '', function: '' } }
         : {}),
       ...(resolvedKind === 'sqd' ? { sqdRef: operation?.sqdRef ?? { namespaceAlias: '' } } : {}),
-      ...(resolvedKind === 'event' ? { eventRef: operation?.eventRef ?? { namespaceAlias: '', event: '' } } : {})
+      ...(resolvedKind === 'event' ? { emitEventRef: operation?.emitEventRef ?? { namespaceAlias: '', event: '' } } : {})
     };
-    onChange({ ...step, operation: next });
+    onChange({ ...step, operationRef: next });
   };
 
 
   const upsertEventRef = (patch: Partial<ReferenceEvent>) => {
     const next: ReferenceEvent = {
-      ...eventRef,
+      ...emitEventRef,
       ...patch
     };
     onChange({
@@ -195,8 +195,8 @@ export const StepCard: React.FC<Props> = ({
       condition: {
         ...condition,
         waitEvent: {
-          ...(condition.waitEvent ?? { eventRef: { namespaceAlias: 'local', event: '' } }),
-          eventRef: next
+          ...(condition.waitEvent ?? { emitEventRef: { namespaceAlias: 'local', event: '' } }),
+          emitEventRef: next
         }
       }
     });
@@ -213,11 +213,11 @@ export const StepCard: React.FC<Props> = ({
   };
 
   return (
-    <div className={`step-card step-card--${step.type}`} style={{ marginLeft: depth * 22 }}>
+    <div className={`step-card step-card--${step.stepType}`} style={{ marginLeft: depth * 22 }}>
       <div className="step-card-header" onClick={() => setExpanded(!expanded)}>
         {depth > 0 && <span className="step-depth-marker">│</span>}
         <span className="step-id">[{step.id}]</span>
-        <span className="step-type">{TYPE_LABELS[step.type] ?? step.type}</span>
+        <span className="step-type">{TYPE_LABELS[step.stepType] ?? step.stepType}</span>
         {actions && (
           <span className="step-actions" onClick={(e) => e.stopPropagation()}>
             {actions}
@@ -231,25 +231,25 @@ export const StepCard: React.FC<Props> = ({
           <label className="field-label">{L('steps.text', 'Text:')}</label>
           <textarea
             className="step-text"
-            value={step.text ?? ''}
+            value={step.description ?? ''}
             rows={3}
-            onChange={e => onChange({ ...step, text: e.target.value })}
+            onChange={e => onChange({ ...step, description: e.target.value })}
             placeholder="Opíš čo sa deje prirodzeným jazykom…"
           />
 
-          {step.type === 'operation' && (
+          {step.stepType === 'operation' && (
             <div className="step-meta">
               <label className="field-label">{L('steps.operationText', 'Operation text:')}</label>
               <input
                 className="field-input"
-                value={typeof step.operation === 'string' ? step.operation : ''}
-                onChange={e => onChange({ ...step, operation: e.target.value })}
+                value={typeof step.operationRef === 'string' ? step.operationRef : ''}
+                onChange={e => onChange({ ...step, operationRef: e.target.value })}
                 placeholder="Textový popis operácie"
               />
               <label className="field-label">{L('steps.operationKind', 'Operation kind:')}</label>
               <select
                 className="field-input"
-                value={operation?.kind ?? ''}
+                value={operation?.callType ?? ''}
                 onChange={(e) => setOperationKind(e.target.value)}
               >
                 <option value="">{L('steps.simpleText', 'simple text')}</option>
@@ -270,7 +270,7 @@ export const StepCard: React.FC<Props> = ({
             </div>
           )}
 
-          {(step.type === 'decision' || step.type === 'loop') && (
+          {(step.stepType === 'decision' || step.stepType === 'loop') && (
             <div className="step-meta">
               <label className="field-label">{L('steps.conditionKind', 'Condition kind:')}</label>
               <select
@@ -322,7 +322,7 @@ export const StepCard: React.FC<Props> = ({
                       condition: {
                         ...condition,
                         waitEvent: {
-                          eventRef: condition.waitEvent?.eventRef ?? { namespaceAlias: 'local', event: '' },
+                          emitEventRef: condition.waitEvent?.emitEventRef ?? { namespaceAlias: 'local', event: '' },
                           ...condition.waitEvent,
                           waitUntil: e.target.value
                         }
@@ -339,7 +339,7 @@ export const StepCard: React.FC<Props> = ({
                       condition: {
                         ...condition,
                         waitEvent: {
-                          eventRef: condition.waitEvent?.eventRef ?? { namespaceAlias: 'local', event: '' },
+                          emitEventRef: condition.waitEvent?.emitEventRef ?? { namespaceAlias: 'local', event: '' },
                           ...condition.waitEvent,
                           timeoutAction: e.target.value
                         }
@@ -348,9 +348,9 @@ export const StepCard: React.FC<Props> = ({
                     placeholder={L('steps.timeoutActionPlaceholder', 'napr. retry 3x, inak skoc na step 9')}
                   />
                   <div className="condition-summary">
-                    {L('steps.waitEventRef', 'Cakat na udalost')}: {summaryEventRef(eventRef)}
+                    {L('steps.waitEventRef', 'Cakat na udalost')}: {summaryEventRef(emitEventRef)}
                     <button className="btn-link" onClick={() => setShowEventRefDialog(true)}>
-                      [{eventRef ? ` ${L('steps.editWaitEventRef', 'Upravit udalost...')} ` : ` ${L('steps.addWaitEventRef', 'Pridat udalost...')} `}]
+                      [{emitEventRef ? ` ${L('steps.editWaitEventRef', 'Upravit udalost...')} ` : ` ${L('steps.addWaitEventRef', 'Pridat udalost...')} `}]
                     </button>
                   </div>
                 </>
@@ -377,39 +377,39 @@ export const StepCard: React.FC<Props> = ({
               <textarea
                 className="field-input"
                 rows={3}
-                value={(step.behavior.preconditions ?? []).join('\n')}
-                onChange={(e) => updateBehavior({ preconditions: e.target.value.split('\n').filter(s => s.trim().length > 0) })}
+                value={(step.behavior.preconditionList ?? []).join('\n')}
+                onChange={(e) => updateBehavior({ preconditionList: e.target.value.split('\n').filter(s => s.trim().length > 0) })}
               />
 
               <label className="field-label">{L('steps.postconditions', 'Postconditions')}</label>
               <textarea
                 className="field-input"
                 rows={3}
-                value={(step.behavior.postconditions ?? []).join('\n')}
-                onChange={(e) => updateBehavior({ postconditions: e.target.value.split('\n').filter(s => s.trim().length > 0) })}
+                value={(step.behavior.postconditionList ?? []).join('\n')}
+                onChange={(e) => updateBehavior({ postconditionList: e.target.value.split('\n').filter(s => s.trim().length > 0) })}
               />
 
               <ErrorEventsEditor
-                errorEvents={step.behavior.errorEvents ?? []}
+                errorEvents={step.behavior.errorEventList ?? []}
                 namespaceAliases={Array.from(new Set(['local', ...modelAliases, ...sqdAliases]))}
                 getEventsForAlias={getEventsForAlias}
-                onChange={(errorEvents) => updateBehavior({ errorEvents })}
+                onChange={(errorEventList) => updateBehavior({ errorEventList })}
               />
 
               <AffectedEntitiesEditor
-                affectedEntities={step.behavior.affectedEntities ?? []}
+                affectedEntities={step.behavior.affectedEntityList ?? []}
                 modelAliases={modelAliases}
                 sqdAliases={sqdAliases}
                 getEntitiesForAlias={getEntitiesForAlias}
                 getAttributesForEntity={getAttributesForEntity}
-                onChange={affectedEntities => updateBehavior({ affectedEntities })}
+                onChange={affectedEntityList => updateBehavior({ affectedEntityList })}
               />
 
               <ActorRefsEditor
-                actorRefs={normalizeActorRefs(step.behavior.actors)}
+                actorRefs={normalizeActorRefs(step.behavior.actorRefList)}
                 namespaceAliases={Array.from(new Set(['local', ...modelAliases, ...sqdAliases]))}
                 getAvailableActors={getActorsForAlias}
-                onChange={(actors) => updateBehavior({ actors })}
+                onChange={(actorRefList) => updateBehavior({ actorRefList })}
                 prefix="algorithm"
               />
 
@@ -418,11 +418,11 @@ export const StepCard: React.FC<Props> = ({
                 className="btn-link"
                 onClick={() => {
                   const hasContent = (step.behavior?.description ?? '').trim().length > 0
-                    || (step.behavior?.preconditions?.length ?? 0) > 0
-                    || (step.behavior?.postconditions?.length ?? 0) > 0
-                    || (step.behavior?.errorEvents?.length ?? 0) > 0
-                    || (step.behavior?.affectedEntities?.length ?? 0) > 0
-                    || (step.behavior?.actors?.length ?? 0) > 0;
+                    || (step.behavior?.preconditionList?.length ?? 0) > 0
+                    || (step.behavior?.postconditionList?.length ?? 0) > 0
+                    || (step.behavior?.errorEventList?.length ?? 0) > 0
+                    || (step.behavior?.affectedEntityList?.length ?? 0) > 0
+                    || (step.behavior?.actorRefList?.length ?? 0) > 0;
 
                   if (!hasContent) {
                     onChange({ ...step, behavior: undefined });
@@ -434,20 +434,20 @@ export const StepCard: React.FC<Props> = ({
             </div>
           )}
 
-          {step.type === 'foreach' && (
+          {step.stepType === 'foreach' && (
             <div className="step-meta">
               <label className="field-label">{L('steps.collection', 'Zbierka:')}</label>
               <input
                 className="field-input"
-                value={step.collection ?? ''}
-                onChange={e => onChange({ ...step, collection: e.target.value })}
+                value={step.sourceCollectionRef ?? ''}
+                onChange={e => onChange({ ...step, sourceCollectionRef: e.target.value })}
                 placeholder="napr. items, users"
               />
               <label className="field-label">{L('steps.item', 'Polozka:')}</label>
               <input
                 className="field-input"
-                value={step.item ?? ''}
-                onChange={e => onChange({ ...step, item: e.target.value })}
+                value={step.iteratorItemName ?? ''}
+                onChange={e => onChange({ ...step, iteratorItemName: e.target.value })}
                 placeholder="napr. item, user"
               />
             </div>
@@ -531,13 +531,13 @@ export const StepCard: React.FC<Props> = ({
                 <label className="field-label">{L('steps.operationKind', 'Operation kind:')}</label>
                 <select
                   className="field-input"
-                  value={condition.operationRef?.kind ?? 'step'}
+                  value={condition.operationRef?.callType ?? 'step'}
                   onChange={(e) =>
                     onChange({
                       ...step,
                       condition: {
                         ...condition,
-                        operationRef: { kind: e.target.value as ReferenceOperation['kind'] }
+                        operationRef: { callType: e.target.value as ReferenceOperation['callType'] }
                       }
                     })
                   }
@@ -549,7 +549,7 @@ export const StepCard: React.FC<Props> = ({
                   ))}
                 </select>
 
-                {(condition.operationRef?.kind ?? 'step') === 'step' && (
+                {(condition.operationRef?.callType ?? 'step') === 'step' && (
                   <>
                     <label className="field-label">{L('dialogs.stepRef', 'Step ref')}</label>
                     <input
@@ -567,7 +567,7 @@ export const StepCard: React.FC<Props> = ({
                     />
                   </>
                 )}
-                {(condition.operationRef?.kind ?? 'step') === 'entityFunction' && (
+                {(condition.operationRef?.callType ?? 'step') === 'entityFunction' && (
                   <>
                     <label className="field-label">EntityFunction namespaceAlias</label>
                     <select
@@ -644,19 +644,19 @@ export const StepCard: React.FC<Props> = ({
                         <option key={fn} value={fn}>{fn}</option>
                       ))}
                     </select>
-                    <label className="field-label">parameterMap</label>
+                    <label className="field-label">parameterMapList</label>
                     <VariableAssignList
                       value={normalizeParameterMap(condition.operationRef?.entityFunctionRef)}
-                      onChange={(mapParameters) => {
+                      onChange={(parameterMapList) => {
                         const currentRef: ReferenceEntityFunction = condition.operationRef?.entityFunctionRef ?? {};
                         onChange({
                           ...step,
                           condition: {
                             ...condition,
                             operationRef: {
-                              ...(condition.operationRef ?? { kind: 'entityFunction' }),
-                              kind: 'entityFunction',
-                              entityFunctionRef: { ...currentRef, mapParameters }
+                              ...(condition.operationRef ?? { callType: 'entityFunction' }),
+                              callType: 'entityFunction',
+                              entityFunctionRef: { ...currentRef, parameterMapList }
                             }
                           }
                         });
@@ -664,7 +664,7 @@ export const StepCard: React.FC<Props> = ({
                     />
                   </>
                 )}
-                {(condition.operationRef?.kind ?? 'step') === 'sqd' && (
+                {(condition.operationRef?.callType ?? 'step') === 'sqd' && (
                   <>
                     <label className="field-label">SQD namespaceAlias</label>
                     <select
@@ -690,19 +690,19 @@ export const StepCard: React.FC<Props> = ({
                         <option key={alias} value={alias}>{alias}</option>
                       ))}
                     </select>
-                    <label className="field-label">parameterMap</label>
+                    <label className="field-label">parameterMapList</label>
                     <VariableAssignList
                       value={normalizeParameterMap(condition.operationRef?.sqdRef)}
-                      onChange={(mapParameters) => {
+                      onChange={(parameterMapList) => {
                         const currentRef: ReferenceSqd = condition.operationRef?.sqdRef ?? {};
                         onChange({
                           ...step,
                           condition: {
                             ...condition,
                             operationRef: {
-                              ...(condition.operationRef ?? { kind: 'sqd' }),
-                              kind: 'sqd',
-                              sqdRef: { ...currentRef, mapParameters, mapInput: undefined, mapOutput: undefined }
+                              ...(condition.operationRef ?? { callType: 'sqd' }),
+                              callType: 'sqd',
+                              sqdRef: { ...currentRef, parameterMapList, mapInput: undefined, mapOutput: undefined }
                             }
                           }
                         });
@@ -710,22 +710,22 @@ export const StepCard: React.FC<Props> = ({
                     />
                   </>
                 )}
-                {(condition.operationRef?.kind ?? 'step') === 'event' && (
+                {(condition.operationRef?.callType ?? 'step') === 'event' && (
                   <>
                     <label className="field-label">Event namespaceAlias</label>
                     <select
                       className="field-input"
-                      value={condition.operationRef?.eventRef?.namespaceAlias ?? ''}
+                      value={condition.operationRef?.emitEventRef?.namespaceAlias ?? ''}
                       onChange={(e) => {
-                        const currentRef: ReferenceEvent = condition.operationRef?.eventRef ?? {};
+                        const currentRef: ReferenceEvent = condition.operationRef?.emitEventRef ?? {};
                         onChange({
                           ...step,
                           condition: {
                             ...condition,
                             operationRef: {
-                              ...(condition.operationRef ?? { kind: 'event' }),
-                              kind: 'event',
-                              eventRef: { ...currentRef, namespaceAlias: e.target.value, event: '' }
+                              ...(condition.operationRef ?? { callType: 'event' }),
+                              callType: 'event',
+                              emitEventRef: { ...currentRef, namespaceAlias: e.target.value, event: '' }
                             }
                           }
                         });
@@ -739,17 +739,17 @@ export const StepCard: React.FC<Props> = ({
                     <label className="field-label">Event</label>
                     <select
                       className="field-input"
-                      value={condition.operationRef?.eventRef?.event ?? ''}
+                      value={condition.operationRef?.emitEventRef?.event ?? ''}
                       onChange={(e) => {
-                        const currentRef: ReferenceEvent = condition.operationRef?.eventRef ?? {};
+                        const currentRef: ReferenceEvent = condition.operationRef?.emitEventRef ?? {};
                         onChange({
                           ...step,
                           condition: {
                             ...condition,
                             operationRef: {
-                              ...(condition.operationRef ?? { kind: 'event' }),
-                              kind: 'event',
-                              eventRef: { ...currentRef, event: e.target.value }
+                              ...(condition.operationRef ?? { callType: 'event' }),
+                              callType: 'event',
+                              emitEventRef: { ...currentRef, event: e.target.value }
                             }
                           }
                         });

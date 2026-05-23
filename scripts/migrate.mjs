@@ -23,7 +23,7 @@ function detectFormat(parsed) {
   }
 
   // Unified format has meta/domain/algorithm/dictionary at root
-  if (parsed.meta || (parsed.domain && 'imports' in parsed.domain) || parsed.algorithm?.definitions) {
+  if (parsed.meta || (parsed.domain && ('importList' in parsed.domain || 'entityList' in parsed.domain)) || parsed.algorithm?.algorithmList) {
     return 'unified';
   }
 
@@ -33,7 +33,7 @@ function detectFormat(parsed) {
   }
 
   // Legacy sqd format: algorithm.name at root level, steps at root
-  if (parsed.algorithm && parsed.steps && !parsed.algorithm.definitions) {
+  if (parsed.algorithm && parsed.steps && !parsed.algorithm.algorithmList) {
     return 'legacy';
   }
 
@@ -61,13 +61,13 @@ function convertLegacyDomain(parsed) {
         version: parsed.version,
         status: parsed.status
       },
-      imports: ['local'],
-      entities: parsed.entities || [],
-      simpleTypes: parsed.simpleTypes || [],
-      relationships: parsed.relationships || [],
+      importList: ['local'],
+      entityList: parsed.entities || [],
+      typeList: parsed.simpleTypes || [],
+      relationshipList: parsed.relationships || [],
       eventGlossary: parsed.eventGlossary || [],
-      functions: parsed.functions,
-      stateModel: parsed.stateModel
+      functionList: parsed.functions,
+      stateList: parsed.stateModel
     },
     dictionary: {
       glossary: parsed.glossary || [],
@@ -101,13 +101,13 @@ function convertLegacySqd(parsed) {
       ]
     },
     algorithm: {
-      definitions: [
+      algorithmList: [
         {
           name: parsed.algorithm?.name || 'algorithm',
           version: parsed.algorithm?.version,
-          imports: ['local'],
-          steps: parsed.steps || [],
-          actors: parsed.actors,
+          importList: ['local'],
+          stepList: parsed.steps || [],
+          actorList: parsed.actors,
           behavior: parsed.algorithm?.behavior
         }
       ]

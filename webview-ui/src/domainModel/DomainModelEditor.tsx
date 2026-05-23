@@ -134,6 +134,10 @@ const normalizeSimpleTypeRef = (ref: any): SimpleTypeRef => ({
   simpleType: ref?.simpleType ?? ''
 });
 
+const normalizeAttributeVariable = (attr: Attribute | null | undefined) => (
+  (attr as any)?.variable ?? (attr as any)?.namedType
+);
+
 const normalizeRole = (role: any): RelationshipRole => ({
   entity: role?.entity ?? role?.entityRef?.entity ?? '',
   nazov: role?.nazov ?? '',
@@ -302,14 +306,14 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       if (type === 'filePicked' && filePath) {
         let appendedIndex: number | null = null;
         updateModel(current => {
-          const namespaceRef = [...(current.namespaceRef ?? [])];
-          appendedIndex = namespaceRef.length;
-          namespaceRef.push({
+          const namespaceRefList = [...((current as any).namespaceRefList ?? [])];
+          appendedIndex = namespaceRefList.length;
+          namespaceRefList.push({
             alias: typeof alias === 'string' && alias.trim().length > 0 ? alias.trim() : 'newNamespace',
             sourceType: sourceType === 'sqd' || sourceType === 'current' ? sourceType : 'model',
             filePath
           });
-          return { ...current, namespaceRef };
+          return { ...current, namespaceRefList } as DomainModel;
         });
 
         if (appendedIndex !== null) {
@@ -353,7 +357,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const localCatalog = (model.namespaceRef ?? []).filter((ns) => !!ns.alias);
+    const localCatalog = (((model as any).namespaceRefList ?? []) as NamespaceEntity[]).filter((ns) => !!ns.alias);
     const mergedCatalog = [...globalNamespaces, ...localCatalog].reduce<Map<string, NamespaceEntity>>((acc, ns) => {
       if (ns.alias) {
         acc.set(ns.alias, ns);
@@ -361,8 +365,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return acc;
     }, new Map());
 
-    const imports = Array.isArray((model as any).imports)
-      ? (model as any).imports.filter((alias: unknown): alias is string => typeof alias === 'string' && alias.trim().length > 0)
+    const imports = Array.isArray((model as any).importList)
+      ? (model as any).importList.filter((alias: unknown): alias is string => typeof alias === 'string' && alias.trim().length > 0)
       : [];
 
     const modelAliasesToLoad = Array.from(new Set(imports))
@@ -387,20 +391,40 @@ const DomainModelEditor: React.FC<EditorProps> = ({
     });
   }, [model, vscodeApi, globalNamespaces]);
 
-  const entities = useMemo(() => model?.entities ?? [], [model]);
-  const simpleTypes = useMemo(() => model?.simpleTypes ?? [], [model]);
-  const relationships = useMemo(() => model?.relationships ?? [], [model]);
-  const glossary = useMemo(() => model?.glossary ?? [], [model]);
-  const eventGlossary = useMemo(() => model?.eventGlossary ?? [], [model]);
-  const actors = useMemo(() => model?.actors ?? [], [model]);
-  const namespaceRef = useMemo(() => model?.namespaceRef ?? [], [model]);
+  const entities = useMemo(() => model?.entityList ?? [], [model]);
+  const simpleTypes = useMemo(() => model?.typeList ?? [], [model]);
+  const relationships = useMemo(() => model?.relationshipList ?? [], [model]);
+  const glossary = useMemo(() => model?.glossaryList ?? [], [model]);
+  const eventGlossary = useMemo(() => model?.eventGlossaryList ?? [], [model]);
+  const actors = useMemo(() => model?.actorList ?? [], [model]);
+  const namespaceRef = useMemo(() => model?.namespaceRefList ?? [], [model]);
 
-  const selectedEntity = selectedEntityIndex !== null ? entities[selectedEntityIndex] : null;
-  const selectedAttribute = selectedAttributeIndex !== null && selectedEntity ? selectedEntity.attributes?.[selectedAttributeIndex] : null;
-  const selectedAttributeState = selectedAttributeStateIndex !== null && selectedAttribute ? selectedAttribute.states?.[selectedAttributeStateIndex] : null;
-  const selectedFunction = selectedFunctionIndex !== null && selectedEntity ? selectedEntity.functions?.[selectedFunctionIndex] : null;
-  const selectedStateModel = selectedStateModelIndex !== null && selectedEntity ? selectedEntity.stateModel?.[selectedStateModelIndex] : null;
-  const selectedTransition = selectedTransitionIndex !== null && selectedEntity ? selectedEntity.transitions?.[selectedTransitionIndex] : null;
+  const selectedEntity = useMemo(() => {
+    if (selectedEntityIndex === null) {
+      return null;
+    }
+    const entity = entities[selectedEntityIndex];
+    if (!entity) {
+      return null;
+    }
+    return {
+      ...entity,
+      attributes: (entity as any).attributeList ?? [],
+      functions: (entity as any).functionList ?? [],
+      stateModel: (entity as any).stateList ?? [],
+      transitions: (entity as any).transitionList ?? []
+    } as Entity & {
+      attributes: Attribute[];
+      functions: DomainFunction[];
+      stateModel: StateEntry[];
+      transitions: Transition[];
+    };
+  }, [entities, selectedEntityIndex]);
+  const selectedAttribute = selectedAttributeIndex !== null && selectedEntity ? selectedEntity.attributeList?.[selectedAttributeIndex] : null;
+  const selectedAttributeState = selectedAttributeStateIndex !== null && selectedAttribute ? selectedAttribute.codeLabelList?.[selectedAttributeStateIndex] : null;
+  const selectedFunction = selectedFunctionIndex !== null && selectedEntity ? selectedEntity.functionList?.[selectedFunctionIndex] : null;
+  const selectedStateModel = selectedStateModelIndex !== null && selectedEntity ? selectedEntity.stateList?.[selectedStateModelIndex] : null;
+  const selectedTransition = selectedTransitionIndex !== null && selectedEntity ? selectedEntity.transitionList?.[selectedTransitionIndex] : null;
   const selectedSimpleType = selectedSimpleTypeIndex !== null ? simpleTypes[selectedSimpleTypeIndex] : null;
   const selectedRelationship = selectedRelationshipIndex !== null ? relationships[selectedRelationshipIndex] : null;
   const selectedGlossary = selectedGlossaryIndex !== null ? glossary[selectedGlossaryIndex] : null;
@@ -426,17 +450,37 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
   const updateEntity = (index: number, patch: Partial<Entity>) => {
     updateModel(current => {
-      const entities = [...(current.entities ?? [])];
-      entities[index] = { ...entities[index], ...patch };
-      return { ...current, entities };
+      const normalizedPatch = { ...(patch as any) };
+      if (normalizedPatch.attributes !== undefined && normalizedPatch.attributeList === undefined) {
+        normalizedPatch.attributeList = normalizedPatch.attributes;
+      }
+      if (normalizedPatch.functions !== undefined && normalizedPatch.functionList === undefined) {
+        normalizedPatch.functionList = normalizedPatch.functions;
+      }
+      if (normalizedPatch.stateModel !== undefined && normalizedPatch.stateList === undefined) {
+        normalizedPatch.stateList = normalizedPatch.stateModel;
+      }
+      if (normalizedPatch.transitions !== undefined && normalizedPatch.transitionList === undefined) {
+        normalizedPatch.transitionList = normalizedPatch.transitions;
+      }
+      const entityList = [...(current.entityList ?? [])];
+      entityList[index] = { ...entityList[index], ...normalizedPatch };
+      return { ...current, entityList };
     });
   };
 
   const updateAttribute = (index: number, patch: Partial<Attribute>) => {
     if (selectedEntityIndex === null) return;
+    const normalizedPatch = { ...(patch as any) };
+    if (normalizedPatch.namedType !== undefined && normalizedPatch.variable === undefined) {
+      normalizedPatch.variable = normalizedPatch.namedType;
+    }
+    if (normalizedPatch.states !== undefined && normalizedPatch.codeLabelList === undefined) {
+      normalizedPatch.codeLabelList = normalizedPatch.states;
+    }
     updateEntity(selectedEntityIndex, {
-      attributes: (selectedEntity?.attributes ?? []).map((attr, i) =>
-        i === index ? { ...attr, ...patch } : attr
+      attributeList: (selectedEntity?.attributeList ?? []).map((attr, i) =>
+        i === index ? ({ ...attr, ...normalizedPatch } as Attribute) : attr
       )
     });
   };
@@ -449,8 +493,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   // Helper: Get imported namespaces (respects domain.imports if present)
   const getImportedNamespaces = (): string[] => {
     // If model has imports[] (unified format), use those + ensure 'local' is included
-    if ((model as any).imports && Array.isArray((model as any).imports)) {
-      const imported = (model as any).imports;
+    if ((model as any).importList && Array.isArray((model as any).importList)) {
+      const imported = (model as any).importList;
       return Array.from(new Set([...imported, 'local'])); // Always include local
     }
     // No imports means local-only references.
@@ -458,7 +502,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   };
 
   const getImportedModelAliases = (): string[] => {
-    const localCatalog = (model?.namespaceRef ?? []).filter((ns) => !!ns.alias);
+    const localCatalog = ((((model as any)?.namespaceRefList ?? []) as NamespaceEntity[])).filter((ns) => !!ns.alias);
     const mergedCatalog = [...globalNamespaces, ...localCatalog].reduce<Map<string, NamespaceEntity>>((acc, ns) => {
       if (ns.alias) {
         acc.set(ns.alias, ns);
@@ -477,7 +521,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   };
 
   const getImportedSqdAliases = (): string[] => {
-    const localCatalog = (model?.namespaceRef ?? []).filter((ns) => !!ns.alias);
+    const localCatalog = ((((model as any)?.namespaceRefList ?? []) as NamespaceEntity[])).filter((ns) => !!ns.alias);
     const mergedCatalog = [...globalNamespaces, ...localCatalog].reduce<Map<string, NamespaceEntity>>((acc, ns) => {
       if (ns.alias) {
         acc.set(ns.alias, ns);
@@ -503,36 +547,38 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   // Helper: Get available entities (all, or from specific namespace)
   const getAvailableEntities = (namespaceAlias?: string): string[] => {
     const sourceModel = getModelByAlias(namespaceAlias);
-    return (sourceModel?.entities ?? []).map(e => e.name).filter((name): name is string => Boolean(name));
+    return (((sourceModel as any)?.entityList ?? []) as Entity[]).map(e => e.name).filter((name): name is string => Boolean(name));
   };
 
   // Helper: Get available attributes for an entity
   const getAvailableAttributes = (entityName: string, namespaceAlias?: string): string[] => {
     const sourceModel = getModelByAlias(namespaceAlias);
-    const entity = (sourceModel?.entities ?? []).find(e => e.name === entityName);
-    return (entity?.attributes ?? []).map(a => a.namedType?.name).filter((name): name is string => Boolean(name));
+    const entity = (((sourceModel as any)?.entityList ?? []) as Entity[]).find(e => e.name === entityName);
+    return (((entity as any)?.attributeList ?? []) as Attribute[])
+      .map(a => normalizeAttributeVariable(a)?.name)
+      .filter((name): name is string => Boolean(name));
   };
 
   const getAvailableFunctions = (namespaceAlias: string, entityName: string): string[] => {
     const sourceModel = getModelByAlias(namespaceAlias);
-    const entity = (sourceModel?.entities ?? []).find(e => e.name === entityName);
-    return (entity?.functions ?? []).map(fn => fn.name).filter((name): name is string => Boolean(name));
+    const entity = (((sourceModel as any)?.entityList ?? []) as Entity[]).find(e => e.name === entityName);
+    return (((entity as any)?.functionList ?? []) as DomainFunction[]).map(fn => fn.name).filter((name): name is string => Boolean(name));
   };
 
   // Helper: Get available simpleTypes (all, or from specific namespace)
   const getAvailableSimpleTypes = (namespaceAlias?: string): string[] => {
     const sourceModel = getModelByAlias(namespaceAlias);
-    return (sourceModel?.simpleTypes ?? []).map(st => st.name).filter((name): name is string => Boolean(name));
+    return (((sourceModel as any)?.typeList ?? []) as SimpleType[]).map(st => st.name).filter((name): name is string => Boolean(name));
   };
 
   const getAvailableActors = (namespaceAlias?: string): string[] => {
     const sourceModel = getModelByAlias(namespaceAlias);
-    return (sourceModel?.actors ?? []).map(actor => actor.code).filter((code): code is string => Boolean(code));
+    return (((sourceModel as any)?.actorList ?? []) as any[]).map(actor => actor.code).filter((code): code is string => Boolean(code));
   };
 
   const getAvailableEvents = (namespaceAlias?: string): string[] => {
     const sourceModel = getModelByAlias(namespaceAlias);
-    return (sourceModel?.eventGlossary ?? [])
+    return (((sourceModel as any)?.eventGlossaryList ?? []) as EventGlossaryEntry[])
       .map((entry) => entry.code)
       .filter((code): code is string => Boolean(code));
   };
@@ -542,8 +588,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const attrs = (selectedEntity.attributes ?? []).filter((_, i) => i !== attrIndex);
-    updateEntity(selectedEntityIndex, { attributes: attrs });
+    const attrs = (selectedEntity.attributeList ?? []).filter((_, i) => i !== attrIndex);
+    updateEntity(selectedEntityIndex, { attributeList: attrs });
 
     if (attrs.length === 0) {
       setSelectedAttributeIndex(null);
@@ -565,8 +611,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const attrs = moveItem(selectedEntity.attributes ?? [], attrIndex, attrIndex + direction);
-    updateEntity(selectedEntityIndex, { attributes: attrs });
+    const attrs = moveItem(selectedEntity.attributeList ?? [], attrIndex, attrIndex + direction);
+    updateEntity(selectedEntityIndex, { attributeList: attrs });
 
     setSelectedAttributeIndex(prev => {
       if (prev === null) {
@@ -584,8 +630,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const nextStates: CodeLabel[] = [...(selectedAttribute.states ?? []), { code: '', label: '' }];
-    updateAttribute(selectedAttributeIndex, { states: nextStates });
+    const nextStates: CodeLabel[] = [...(selectedAttribute.codeLabelList ?? []), { code: '', label: '' }];
+    updateAttribute(selectedAttributeIndex, { codeLabelList: nextStates });
     setSelectedAttributeStateIndex(nextStates.length - 1);
   };
 
@@ -594,9 +640,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const states = [...(selectedAttribute.states ?? [])];
+    const states = [...(selectedAttribute.codeLabelList ?? [])];
     states[stateIndex] = { ...states[stateIndex], ...patch };
-    updateAttribute(selectedAttributeIndex, { states });
+    updateAttribute(selectedAttributeIndex, { codeLabelList: states });
   };
 
   const removeAttributeState = (stateIndex: number) => {
@@ -604,10 +650,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const states = (selectedAttribute.states ?? []).filter((_, i) => i !== stateIndex);
-    updateAttribute(selectedAttributeIndex, { states });
+    const codeLabelList = (selectedAttribute.codeLabelList ?? []).filter((_, i) => i !== stateIndex);
+    updateAttribute(selectedAttributeIndex, { codeLabelList });
 
-    if (states.length === 0) {
+    if (codeLabelList.length === 0) {
       setSelectedAttributeStateIndex(null);
       return;
     }
@@ -616,7 +662,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       if (prev === null) {
         return null;
       }
-      return Math.min(prev, states.length - 1);
+      return Math.min(prev, codeLabelList.length - 1);
     });
   };
 
@@ -625,8 +671,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const states = moveItem(selectedAttribute.states ?? [], stateIndex, stateIndex + direction);
-    updateAttribute(selectedAttributeIndex, { states });
+    const codeLabelList = moveItem(selectedAttribute.codeLabelList ?? [], stateIndex, stateIndex + direction);
+    updateAttribute(selectedAttributeIndex, { codeLabelList });
 
     setSelectedAttributeStateIndex(prev => {
       if (prev === null) {
@@ -644,9 +690,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const functions = [...(selectedEntity.functions ?? [])];
-    functions[fnIndex] = { ...functions[fnIndex], ...patch };
-    updateEntity(selectedEntityIndex, { functions });
+    const functionList = [...(selectedEntity.functionList ?? [])];
+    functionList[fnIndex] = { ...functionList[fnIndex], ...patch };
+    updateEntity(selectedEntityIndex, { functionList });
   };
 
   const updateFunctionBehavior = (fnIndex: number, patch: Partial<NonNullable<DomainFunction['behavior']>>) => {
@@ -667,10 +713,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const functions = [
-      ...(selectedEntity.functions ?? []),
+    const functionList = [
+      ...(selectedEntity.functionList ?? []),
       {
-        name: `funkcia_${(selectedEntity.functions ?? []).length + 1}`,
+        name: `funkcia_${(selectedEntity.functionList ?? []).length + 1}`,
         parameters: [],
         behavior: {
           description: '',
@@ -683,8 +729,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       }
     ];
 
-    updateEntity(selectedEntityIndex, { functions });
-    setSelectedFunctionIndex(functions.length - 1);
+    updateEntity(selectedEntityIndex, { functionList });
+    setSelectedFunctionIndex(functionList.length - 1);
     setEntityTab('functions');
   };
 
@@ -693,8 +739,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const functions = (selectedEntity.functions ?? []).filter((_, i) => i !== fnIndex);
-    updateEntity(selectedEntityIndex, { functions });
+    const functions = (selectedEntity.functionList ?? []).filter((_, i) => i !== fnIndex);
+    updateEntity(selectedEntityIndex, { functionList: functions });
 
     if (functions.length === 0) {
       setSelectedFunctionIndex(null);
@@ -714,8 +760,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const functions = moveItem(selectedEntity.functions ?? [], fnIndex, fnIndex + direction);
-    updateEntity(selectedEntityIndex, { functions });
+    const functionList = moveItem(selectedEntity.functionList ?? [], fnIndex, fnIndex + direction);
+    updateEntity(selectedEntityIndex, { functionList });
 
     setSelectedFunctionIndex(prev => {
       if (prev === null) {
@@ -743,9 +789,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const states = [...(selectedEntity.stateModel ?? [])];
+    const states = [...(selectedEntity.stateList ?? [])];
     states[stateIndex] = { ...states[stateIndex], ...patch };
-    updateEntity(selectedEntityIndex, { stateModel: states });
+    updateEntity(selectedEntityIndex, { stateList: states });
   };
 
   const addEntityState = () => {
@@ -753,9 +799,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const stateModel = [...(selectedEntity.stateModel ?? []), { name: '', label: '', description: '', type: 'normal', isFinal: false }];
-    updateEntity(selectedEntityIndex, { stateModel });
-    setSelectedStateModelIndex(stateModel.length - 1);
+    const stateList = [...(selectedEntity.stateList ?? []), { name: '', label: '', description: '', type: 'normal', isFinal: false }];
+    updateEntity(selectedEntityIndex, { stateList });
+    setSelectedStateModelIndex(stateList.length - 1);
     setEntityTab('stateModel');
   };
 
@@ -764,10 +810,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const stateModel = (selectedEntity.stateModel ?? []).filter((_, i) => i !== stateIndex);
-    updateEntity(selectedEntityIndex, { stateModel });
+    const stateList = (selectedEntity.stateList ?? []).filter((_, i) => i !== stateIndex);
+    updateEntity(selectedEntityIndex, { stateList });
 
-    if (stateModel.length === 0) {
+    if (stateList.length === 0) {
       setSelectedStateModelIndex(null);
       return;
     }
@@ -776,7 +822,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       if (prev === null) {
         return null;
       }
-      return Math.min(prev, stateModel.length - 1);
+      return Math.min(prev, stateList.length - 1);
     });
   };
 
@@ -785,8 +831,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const stateModel = moveItem(selectedEntity.stateModel ?? [], stateIndex, stateIndex + direction);
-    updateEntity(selectedEntityIndex, { stateModel });
+    const stateList = moveItem(selectedEntity.stateList ?? [], stateIndex, stateIndex + direction);
+    updateEntity(selectedEntityIndex, { stateList });
 
     setSelectedStateModelIndex(prev => {
       if (prev === null) {
@@ -804,9 +850,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const transitions = [...(selectedEntity.transitions ?? [])];
-    transitions[transitionIndex] = { ...transitions[transitionIndex], ...patch };
-    updateEntity(selectedEntityIndex, { transitions });
+    const transitionList = [...(selectedEntity.transitionList ?? [])];
+    transitionList[transitionIndex] = { ...transitionList[transitionIndex], ...patch };
+    updateEntity(selectedEntityIndex, { transitionList });
   };
 
   const addEntityTransition = () => {
@@ -814,10 +860,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const stateNames = (selectedEntity.stateModel ?? []).map((state) => state.name).filter(Boolean);
+    const stateNames = (selectedEntity.stateList ?? []).map((state) => state.name).filter(Boolean);
     const fallback = stateNames[0] ?? '';
-    const transitions = [
-      ...(selectedEntity.transitions ?? []),
+    const transitionList = [
+      ...(selectedEntity.transitionList ?? []),
       {
         id: '',
         from: fallback,
@@ -830,8 +876,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       }
     ];
 
-    updateEntity(selectedEntityIndex, { transitions });
-    setSelectedTransitionIndex(transitions.length - 1);
+    updateEntity(selectedEntityIndex, { transitionList });
+    setSelectedTransitionIndex(transitionList.length - 1);
     setEntityTab('transitions');
   };
 
@@ -840,10 +886,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const transitions = (selectedEntity.transitions ?? []).filter((_, i) => i !== transitionIndex);
-    updateEntity(selectedEntityIndex, { transitions });
+    const transitionList = (selectedEntity.transitionList ?? []).filter((_, i) => i !== transitionIndex);
+    updateEntity(selectedEntityIndex, { transitionList });
 
-    if (transitions.length === 0) {
+    if (transitionList.length === 0) {
       setSelectedTransitionIndex(null);
       return;
     }
@@ -852,7 +898,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       if (prev === null) {
         return null;
       }
-      return Math.min(prev, transitions.length - 1);
+      return Math.min(prev, transitionList.length - 1);
     });
   };
 
@@ -861,8 +907,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const transitions = moveItem(selectedEntity.transitions ?? [], transitionIndex, transitionIndex + direction);
-    updateEntity(selectedEntityIndex, { transitions });
+    const transitionList = moveItem(selectedEntity.transitionList ?? [], transitionIndex, transitionIndex + direction);
+    updateEntity(selectedEntityIndex, { transitionList });
 
     setSelectedTransitionIndex(prev => {
       if (prev === null) {
@@ -885,7 +931,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
   const updateSimpleType = (index: number, patch: Partial<SimpleType>) => {
     updateModel(current => {
-      const next = [...(current.simpleTypes ?? [])];
+      const next = [...((current as any).typeList ?? [])];
       const currentName = next[index]?.name ?? '';
       next[index] = {
         ...normalizeSimpleType(next[index]),
@@ -894,7 +940,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       };
       return {
         ...current,
-        simpleTypes: next
+        typeList: next
       };
     });
   };
@@ -902,10 +948,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const addSimpleType = () => {
     updateModel(current => ({
       ...current,
-      simpleTypes: [
-        ...(current.simpleTypes ?? []),
+      typeList: [
+        ...((current as any).typeList ?? []),
         {
-          name: `simpleType_${(current.simpleTypes ?? []).length + 1}`,
+          name: `simpleType_${((current as any).typeList ?? []).length + 1}`,
           definition: {
             restriction: {
               base: { namespaceAlias: '', simpleType: '' }
@@ -922,7 +968,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const removeSimpleType = (index: number) => {
     updateModel(current => ({
       ...current,
-      simpleTypes: (current.simpleTypes ?? []).filter((_, i) => i !== index)
+      typeList: (((current as any).typeList ?? []) as SimpleType[]).filter((_, i) => i !== index)
     }));
 
     const nextLen = simpleTypes.length - 1;
@@ -942,7 +988,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const moveSimpleType = (index: number, direction: -1 | 1) => {
     updateModel(current => ({
       ...current,
-      simpleTypes: moveItem(current.simpleTypes ?? [], index, index + direction)
+      typeList: moveItem(((current as any).typeList ?? []) as SimpleType[], index, index + direction)
     }));
 
     setSelectedSimpleTypeIndex(prev => {
@@ -959,16 +1005,16 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const addRelationship = () => {
     updateModel(current => ({
       ...current,
-      relationships: [
-        ...(current.relationships ?? []),
+      relationshipList: [
+        ...((current as any).relationshipList ?? []),
         {
-          start_role: {
+          startRoleRef: {
             nazov: '',
             multiplicity: '1',
             description: '',
-            entityRef: { namespaceAlias: '', entity: current.entities[0]?.name ?? '' }
+            entityRef: { namespaceAlias: '', entity: (current.entityList ?? [])[0]?.name ?? '' }
           },
-          end_role: {
+          endRoleRef: {
             nazov: '',
             multiplicity: '*',
             description: '',
@@ -986,18 +1032,18 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
   const updateRelationship = (index: number, patch: Partial<Relationship>) => {
     updateModel(current => {
-      const next = [...(current.relationships ?? [])];
+      const next = [...((current as any).relationshipList ?? [])];
       next[index] = { ...next[index], ...patch };
-      return { ...current, relationships: next };
+      return { ...current, relationshipList: next } as DomainModel;
     });
   };
 
-  const updateRole = (index: number, side: 'start_role' | 'end_role', patch: Partial<RelationshipRole>) => {
+  const updateRole = (index: number, side: 'startRoleRef' | 'endRoleRef', patch: Partial<RelationshipRole>) => {
     if (!selectedRelationship) {
       return;
     }
 
-    const currentRole = normalizeRole(selectedRelationship[side]);
+    const currentRole = normalizeRole((selectedRelationship as any)[side]);
     updateRelationship(index, {
       [side]: {
         ...currentRole,
@@ -1010,7 +1056,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const removeRelationship = (index: number) => {
     updateModel(current => ({
       ...current,
-      relationships: (current.relationships ?? []).filter((_, i) => i !== index)
+      relationshipList: (((current as any).relationshipList ?? []) as Relationship[]).filter((_, i) => i !== index)
     }));
 
     const nextLen = relationships.length - 1;
@@ -1030,7 +1076,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const moveRelationship = (index: number, direction: -1 | 1) => {
     updateModel(current => ({
       ...current,
-      relationships: moveItem(current.relationships ?? [], index, index + direction)
+      relationshipList: moveItem((((current as any).relationshipList ?? []) as Relationship[]), index, index + direction)
     }));
 
     setSelectedRelationshipIndex(prev => {
@@ -1046,14 +1092,14 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
   const addGlossary = () => {
     updateModel(current => {
-      const entitiesLocal = current.entities ?? [];
+      const entitiesLocal = current.entityList ?? [];
       const fallbackEntity = entitiesLocal[0]?.name ?? '';
       return {
         ...current,
-        glossary: [
-          ...(current.glossary ?? []),
+        glossaryList: [
+          ...((current as any).glossaryList ?? []),
           {
-            term: `pojem_${(current.glossary ?? []).length + 1}`,
+            term: `pojem_${((current as any).glossaryList ?? []).length + 1}`,
             meaning: '',
             relatedEntity: fallbackEntity
           }
@@ -1067,16 +1113,16 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
   const updateGlossary = (index: number, patch: Partial<{ term: string; meaning: string; relatedEntity?: string }>) => {
     updateModel(current => {
-      const next = [...(current.glossary ?? [])];
+      const next = [...((current as any).glossaryList ?? [])];
       next[index] = { ...next[index], ...patch };
-      return { ...current, glossary: next };
+      return { ...current, glossaryList: next } as DomainModel;
     });
   };
 
   const removeGlossary = (index: number) => {
     updateModel(current => ({
       ...current,
-      glossary: (current.glossary ?? []).filter((_, i) => i !== index)
+      glossaryList: (((current as any).glossaryList ?? []) as any[]).filter((_, i) => i !== index)
     }));
 
     const nextLen = glossary.length - 1;
@@ -1096,7 +1142,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const moveGlossary = (index: number, direction: -1 | 1) => {
     updateModel(current => ({
       ...current,
-      glossary: moveItem(current.glossary ?? [], index, index + direction)
+      glossaryList: moveItem((((current as any).glossaryList ?? []) as any[]), index, index + direction)
     }));
 
     setSelectedGlossaryIndex(prev => {
@@ -1113,10 +1159,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const addEventGlossary = () => {
     updateModel(current => ({
       ...current,
-      eventGlossary: [
-        ...(current.eventGlossary ?? []),
+      eventGlossaryList: [
+        ...((current as any).eventGlossaryList ?? []),
         {
-          code: `event-${(current.eventGlossary ?? []).length + 1}`,
+          code: `event-${((current as any).eventGlossaryList ?? []).length + 1}`,
           title: '',
           meaning: '',
           severity: 'info',
@@ -1131,16 +1177,16 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
   const updateEventGlossary = (index: number, patch: Partial<EventGlossaryEntry>) => {
     updateModel(current => {
-      const next = [...(current.eventGlossary ?? [])];
+      const next = [...((current as any).eventGlossaryList ?? [])];
       next[index] = { ...next[index], ...patch };
-      return { ...current, eventGlossary: next };
+      return { ...current, eventGlossaryList: next } as DomainModel;
     });
   };
 
   const removeEventGlossary = (index: number) => {
     updateModel(current => ({
       ...current,
-      eventGlossary: (current.eventGlossary ?? []).filter((_, i) => i !== index)
+      eventGlossaryList: (((current as any).eventGlossaryList ?? []) as EventGlossaryEntry[]).filter((_, i) => i !== index)
     }));
 
     const nextLen = eventGlossary.length - 1;
@@ -1160,7 +1206,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const moveEventGlossary = (index: number, direction: -1 | 1) => {
     updateModel(current => ({
       ...current,
-      eventGlossary: moveItem(current.eventGlossary ?? [], index, index + direction)
+      eventGlossaryList: moveItem((((current as any).eventGlossaryList ?? []) as EventGlossaryEntry[]), index, index + direction)
     }));
 
     setSelectedEventGlossaryIndex(prev => {
@@ -1178,14 +1224,14 @@ const DomainModelEditor: React.FC<EditorProps> = ({
     updateModel(current => {
       return {
         ...current,
-        actors: [
-          ...(current.actors ?? []),
+        actorList: [
+          ...((current as any).actorList ?? []),
           {
-            code: `actor_${(current.actors ?? []).length + 1}`,
+            code: `actor_${((current as any).actorList ?? []).length + 1}`,
             title: '',
-            type: 'user',
-            meaning: '',
-            responsibilities: []
+            actorType: 'user',
+            definition: '',
+            responsibilityList: []
           }
         ]
       };
@@ -1195,18 +1241,18 @@ const DomainModelEditor: React.FC<EditorProps> = ({
     setSelectedActorIndex(actors.length);
   };
 
-  const updateActor = (index: number, patch: Partial<{ code: string; title?: string; type?: 'user' | 'system' | 'external_system'; meaning: string; responsibilities?: string[] }>) => {
+  const updateActor = (index: number, patch: Partial<{ code: string; title?: string; actorType?: 'user' | 'system' | 'external_system'; definition: string; responsibilityList?: string[] }>) => {
     updateModel(current => {
-      const next = [...(current.actors ?? [])];
+      const next = [...((current as any).actorList ?? [])];
       next[index] = { ...next[index], ...patch };
-      return { ...current, actors: next };
+      return { ...current, actorList: next } as DomainModel;
     });
   };
 
   const removeActor = (index: number) => {
     updateModel(current => ({
       ...current,
-      actors: (current.actors ?? []).filter((_, i) => i !== index)
+      actorList: (((current as any).actorList ?? []) as any[]).filter((_, i) => i !== index)
     }));
 
     const nextLen = actors.length - 1;
@@ -1226,7 +1272,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const moveActor = (index: number, direction: -1 | 1) => {
     updateModel(current => ({
       ...current,
-      actors: moveItem(current.actors ?? [], index, index + direction)
+      actorList: moveItem((((current as any).actorList ?? []) as any[]), index, index + direction)
     }));
 
     setSelectedActorIndex(prev => {
@@ -1243,7 +1289,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const addNamespace = () => {
     updateModel(current => ({
       ...current,
-      namespaceRef: [...(current.namespaceRef ?? []), { alias: '', filePath: '', sourceType: 'model' } as NamespaceEntity]
+      namespaceRefList: [...((current as any).namespaceRefList ?? []), { alias: '', filePath: '', sourceType: 'model' } as NamespaceEntity]
     }));
 
     setTopTab('namespaceRef');
@@ -1252,7 +1298,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
   const updateNamespace = (index: number, patch: Partial<NamespaceEntity>) => {
     updateModel(current => {
-      const next = [...(current.namespaceRef ?? [])];
+      const next = [...((current as any).namespaceRefList ?? [])];
       const merged = { ...next[index], ...patch };
 
       if (merged.sourceType === 'current') {
@@ -1263,14 +1309,14 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       }
 
       next[index] = merged;
-      return { ...current, namespaceRef: next };
+      return { ...current, namespaceRefList: next } as DomainModel;
     });
   };
 
   const removeNamespace = (index: number) => {
     updateModel(current => ({
       ...current,
-      namespaceRef: (current.namespaceRef ?? []).filter((_, i) => i !== index)
+      namespaceRefList: (((current as any).namespaceRefList ?? []) as NamespaceEntity[]).filter((_, i) => i !== index)
     }));
 
     const nextLen = namespaceRef.length - 1;
@@ -1290,7 +1336,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const moveNamespace = (index: number, direction: -1 | 1) => {
     updateModel(current => ({
       ...current,
-      namespaceRef: moveItem(current.namespaceRef ?? [], index, index + direction)
+      namespaceRefList: moveItem((((current as any).namespaceRefList ?? []) as NamespaceEntity[]), index, index + direction)
     }));
 
     setSelectedNamespaceIndex(prev => {
@@ -1308,14 +1354,14 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const addEntity = () => {
     updateModel(current => ({
       ...current,
-      entities: [
-        ...(current.entities ?? []),
+      entityList: [
+        ...(current.entityList ?? []),
         {
-          name: `entita_${(current.entities ?? []).length + 1}`,
-          attributes: [],
-          functions: [],
-          stateModel: [],
-          transitions: []
+          name: `entita_${(current.entityList ?? []).length + 1}`,
+          attributeList: [],
+          functionList: [],
+          stateList: [],
+          transitionList: []
         }
       ]
     }));
@@ -1327,7 +1373,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const removeEntity = (index: number) => {
     updateModel(current => ({
       ...current,
-      entities: (current.entities ?? []).filter((_, i) => i !== index)
+      entityList: (current.entityList ?? []).filter((_, i) => i !== index)
     }));
 
     const nextLen = entities.length - 1;
@@ -1347,7 +1393,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
   const moveEntity = (index: number, direction: -1 | 1) => {
     updateModel(current => ({
       ...current,
-      entities: moveItem(current.entities ?? [], index, index + direction)
+      entityList: moveItem(current.entityList ?? [], index, index + direction)
     }));
 
     setSelectedEntityIndex(prev => {
@@ -1376,10 +1422,20 @@ const DomainModelEditor: React.FC<EditorProps> = ({
       return;
     }
 
-    const nextName = `atribut_${(selectedEntity.attributes ?? []).length + 1}`;
-    const attributes = [
-      ...(selectedEntity.attributes ?? []),
+    const nextName = `atribut_${(selectedEntity.attributeList ?? []).length + 1}`;
+    const attributeList = [
+      ...(selectedEntity.attributeList ?? []),
       {
+        variable: {
+          name: nextName,
+          type: 'definition' as const,
+          definition: {
+            restriction: {
+              base: 'string'
+            }
+          },
+          nullable: true
+        },
         namedType: {
           name: nextName,
           type: 'definition' as const,
@@ -1390,12 +1446,13 @@ const DomainModelEditor: React.FC<EditorProps> = ({
           },
           nullable: true
         },
+        codeLabelList: [],
         states: []
       }
     ];
 
-    updateEntity(selectedEntityIndex, { attributes });
-    setSelectedAttributeIndex(attributes.length - 1);
+    updateEntity(selectedEntityIndex, { attributeList });
+    setSelectedAttributeIndex(attributeList.length - 1);
   };
 
   if (error) {
@@ -1410,12 +1467,12 @@ const DomainModelEditor: React.FC<EditorProps> = ({
     onModelSwitch(path);
   };
 
-  const renderRoleEditor = (label: string, side: 'start_role' | 'end_role') => {
+  const renderRoleEditor = (label: string, side: 'startRoleRef' | 'endRoleRef') => {
     if (selectedRelationshipIndex === null || !selectedRelationship) {
       return null;
     }
 
-    const role = normalizeRole(selectedRelationship[side]);
+    const role = normalizeRole((selectedRelationship as any)[side]);
 
     return (
       <div className="role-block">
@@ -1807,9 +1864,9 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         {isTabVisible('imports') && topTab === 'imports' && (
           <section className="panel">
             <ImportsPanel
-              imports={(model as any)?.imports ?? ['local']}
-              availableNamespaces={globalNamespaces.length > 0 ? globalNamespaces : (model?.namespaceRef ?? [])}
-              onChange={(imports) => updateModel(current => ({ ...current, imports } as any))}
+              imports={(model as any)?.importList ?? ['local']}
+              availableNamespaces={globalNamespaces.length > 0 ? globalNamespaces : (model?.namespaceRefList ?? [])}
+              onChange={(importList) => updateModel(current => ({ ...current, importList } as any))}
             />
           </section>
         )}
@@ -1838,10 +1895,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                   <tr key={entity.name + i} className={selectedEntityIndex === i ? 'selected' : ''} onClick={() => selectEntity(i)}>
                     <td>{entity.name}</td>
                     <td>{entity.description ?? '-'}</td>
-                    <td>{entity.attributes?.length ?? 0}</td>
-                    <td>{entity.functions?.length ?? 0}</td>
-                    <td>{entity.stateModel?.length ?? 0}</td>
-                    <td>{entity.transitions?.length ?? 0}</td>
+                    <td>{(entity as any).attributeList?.length ?? 0}</td>
+                    <td>{(entity as any).functionList?.length ?? 0}</td>
+                    <td>{(entity as any).stateList?.length ?? 0}</td>
+                    <td>{(entity as any).transitionList?.length ?? 0}</td>
                     <td>
                       <div className="inline-actions">
                         <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveEntity(i, -1); }}>↑</button>
@@ -1939,7 +1996,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                         </tr>
                       </thead>
                       <tbody>
-                        {(selectedEntity.attributes ?? []).map((attr, i) => (
+                        {(selectedEntity.attributeList ?? []).map((attr, i) => (
                           <tr key={(attr.namedType?.name ?? 'attr') + i} className={selectedAttributeIndex === i ? 'selected' : ''} onClick={() => { setSelectedAttributeIndex(i); setSelectedAttributeStateIndex(null); }}>
                             <td>{attr.namedType?.name ?? '-'}</td>
                             <td>{displayType(attr.namedType)}</td>
@@ -1948,7 +2005,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                             <td>
                               <div className="inline-actions">
                                 <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveAttribute(i, -1); }}>↑</button>
-                                <button disabled={i === (selectedEntity.attributes ?? []).length - 1} onClick={(e) => { e.stopPropagation(); moveAttribute(i, 1); }}>↓</button>
+                                <button disabled={i === (selectedEntity.attributeList ?? []).length - 1} onClick={(e) => { e.stopPropagation(); moveAttribute(i, 1); }}>↓</button>
                                 <button onClick={(e) => { e.stopPropagation(); removeAttribute(i); }}>✕</button>
                               </div>
                             </td>
@@ -2496,14 +2553,14 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                             </tr>
                           </thead>
                           <tbody>
-                            {(selectedAttribute.states ?? []).map((state, stateIndex) => (
+                            {(selectedAttribute.codeLabelList ?? []).map((state, stateIndex) => (
                               <tr key={`${state.code}-${stateIndex}`} className={selectedAttributeStateIndex === stateIndex ? 'selected' : ''} onClick={() => setSelectedAttributeStateIndex(stateIndex)}>
                                 <td>{state.code || '-'}</td>
                                 <td>{state.label || '-'}</td>
                                 <td>
                                   <div className="inline-actions">
                                     <button disabled={stateIndex === 0} onClick={(e) => { e.stopPropagation(); moveAttributeState(stateIndex, -1); }}>↑</button>
-                                    <button disabled={stateIndex === (selectedAttribute.states ?? []).length - 1} onClick={(e) => { e.stopPropagation(); moveAttributeState(stateIndex, 1); }}>↓</button>
+                                    <button disabled={stateIndex === (selectedAttribute.codeLabelList ?? []).length - 1} onClick={(e) => { e.stopPropagation(); moveAttributeState(stateIndex, 1); }}>↓</button>
                                     <button onClick={(e) => { e.stopPropagation(); removeAttributeState(stateIndex); }}>✕</button>
                                   </div>
                                 </td>
@@ -2543,7 +2600,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                         </tr>
                       </thead>
                       <tbody>
-                        {(selectedEntity.functions ?? []).map((fn, i) => (
+                        {(selectedEntity.functionList ?? []).map((fn, i) => (
                           <tr key={fn.name + i} className={selectedFunctionIndex === i ? 'selected' : ''} onClick={() => setSelectedFunctionIndex(i)}>
                             <td>{fn.name}</td>
                             <td>{fn.behavior?.description ?? '-'}</td>
@@ -2551,7 +2608,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                             <td>
                               <div className="inline-actions">
                                 <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveFunction(i, -1); }}>↑</button>
-                                <button disabled={i === (selectedEntity.functions ?? []).length - 1} onClick={(e) => { e.stopPropagation(); moveFunction(i, 1); }}>↓</button>
+                                <button disabled={i === (selectedEntity.functionList ?? []).length - 1} onClick={(e) => { e.stopPropagation(); moveFunction(i, 1); }}>↓</button>
                                 <button onClick={(e) => { e.stopPropagation(); removeFunction(i); }}>✕</button>
                               </div>
                             </td>
@@ -2654,7 +2711,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                         </tr>
                       </thead>
                       <tbody>
-                        {(selectedEntity.stateModel ?? []).map((state, i) => (
+                        {(selectedEntity.stateList ?? []).map((state, i) => (
                           <tr key={`${state.name}-${i}`} className={selectedStateModelIndex === i ? 'selected' : ''} onClick={() => setSelectedStateModelIndex(i)}>
                             <td>{state.name || '-'}</td>
                             <td>{state.label || '-'}</td>
@@ -2663,7 +2720,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                             <td>
                               <div className="inline-actions">
                                 <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveEntityState(i, -1); }}>↑</button>
-                                <button disabled={i === (selectedEntity.stateModel ?? []).length - 1} onClick={(e) => { e.stopPropagation(); moveEntityState(i, 1); }}>↓</button>
+                                <button disabled={i === (selectedEntity.stateList ?? []).length - 1} onClick={(e) => { e.stopPropagation(); moveEntityState(i, 1); }}>↓</button>
                                 <button onClick={(e) => { e.stopPropagation(); removeEntityState(i); }}>✕</button>
                               </div>
                             </td>
@@ -2748,7 +2805,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                         </tr>
                       </thead>
                       <tbody>
-                        {(selectedEntity.transitions ?? []).map((transition, i) => (
+                        {(selectedEntity.transitionList ?? []).map((transition, i) => (
                           <tr key={`${transition.id ?? 'transition'}-${i}`} className={selectedTransitionIndex === i ? 'selected' : ''} onClick={() => setSelectedTransitionIndex(i)}>
                             <td>{transition.from || '-'}</td>
                             <td>{formatTriggerEvent(transition)}</td>
@@ -2757,7 +2814,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                             <td>
                               <div className="inline-actions">
                                 <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveEntityTransition(i, -1); }}>↑</button>
-                                <button disabled={i === (selectedEntity.transitions ?? []).length - 1} onClick={(e) => { e.stopPropagation(); moveEntityTransition(i, 1); }}>↓</button>
+                                <button disabled={i === (selectedEntity.transitionList ?? []).length - 1} onClick={(e) => { e.stopPropagation(); moveEntityTransition(i, 1); }}>↓</button>
                                 <button onClick={(e) => { e.stopPropagation(); removeEntityTransition(i); }}>✕</button>
                               </div>
                             </td>
@@ -2776,7 +2833,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                         <label>{L('transitions.form.from', 'From')}</label>
                         <select value={selectedTransition.from ?? ''} onChange={(e) => updateEntityTransition(selectedTransitionIndex, { from: e.target.value })}>
                           <option value="">—</option>
-                          {(selectedEntity.stateModel ?? []).map((state, i) => (
+                          {(selectedEntity.stateList ?? []).map((state, i) => (
                             <option key={`from-state-${i}-${state.name}`} value={state.name}>{state.name}</option>
                           ))}
                         </select>
@@ -2784,7 +2841,7 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                         <label>{L('transitions.form.to', 'To')}</label>
                         <select value={selectedTransition.to ?? ''} onChange={(e) => updateEntityTransition(selectedTransitionIndex, { to: e.target.value })}>
                           <option value="">—</option>
-                          {(selectedEntity.stateModel ?? []).map((state, i) => (
+                          {(selectedEntity.stateList ?? []).map((state, i) => (
                             <option key={`to-state-${i}-${state.name}`} value={state.name}>{state.name}</option>
                           ))}
                         </select>
@@ -3218,12 +3275,12 @@ const DomainModelEditor: React.FC<EditorProps> = ({
               </thead>
               <tbody>
                 {relationships.map((rel, i) => {
-                  const startEntity = rel.start_role?.entityRef?.entity ?? rel.start_role?.entity;
-                  const endEntity = rel.end_role?.entityRef?.entity ?? rel.end_role?.entity;
-                  const startRoleName = rel.start_role?.nazov?.trim() ?? '';
-                  const startRoleMultiplicity = rel.start_role?.multiplicity?.trim() ?? '';
-                  const endRoleName = rel.end_role?.nazov?.trim() ?? '';
-                  const endRoleMultiplicity = rel.end_role?.multiplicity?.trim() ?? '';
+                  const startEntity = (rel as any).startRoleRef?.entityRef?.entity ?? (rel as any).startRoleRef?.entity;
+                  const endEntity = (rel as any).endRoleRef?.entityRef?.entity ?? (rel as any).endRoleRef?.entity;
+                  const startRoleName = (rel as any).startRoleRef?.nazov?.trim() ?? '';
+                  const startRoleMultiplicity = (rel as any).startRoleRef?.multiplicity?.trim() ?? '';
+                  const endRoleName = (rel as any).endRoleRef?.nazov?.trim() ?? '';
+                  const endRoleMultiplicity = (rel as any).endRoleRef?.multiplicity?.trim() ?? '';
                   const startRoleLabel = startRoleName
                     ? (startRoleMultiplicity ? `${startRoleName} (${startRoleMultiplicity})` : startRoleName)
                     : (startRoleMultiplicity ? `(${startRoleMultiplicity})` : '-');
@@ -3269,8 +3326,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                 <textarea rows={2} value={selectedRelationship.description ?? ''} onChange={(e) => updateRelationship(selectedRelationshipIndex, { description: e.target.value })} />
 
                 <div className="role-row">
-                  {renderRoleEditor(L('relationships.form.role.start', 'Start rola'), 'start_role')}
-                  {renderRoleEditor(L('relationships.form.role.end', 'End rola'), 'end_role')}
+                  {renderRoleEditor(L('relationships.form.role.start', 'Start rola'), 'startRoleRef')}
+                  {renderRoleEditor(L('relationships.form.role.end', 'End rola'), 'endRoleRef')}
                 </div>
               </div>
             )}
@@ -3328,13 +3385,13 @@ const DomainModelEditor: React.FC<EditorProps> = ({
         )}
 
         {isTabVisible('businessRules') && topTab === 'businessRules' && (() => {
-          const rules: import('../types/sqd').BusinessRule[] = (model as any)?.businessRules ?? [];
+          const rules: import('../types/sqd').BusinessRule[] = (model as any)?.businessRuleList ?? [];
           const selIdx = selectedBusinessRuleIndex;
           const setSelIdx = setSelectedBusinessRuleIndex;
           const selRule = selIdx !== null ? rules[selIdx] ?? null : null;
 
           const updateRules = (next: import('../types/sqd').BusinessRule[]) =>
-            updateModel(cur => ({ ...cur, businessRules: next } as any));
+            updateModel(cur => ({ ...cur, businessRuleList: next } as any));
 
           const addRule = () => {
             const next = [...rules, { code: `BR-${String(rules.length + 1).padStart(3, '0')}`, description: '', severity: 'recommended' as const }];
@@ -3407,8 +3464,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                   <textarea
                     className="field-input"
                     rows={3}
-                    value={(selRule.affectedEntities ?? []).join('\n')}
-                    onChange={(e) => updateRule(selIdx, { affectedEntities: e.target.value.split('\n').filter(s => s.trim()) })}
+                    value={(((selRule as any).affectedEntityNameList ?? (selRule as any).affectedEntities ?? []) as string[]).join('\n')}
+                    onChange={(e) => updateRule(selIdx, { affectedEntityNameList: e.target.value.split('\n').filter(s => s.trim()) } as any)}
                   />
                 </div>
               )}
@@ -3503,8 +3560,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                   <tr key={`${entry.code}-${i}`} className={selectedActorIndex === i ? 'selected' : ''} onClick={() => setSelectedActorIndex(i)}>
                     <td>{entry.code}</td>
                     <td>{entry.title || '-'}</td>
-                    <td>{entry.type || '-'}</td>
-                    <td>{entry.meaning ? entry.meaning.substring(0, 50) + (entry.meaning.length > 50 ? '...' : '') : '-'}</td>
+                    <td>{(entry as any).actorType ?? (entry as any).type ?? '-'}</td>
+                    <td>{((entry as any).definition ?? (entry as any).meaning) ? ((entry as any).definition ?? (entry as any).meaning).substring(0, 50) + (((entry as any).definition ?? (entry as any).meaning).length > 50 ? '...' : '') : '-'}</td>
                     <td>
                       <div className="inline-actions">
                         <button disabled={i === 0} onClick={(e) => { e.stopPropagation(); moveActor(i, -1); }}>↑</button>
@@ -3528,8 +3585,8 @@ const DomainModelEditor: React.FC<EditorProps> = ({
 
                 <label>{L('actors.type', 'Type')}</label>
                 <select
-                  value={selectedActor.type ?? 'user'}
-                  onChange={(e) => updateActor(selectedActorIndex, { type: e.target.value as 'user' | 'system' | 'external_system' })}
+                  value={(selectedActor as any).actorType ?? (selectedActor as any).type ?? 'user'}
+                  onChange={(e) => updateActor(selectedActorIndex, { actorType: e.target.value as 'user' | 'system' | 'external_system' })}
                 >
                   <option value="user">user</option>
                   <option value="system">system</option>
@@ -3537,10 +3594,10 @@ const DomainModelEditor: React.FC<EditorProps> = ({
                 </select>
 
                 <label>{L('actors.meaning', 'Meaning')}</label>
-                <textarea rows={4} value={selectedActor.meaning} onChange={(e) => updateActor(selectedActorIndex, { meaning: e.target.value })} />
+                <textarea rows={4} value={(selectedActor as any).definition ?? (selectedActor as any).meaning ?? ''} onChange={(e) => updateActor(selectedActorIndex, { definition: e.target.value })} />
 
                 <label>{L('actors.responsibilities', 'Responsibilities (one per line)')}</label>
-                <textarea rows={4} value={(selectedActor.responsibilities ?? []).join('\n')} onChange={(e) => updateActor(selectedActorIndex, { responsibilities: e.target.value.split('\n').filter(s => s.trim().length > 0) })} />
+                <textarea rows={4} value={(((selectedActor as any).responsibilityList ?? (selectedActor as any).responsibilities ?? []) as string[]).join('\n')} onChange={(e) => updateActor(selectedActorIndex, { responsibilityList: e.target.value.split('\n').filter(s => s.trim().length > 0) })} />
               </div>
             )}
           </section>

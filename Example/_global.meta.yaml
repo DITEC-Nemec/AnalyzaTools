@@ -1,7 +1,7 @@
 meta:
   metadata:
     name: _global
-  namespaceRef:
+  namespaceRefList:
     - alias: SOSM Škola
       filePath: Catalogs/SOSM Škola.model.yaml
       sourceType: model
@@ -14,6 +14,9 @@ meta:
     - alias: Externe
       filePath: Catalogs/Externe.model.yaml
       sourceType: model
+    - alias: unified-algorithm
+      filePath: Algoritm/unified-algorithm.sqd.yaml
+      sourceType: sqd
     - alias: unified-algorithm
       filePath: Algoritm/unified-algorithm.sqd.yaml
       sourceType: sqd

@@ -95,17 +95,22 @@ export const normalizeModelFormat = (
     return parsed as DomainModel;
   }
 
-  // Check if it's unified format (has meta.namespaceRef or domain.imports)
+  // Check if it's unified format (has meta/domain/dictionary module)
   const hasMeta = isPlainObject(parsed.meta);
   const hasDomainModule = isPlainObject(parsed.domain);
+  const hasDictionaryModule = isPlainObject(parsed.dictionary);
 
-  if (hasMeta || (hasDomainModule && 'imports' in (parsed.domain || {}))) {
+  if (
+    hasMeta ||
+    hasDomainModule ||
+    hasDictionaryModule
+  ) {
     // It's unified format - convert to legacy
     const legacy: Record<string, unknown> = {};
 
     // Extract from meta
-    if (isPlainObject(parsed.meta) && Array.isArray((parsed.meta as any).namespaceRef)) {
-      legacy.namespaceRef = (parsed.meta as any).namespaceRef;
+    if (isPlainObject(parsed.meta) && Array.isArray((parsed.meta as any).namespaceRefList)) {
+      legacy.namespaceRefList = (parsed.meta as any).namespaceRefList;
     }
 
     // Extract from domain module
@@ -122,15 +127,17 @@ export const normalizeModelFormat = (
 
       if (fileKind === 'model') {
         // Copy domain content
-        ['entities', 'simpleTypes', 'relationships', 'eventGlossary', 'functions', 'stateModel'].forEach(key => {
+        ['entityList', 'typeList', 'relationshipList', 'eventGlossaryList', 'functionList', 'stateList'].forEach(key => {
           if (key in domain) {
             legacy[key] = domain[key];
           }
         });
 
-        // Store imports as domain.imports for later use
-        if (Array.isArray(domain.imports)) {
-          (legacy as any).imports = domain.imports;
+        // Store imports as importList for editor usage
+        if (Array.isArray((domain as any).importList)) {
+          (legacy as any).importList = (domain as any).importList;
+        } else if (Array.isArray((domain as any).imports)) {
+          (legacy as any).importList = (domain as any).imports;
         }
       }
     }
@@ -139,15 +146,17 @@ export const normalizeModelFormat = (
     if (isPlainObject(parsed.dictionary)) {
       const dict = parsed.dictionary as Record<string, unknown>;
       if (fileKind === 'dictionary') {
-        if (Array.isArray(dict.imports)) {
-          (legacy as any).imports = dict.imports;
+        if (Array.isArray((dict as any).importList)) {
+          (legacy as any).importList = (dict as any).importList;
+        } else if (Array.isArray((dict as any).imports)) {
+          (legacy as any).importList = (dict as any).imports;
         }
         if (isPlainObject(dict.metadata)) {
           Object.entries(dict.metadata as Record<string, unknown>).forEach(([key, val]) => {
             legacy[key] = val;
           });
         }
-        ['glossary', 'businessRules', 'actors'].forEach(key => {
+        ['glossaryList', 'businessRuleList', 'actorList'].forEach(key => {
           if (key in dict) {
             legacy[key] = dict[key];
           }
@@ -178,13 +187,13 @@ export const buildUnifiedDomainDocument = (
   filePath: string
 ): Record<string, unknown> => {
   const metadata = extractMetadata(model, filePath);
-  const imports = normalizeImports((model as any).imports);
+  const imports = normalizeImports((model as any).importList ?? (model as any).imports);
 
   if (fileKind === 'meta') {
     return {
       meta: {
         metadata,
-        namespaceRef: normalizeNamespaceRef((model as any).namespaceRef)
+        namespaceRefList: normalizeNamespaceRef((model as any).namespaceRefList)
       }
     };
   }
@@ -193,10 +202,10 @@ export const buildUnifiedDomainDocument = (
     return {
       dictionary: {
         metadata,
-        ...(imports ? { imports } : {}),
-        glossary: (model as any).glossary ?? [],
-        businessRules: (model as any).businessRules ?? [],
-        actors: (model as any).actors ?? []
+        ...(imports ? { importList: imports } : {}),
+        glossaryList: (model as any).glossaryList ?? [],
+        businessRuleList: (model as any).businessRuleList ?? [],
+        actorList: (model as any).actorList ?? []
       }
     };
   }
@@ -204,11 +213,11 @@ export const buildUnifiedDomainDocument = (
   return {
     domain: {
       metadata,
-      ...(imports ? { imports } : {}),
-      entities: model.entities ?? [],
-      simpleTypes: (model as any).simpleTypes ?? [],
-      relationships: (model as any).relationships ?? [],
-      eventGlossary: (model as any).eventGlossary ?? []
+      ...(imports ? { importList: imports } : {}),
+      entityList: model.entityList ?? [],
+      typeList: (model as any).typeList ?? [],
+      relationshipList: (model as any).relationshipList ?? [],
+      eventGlossaryList: (model as any).eventGlossaryList ?? []
     }
   };
 };
@@ -235,17 +244,17 @@ export const normalizeAlgorithmFormat = (parsed: unknown): SqdAlgorithm => {
     return parsed as SqdAlgorithm;
   }
 
-  // Check if it's unified format (has algorithm.definitions[0].imports)
+  // Check if it's unified format (has algorithm.algorithmList[0].importList)
   const hasAlgorithmModule = isPlainObject(parsed.algorithm);
 
   if (hasAlgorithmModule) {
     const alg = parsed.algorithm as Record<string, unknown>;
-    const definitions = Array.isArray(alg.definitions) ? alg.definitions : [];
+    const definitions = Array.isArray(alg.algorithmList) ? alg.algorithmList : [];
 
-    // Check if first definition has imports (indicator of unified format)
+    // Check if first definition has importList/imports (indicator of unified format)
     if (definitions.length > 0 && isPlainObject(definitions[0])) {
       const firstDef = definitions[0] as Record<string, unknown>;
-      if ('imports' in firstDef) {
+      if ('importList' in firstDef || 'imports' in firstDef || 'stepList' in firstDef) {
         const moduleMetadata = isPlainObject(alg.metadata)
           ? (alg.metadata as Record<string, unknown>)
           : null;
@@ -257,29 +266,38 @@ export const normalizeAlgorithmFormat = (parsed: unknown): SqdAlgorithm => {
             version: firstDef.version,
             behavior: firstDef.behavior
           },
-          steps: (firstDef.steps as any) ?? [],
-          imports: firstDef.imports as string[] | undefined,
+          stepList: (firstDef.stepList as any) ?? [],
+          importList: (firstDef.importList as string[] | undefined) ?? (firstDef.imports as string[] | undefined),
           name: moduleMetadata?.name ?? firstDef.name,
           description: moduleMetadata?.description,
           version: moduleMetadata?.version ?? firstDef.version,
           status: moduleMetadata?.status
         };
 
-        if (firstDef.actors) legacy.actors = firstDef.actors;
-        if (firstDef.namespaceRef) legacy.namespaceRef = firstDef.namespaceRef;
+        if (firstDef.actorList) legacy.actorList = firstDef.actorList;
+        if (firstDef.namespaceRefList) legacy.namespaceRefList = firstDef.namespaceRefList;
 
         return legacy as SqdAlgorithm;
       }
     }
   }
 
-  // It's already legacy format
-  const legacy = parsed as SqdAlgorithm;
+  // It's already legacy-ish format; normalize keys expected by the editor.
+  const legacy = parsed as SqdAlgorithm & Record<string, unknown>;
   if (!legacy.name && legacy.algorithm?.name) {
     legacy.name = legacy.algorithm.name;
   }
   if (!legacy.version && legacy.algorithm?.version) {
     legacy.version = legacy.algorithm.version;
+  }
+  if (!Array.isArray(legacy.stepList) && Array.isArray((legacy as any).steps)) {
+    legacy.stepList = (legacy as any).steps;
+  }
+  if (!Array.isArray((legacy as any).importList) && Array.isArray((legacy as any).imports)) {
+    (legacy as any).importList = (legacy as any).imports;
+  }
+  if (!Array.isArray((legacy as any).namespaceRefList) && Array.isArray((legacy as any).namespaceRef)) {
+    (legacy as any).namespaceRefList = (legacy as any).namespaceRef;
   }
   return legacy;
 };

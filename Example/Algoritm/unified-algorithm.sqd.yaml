@@ -3,50 +3,50 @@ algorithm:
   version: '1.0'
   behavior:
     description: Enroll a new student in the school
-    preconditions:
+    preconditionList:
       - Student record exists
       - No prior enrollment in this school
-    postconditions:
+    postconditionList:
       - Enrollment record created
       - Confirmation sent to student
-    actors: []
-steps:
+    errorEventList: []
+    affectedEntityList: []
+    actorRefList: []
+stepList:
   - id: '1'
-    type: step
-    text: Verify student data
-    behavior:
-      description: ''
-      preconditions: []
-      postconditions: []
-      errorEvents: []
-      affectedEntities: []
-      actors: []
+    stepType: step
+    description: Verify student data
+  - id: '6'
+    stepType: step
+    description: ''
   - id: '2'
-    type: decision
-    text: Student already enrolled?
+    stepType: decision
+    description: Student already enrolled?
     condition:
-      kind: attributeRef
+      conditionType: attributeRef
       description: Check if student has enrollment record
-      check: exists
-    branches:
+      operatorType: exists
+    branchList:
       - when: true
         then:
           - id: '3'
-            type: step
-            text: Log duplicate enrollment attempt
+            stepType: step
+            description: Log duplicate enrollment attempt
       - when: false
         then:
           - id: '4'
-            type: operation
-            text: Create enrollment record
-            operation: create
+            stepType: operation
+            description: Create enrollment record
+            operationRef: create
   - id: '5'
-    type: step
-    text: Send confirmation to student
-imports:
+    stepType: step
+    description: Send confirmation to student
+importList:
   - local
   - Externe
-actors:
+name: EnrollStudent
+version: '1.0'
+actorList:
   - namespaceAlias: local
     actor: STUDENT
   - namespaceAlias: local

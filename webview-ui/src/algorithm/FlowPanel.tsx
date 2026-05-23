@@ -14,7 +14,7 @@ interface Props {
 }
 
 /** Konvertuje kroky algoritmu na React Flow nodes + edges */
-function buildGraph(steps: SqdStep[]): { nodes: Node[]; edges: Edge[] } {
+function buildGraph(stepList: SqdStep[]): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
 
@@ -24,24 +24,24 @@ function buildGraph(steps: SqdStep[]): { nodes: Node[]; edges: Edge[] } {
   let prevId = '__start';
   let y = 80;
 
-  for (const step of steps) {
+  for (const step of stepList) {
     const nodeId = `step-${step.id}`;
-    const label = step.text
-      ? step.text.slice(0, 50).replace(/\n/g, ' ') + (step.text.length > 50 ? '…' : '')
+    const label = step.description
+      ? step.description.slice(0, 50).replace(/\n/g, ' ') + (step.description.length > 50 ? '…' : '')
       : step.id;
 
     nodes.push({
       id: nodeId,
       position: { x: 100, y },
       data: { label },
-      style: stepStyle(step.type),
+      style: stepStyle(step.stepType),
     });
 
     edges.push({ id: `e-${prevId}-${nodeId}`, source: prevId, target: nodeId });
 
     // Pre decision pridaj vetvy
-    if (step.type === 'decision' && step.branches) {
-      for (const branch of step.branches) {
+    if (step.stepType === 'decision' && step.branchList) {
+      for (const branch of step.branchList) {
         const branchId = `branch-${step.id}-${branch.when}`;
         const branchLabel = branch.when ? 'TRUE' : 'FALSE';
         const branchActions = branch.then?.map(t => t.type).join(', ') ?? '';
@@ -73,7 +73,7 @@ function stepStyle(type: string): React.CSSProperties {
 }
 
 export const FlowPanel: React.FC<Props> = ({ model }) => {
-  const { nodes, edges } = useMemo(() => buildGraph(model.steps ?? []), [model.steps]);
+  const { nodes, edges } = useMemo(() => buildGraph(model.stepList ?? []), [model.stepList]);
 
   return (
     <div className="flow-panel">

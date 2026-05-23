@@ -17,9 +17,9 @@ export interface GovernanceMetadata {
 
 export interface SqdAlgorithm {
   algorithm: AlgorithmMeta;
-  steps: SqdStep[];
-  actors?: ActorEntry[];
-  namespaceRef?: NamespaceEntity[];
+  stepList: SqdStep[];
+  actorList?: ActorEntry[];
+  namespaceRefList?: NamespaceEntity[];
   imports?: string[];
   name?: string;
   description?: string;
@@ -30,13 +30,13 @@ export interface SqdAlgorithm {
 export interface AlgorithmMeta {
   name: string;
   version?: string;
-  parameters?: Parameter[];
+  parameterList?: Parameter[];
   behavior?: Behavior;
 }
 
 export interface NamedType {
   name: string;
-  type?: 'definition' | 'entityRef' | 'typeRef';
+  varType?: 'definition' | 'entityRef' | 'typeRef';
   entityRef?: ReferenceEntity;
   typeRef?: SimpleTypeRef;
   definition?: SimpleTypeDefinition;
@@ -75,20 +75,20 @@ export type StepType =
 export interface SqdStep {
   id: string;
   legacyId?: string;
-  type: StepType;
-  text?: string;
+  stepType: StepType;
+  description?: string;
 
-  collection?: string;
-  item?: string;
+  sourceCollectionRef?: string;
+  iteratorItemName?: string;
 
-  operation?: string | ReferenceOperation;
+  operationRef?: string | ReferenceOperation;
   condition?: StepCondition;
-  branches?: Branch[];
-  body?: SqdStep[];
+  branchList?: Branch[];
+  subStepList?: SqdStep[];
   behavior?: Behavior;
 
   // Spatna kompatibilita so starsimi datami/editorom
-  steps?: SqdStep[];
+  stepList?: SqdStep[];
   call?: string;
   outputs?: StepOutput[];
 }
@@ -124,13 +124,13 @@ export interface ReferenceEntityFunction {
   namespaceAlias?: string;
   entity?: string;
   function?: string;
-  mapParameters?: ParameterMap[];
+  parameterMapList?: ParameterMap[];
   
 }
 
 export interface ReferenceSqd {
   namespaceAlias?: string;
-  mapParameters?: ParameterMap[];
+  parameterMapList?: ParameterMap[];
   // Spatna kompatibilita so starsim formatom mapovania
   mapInput?: ParameterMap[];
   mapOutput?: ParameterMap[];
@@ -139,22 +139,22 @@ export interface ReferenceSqd {
 export interface ReferenceEvent {
   namespaceAlias?: string;
   event?: string;
-  mapParameters?: ParameterMap[];
+  parameterMapList?: ParameterMap[];
   // Spatna kompatibilita so starsim formatom mapovania
   mapInput?: ParameterMap[];
   mapOutput?: ParameterMap[];
 }
 
 export interface ReferenceOperation {
-  kind: 'entityFunction' | 'sqd' | 'step' | 'event';
+  callType: 'entityFunction' | 'sqd' | 'step' | 'event';
   stepRef?: string;
   entityFunctionRef?: ReferenceEntityFunction;
   sqdRef?: ReferenceSqd;
-  eventRef?: ReferenceEvent;
+  emitEventRef?: ReferenceEvent;
 }
 
 export interface StepCondition {
-  kind?: 'attributeRef' | 'variable' | 'operationRef' | 'waitEvent' | 'simple';
+  conditionType?: 'attributeRef' | 'variable' | 'operationRef' | 'waitEvent' | 'simple';
   variable?: string;
   attributeRef?: ReferenceAttribute;
   operationRef?: ReferenceOperation;
@@ -163,7 +163,9 @@ export interface StepCondition {
   check: 'exists' | 'is null' | 'is not null' | 'equals' | 'not equals' | 'greater than' | 'less than';
   value?: unknown;
 
- 
+  // Legacy support
+  kind?: 'attributeRef' | 'variable' | 'operationRef' | 'waitEvent' | 'simple';
+}
 }
 
 export interface Branch {
@@ -172,7 +174,7 @@ export interface Branch {
 }
 
 export interface StepEvent {
-  eventRef: ReferenceEvent;
+  emitEventRef: ReferenceEvent;
   waitUntil?: string;
   timeoutAction?: string;
 }
@@ -210,7 +212,7 @@ export type ErrorEventAction =
 
 export interface ErrorEvent {
   condition: string;
-  eventRef: ReferenceEvent;
+  emitEventRef: ReferenceEvent;
   action?: ErrorEventAction;
   fallbackStepRef?: string;
   returnValue?: string;
@@ -226,32 +228,35 @@ export interface ErrorEvent {
 export interface ActorEntry {
   code: string;
   title?: string;
-  type?: 'user' | 'system' | 'external_system';
-  meaning: string;
-  responsibilities?: string[];
+  actorType?: 'user' | 'system' | 'external_system';
+  definition: string;
+  responsibilityList?: string[];
 }
 
 export interface Behavior {
   description?: string;
-  preconditions?: string[];
-  postconditions?: string[];
-  errorEvents?: ErrorEvent[];
-  affectedEntities?: AffectedEntity[];
-  actors?: ActorRef[];
+  preconditionList?: string[];
+  postconditionList?: string[];
+  errorEventList?: ErrorEvent[];
+  affectedEntityList?: AffectedEntity[];
+  actorRefList?: ActorRef[];
 }
 
 // ----- Domain Model -----
 
 export interface DomainModel {
-  domain: DomainMeta;
-  entities: Entity[];
-  simpleTypes?: SimpleType[];
-  relationships?: Relationship[];
-  glossary?: GlossaryEntry[];
-  eventGlossary?: EventGlossaryEntry[];
-  businessRules?: BusinessRule[];
-  actors?: ActorEntry[];
-  namespaceRef?: NamespaceEntity[];
+  metadata?: GovernanceMetadata;
+  domainMeta?: DomainMeta;
+  entityList?: Entity[];
+  typeList?: SimpleType[];
+  relationshipList?: Relationship[];
+  glossaryList?: GlossaryEntry[];
+  eventGlossaryList?: EventGlossaryEntry[];
+  businessRuleList?: BusinessRule[];
+  actorList?: ActorEntry[];
+  namespaceRefList?: NamespaceEntity[];
+  importList?: string[];
+  functionList?: DomainFunction[];
 }
 
 export interface Annotation {
@@ -301,20 +306,20 @@ export interface DomainMeta {
 export interface Entity {
   name: string;
   description?: string;
-  type?: 'business_concept' | 'database_table' | 'code_list' | 'conceptual_system' | 'computational_system' | 'other';
+  entityType?: 'business_concept' | 'database_table' | 'code_list' | 'conceptual_system' | 'computational_system' | 'other';
   agregationStatus?: 'root' | 'leaf' | 'intermediate';
   status?: 'active' | 'deprecated';
-  stateModel?: StateEntry[];
-  transitions?: Transition[];
-  attributes?: Attribute[];
-  functions?: DomainFunction[];
+  stateList?: StateEntry[];
+  transitionList?: Transition[];
+  attributeList?: Attribute[];
+  functionList?: DomainFunction[];
 }
 
 export interface StateEntry {
   name: string;
   label?: string;
   description?: string;
-  type?: 'initial' | 'normal' | 'final' | 'choice' | 'junction' | 'error';
+  stateType?: 'initial' | 'normal' | 'final' | 'choice' | 'junction' | 'error';
   entryOperation?: ReferenceOperation;
   doOperation?: ReferenceOperation;
   exitOperation?: ReferenceOperation;
@@ -327,7 +332,7 @@ export interface Transition {
   to: string;
   trigger?: StepEvent;
   condition?: string;
-  operation?: ReferenceOperation;
+  operationRef?: ReferenceOperation;
   priority?: number;
   automatic?: boolean;
   description?: string;
@@ -340,13 +345,12 @@ export interface CodeLabel {
 
 export interface Attribute {
   namedType?: NamedType;
-  states?: CodeLabel[];
-
+  codeLabelList?: CodeLabel[];
 
 }
 
 export interface RelationshipRole {
-  nazov?: string;
+  name?: string;
   multiplicity?: string;
   entity?: string;
   entityRef?: ReferenceEntity;
@@ -354,7 +358,7 @@ export interface RelationshipRole {
 }
 
 export interface Relationship {
-  type?: 'contains' | 'references' | 'belongs_to' | 'aggregates';
+  relationshipType?: 'contains' | 'references' | 'belongs_to' | 'aggregates';
   start_role?: RelationshipRole;
   end_role?: RelationshipRole;
   description?: string;
@@ -362,14 +366,15 @@ export interface Relationship {
 
 export interface GlossaryEntry {
   term: string;
-  meaning: string;
+  definition: string;
   relatedEntity?: string;
 }
 
 export interface DomainFunction {
   name: string;
-  parameters?: Parameter[];
+  parameterList?: Parameter[];
   behavior?: Behavior;
+  effectList?: FunctionEffect[];
 
   // Spatna kompatibilita so starsim formatom funkcie
   inputs?: Variable[];
@@ -385,7 +390,7 @@ export interface FunctionEffect {
 export interface EventGlossaryEntry {
   code: string;
   title?: string;
-  meaning: string;
+  definition: string;
   severity?: 'info' | 'warning' | 'error';
   recommendedAction?: string;
 }

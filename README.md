@@ -8,15 +8,6 @@ Všetky YAML súbory v tomto projekte používajú **unified schema format**.
 ### Štruktúra unified domain model (`*.model.yaml`)
 
 ```yaml
-meta:
-  namespaceRef:                          # Katalóg namespace referencií
-    - alias: local
-      filePath: path/to/this-file.model.yaml
-      sourceType: current                # vždy pre local
-    - alias: SomeNamespace
-      filePath: path/to/other.model.yaml
-      sourceType: model
-
 domain:
   metadata: { name, description, version, status }
   imports: [local, SomeNamespace]        # Selektívny import
@@ -34,15 +25,6 @@ dictionary:
 ### Štruktúra unified algorithm model (`*.sqd.yaml`)
 
 ```yaml
-meta:
-  namespaceRef:
-    - alias: local
-      filePath: path/to/this-file.sqd.yaml
-      sourceType: current
-    - alias: DomainModel
-      filePath: path/to/model.model.yaml
-      sourceType: model
-
 algorithm:
   definitions:
     - name: AlgorithmName
@@ -53,10 +35,25 @@ algorithm:
       steps: [...]
 ```
 
+### Štruktúra global meta katalogu (`_global.meta.yaml`)
+
+```yaml
+meta:
+   metadata: { name }
+   namespaceRef:
+      - alias: SomeNamespace
+         filePath: Catalogs/SomeNamespace.model.yaml
+         sourceType: model
+      - alias: SomeAlgorithm
+         filePath: Algoritm/SomeAlgorithm.sqd.yaml
+         sourceType: sqd
+```
+
 ### Pravidlá
-- `meta.namespaceRef` musí obsahovať `alias: local` s `sourceType: current`
-- `domain.imports` / `algorithm.definitions[].imports` smú referencovať len aliasy z `meta.namespaceRef`
-- `entityRef.namespaceAlias` v relationships musí byť alias definovaný v `meta.namespaceRef`
+- `namespaceRef` je centralizovaný v `_global.meta.yaml`
+- `local` je implicitný alias, nemusí byť uvedený v `_global.meta.yaml`
+- `domain.imports` / `algorithm.definitions[].imports` smú referencovať len aliasy z `_global.meta.yaml` + `local`
+- `entityRef.namespaceAlias` v relationships musí byť alias definovaný v `_global.meta.yaml` alebo `local`
 - Každý `step` musí mať `id` a platný `type`; `decision` vyžaduje `condition` + `branches`; `operation` vyžaduje `operation` pole
 
 ### Nástroje
@@ -79,109 +76,48 @@ npm run build:webview     # Build React webview UI
 ### 1.1 Domain Model - Úroveň Domény
 
 #### ✅ AKO JE TERAZ:
-- **Entities** - Objekty/popis čo sa v doméne deje
-- **Attributes** - Vlastnosti entít
-- **Functions** - Operácie nad entitami  
-- **SimpleTypes** - Definícia typov (enumy, restrictions)
-- **Relationships** - Vzťahy medzi entitami
-- **Glossary** - Pojmy a ich definitions
-- **EventGlossary** - Udalosti a ich definitions
-- **Actors** - Roly v doméne (user, system, external)
-- **NamespaceRef** - Odkazy na iné modely
+- Entities / Attributes / Functions / Relationships / SimpleTypes sú pokryté.
+- Business rules sú dostupné v dictionary vrstve.
+- Aggregate root je modelovaný cez `agregationStatus`.
+- Eventy, aktéri, audit a bezpečnostné poznámky sa dajú vyjadriť cez behavior prvky.
+- Namespace importy sú centralizované cez `_global.meta.yaml`.
 
-#### ❌ ČO CHÝBA Z ANALYTICKÉHO HĽADISKA:
+#### ❌ ČO EŠTE CHÝBA (ANALYTICKY):
 
-**A) Domain Invariants / Business Rules**
-- Globálne pravidlá ktoré musia byť vždy splnené
-- Príklad: "Študent nemôže byť v dvoch triedach naraz"
-- Príklad: "Suma počtov žiakov nesmie prekročiť kapacitu školy"
-- **UI:** Nová tab "Business Rules" s listom pravidiel (code, description, severity)
+**A) State Transition Semantika a validácia (MEDIUM)**
+- Transition model existuje, ale chýba konzistentná validačná a editorová vrstva nad prechodmi.
+- Potrebné je explicitne kontrolovať podmienky prechodu, trigger, konflikty priorít a konzistenciu medzi stavmi.
 
-**B) Aggregate Roots** 
-- Ktoré entity sú agregačné korene
-- Hlásenie konzistentnosti - ktoré entity sa menia spolu
-- **UI:** Checkbox pri entite "Je agregačný koreň" + dokumentácia
-
-**C) Value Objects vs Entities**
-- Rozlíšenie medzi Value Object a Entity
-- Value Objects nemajú identitu
-- **UI:** Typ entity: Entity / Value Object / Enum
-
-**D) Lifecycle / State Transitions**
-- StateModel je len stavy, bez pravidiel prechodu
-- Chýbajú podmienky prechodu medzi stavmi  
-- Príklad: "Vypočet sa môže skončiť iba ak počet žiakov <= 0"
-- **UI:** Stav -> Modal s preconditions/postconditions pre prechod
-
-**E) Domain Events**
-- Udalosti ktoré sa emitujú pri zmenách
-- Prípad: "Keď sa žiak zaradí, emit ZiakZaradeny event"
-- **UI:** Pri funkcii: "Emitted Events" - zoznam eventov
-
-**F) Cross-cutting Concerns**
-- Security/Authorization pravidlá na úrovni domény
-- Audit trails - čo treba loggovať
-- Prípad: "Všetky zmeny v rámci Vypočtu musia byť auditované"
-- **UI:** Nová sekcia pri entite "Audit", "Security"
-
-**G) Aggregate Boundaries**
-- Explicitný popis ako sa agregáty vzájomne referencujú
-- Nie je jasné či EntityRef znamená "agregát" alebo "iba referenciu"
-- **UI:** Pri Relationship: "Type" - Association / Aggregation / Composition
+**B) Jednoznačné hranice agregátov (LOW)**
+- Vzťahy existujú, ale pre architektonický návrh chýba explicitné odlíšenie association/aggregation/composition.
+- Potrebné pre presné mapovanie na doménové boundary a ownership dát.
 
 ---
 
 ### 1.2 Algorithm (SQD) - Úroveň Procedúry
 
 #### ✅ AKO JE TERAZ:
-- **Steps** - Jednotlivé kroky procedúry
-- **Operations** - Referencie na funkcie alebo SQD
-- **Conditions** - Podmienky (entityRef/variable/simple)
-- **Branches** - Rozhodnutia (decision, loop, foreach)
-- **Behavior** - Preconditions, Postconditions, Affected Entities, Actors
-- **Events** - Udalosti ktoré sa emitujú v kroku
+- Steps, branches, conditions a operation referencie sú pokryté.
+- Rationale, error handling, retry a compensation sú vyjadriteľné cez behavior/errorEvents.
+- Affected entities a actor väzby sú dostupné pre use-case mapovanie.
 
-#### ❌ ČO CHÝBA Z ANALYTICKÉHO HĽADISKA:
+#### ❌ ČO EŠTE CHÝBA (ANALYTICKY):
 
-**A) Step Narrative / Human-Readable Description**
-- Step.text je len čo sa deje
-- Chýba PREČO sa to deje (rationale)
-- Chýba KĽÚČOVÝ INFO (komentár analytika)
-- **UI:** TextField pri step "Rationale / Why" (voliteľné)
+**A) Wait Event Timeout Policy (MEDIUM)**
+- Je potrebná silnejšia štruktúra a validačné pravidlá timeout scenárov.
+- Cieľ je odstrániť voľné texty pri kritických rozhodnutiach v behu algoritmu.
 
-**B) Wait Event Policy (PARTIAL)**
-- Máme `waitEvent` s `eventRef`, `waitUntil` a `timeoutAction`
-- Chýba štruktúrovaná politika timeout-u (enum + fallback step ref + retry policy)
-- **UI:** Polia existujú, ale bez silnej validácie semantiky
+**B) Performance SLA (LOW)**
+- Chýba jednotný spôsob evidencie očakávaného času behu algoritmu/kroku.
+- Potrebné pre NFR a sizing architektúry.
 
-**C) Error Handling / Exception Paths**
-- Čo sa stane ak operácia zlyhá?
-- Prípad: "Ak výpočet trvá >5min, timeout"
-- **UI:** Pri operation/step: "Error Handler" - referencie na fallback steps
+**C) Parallel Flow Semantika (LOW)**
+- Chýba explicitný parallel krok so semantikou synchronizačného bodu.
+- Potrebné pre návrh škálovania a orchestrácie.
 
-**D) Timing / Performance Requirements**
-- Nesledujeme čas vykonania
-- Prípad: "Tento výpočet musí skončiť do 30 sekúnd"
-- **UI:** Pri algoritme/step: "Performance SLA" (description)
-
-**E) Retry Logic**
-- Nemáme popis ako sa retryuje
-- Prípad: "Ak sieťová chyba, skúsiť 3x s exponential backoff"
-- **UI:** Pri operation: "Retry Policy" (description)
-
-**F) Parallel Execution Support**
-- Algoritmus je lineárny, bez parallelizmu
-- Prípad: "Tieto 3 výpočty sa dajú robiť paralelne"
-- **UI:** Block / Parallel step type (spolu s do-all semantikou)
-
-**G) Compensation / Rollback**
-- Čo sa stane ak algoritmus zlyhá v strede
-- Prípad: "Ak zlyhá step 5, kompenzuj step 2,3,4"
-- **UI:** Pri step: "Compensation" - ref na krок na rollback
-
-**H) Traceability / Audit Trail**
-- Ktoré dáta (koľko) a aké transformácie sa uskutočnili
-- **UI:** Pri step: "Data Lineage" (description)
+**D) Data Lineage (LOW)**
+- Chýba konzistentný zápis transformácie dát medzi krokmi.
+- Dôležité pre auditovateľnosť, dopadové analýzy a troubleshooting.
 
 ---
 
@@ -204,71 +140,57 @@ npm run build:webview     # Build React webview UI
 
 ### 2.2 Chýbajúce UI Komponenty
 
-**A) DOMAIN MODEL - Missing UI:**
+Aktualizovaný zoznam obsahuje iba otvorené položky. Už implementované položky sú v samostatnom bloku nižšie.
 
-1. **Business Rules Tab** 
-   - Tabuľka s pravidlami (code, description, severity)
-   - Detail: Pravidlo + jeho popis + severity (high/medium/low)
-   - Status: ✅ DONE
+**A) DOMAIN MODEL - otvorené položky**
 
-2. **Entity Type Selector**
-   - Momentálne: len Entity
-   - Treba: Entity / Value Object / Enum dropdown pri detaili entity
-   - Status: ✅ DONE
-
-3. **Aggregate Root Checkbox**
-   - Pri entity detail: "Aggregate Root?" (boolean)
-   - Status: ✅ DONE — riešené cez pole `agregationStatus` (root / leaf / intermediate)
-
-4. **State Transition Rules**
-   - Stav -> Pravítka pre prechod (preconditions/postconditions)
-   - U StateModel pribudnú detaily na prechod
+1. **State Transition Validation & UX**
+   - Model prechodu existuje, treba doplniť pravidlá editácie a validácie prechodov
+   - Rozšíriť detail stavov/prechodov o explicitné transition constraints a kontroly konzistencie
    - Status: ❌ PRIORITY: MEDIUM
 
-5. **Emitted Events v Funkcii**
-   - Pri funkcii: "Emitted Events" - zoznam eventov ktoré funkcia emituje
-   - Status: ❌ PRIORITY: LOW
-
-6. **Audit/Security Settings**
-   - Pri entite: sekcia "Audit" (Yes/No), "Security" (description)
+2. **Relationship Semantics Typing**
+   - Spresniť vzťahové typy pre doménové hranice (association/aggregation/composition)
+   - Umožniť lepší export do architektonického návrhu modulov
    - Status: ❌ PRIORITY: LOW
 
 ---
 
-**B) ALGORITHM EDITOR - Missing UI:**
+**B) ALGORITHM EDITOR - otvorené položky**
 
-1. **Step Rationale / Comment**
-   - TextField pri step detaili "Why / Rationale"
-   - Status: ✅ DONE
-
-2. **Error Handler per Operation**
-   - Pri operation detail: "On Error" - dropdown s fallback steps alebo skip
-   - Status: ✅ DONE
-
-3. **Performance SLA**
-   - Pri algoritme behavior: "Performance SLA" textarea (description)
-   - Pri step: "Expected Duration" field (optional)
-   - Status: ❌ PRIORITY: LOW
-
-4. **Retry Configuration**
-   - Pri operation: "Retry Policy" (description: "retry N times with backoff")
-   - Status: ❌ PRIORITY: LOW
-
-5. **Compensation Step**
-   - Pri step: "Compensation" - link na iný step na spustenie ak toto zlyhá
+1. **Wait Event Timeout Strategy**
+   - Štruktúrovaný timeout model (akcia, fallback step, retry pravidlo)
+   - Doplniť validačné pravidlá, nie iba voľný text
    - Status: ❌ PRIORITY: MEDIUM
 
-6. **Data Output Assignment**
-   - Pri Affected Entities: pri "write" impact -> "Assign to Variable" field
-   - Status: ✅ DONE
-
-7. **Parallel Execution Step Type**
-   - Nový step type: "parallel" s možnosťou viacerých substeps
+2. **Performance SLA**
+   - Pri algoritme: SLA popis, voliteľne očakávané trvanie na úrovni kroku
+   - Vhodné pre NFR a architektonické návrhy
    - Status: ❌ PRIORITY: LOW
 
-8. **Data Lineage / Transformation Notes**
-   - Pri step: "Data Notes" textarea (čo sa s dátami deje)
+3. **Parallel Execution Step Type**
+   - Nový typ kroku `parallel` s podkrokmi
+   - Nutná jasná semantika join/sync bodu
    - Status: ❌ PRIORITY: LOW
+
+4. **Data Lineage / Transformation Notes**
+   - Pri step: poznámky k transformácii dát a pôvodu
+   - Pomáha pri analytike dopadov a auditovateľnosti
+   - Status: ❌ PRIORITY: LOW
+
+**C) Už implementované (pre referenciu)**
+
+1. Business Rules Tab (Domain) ✅
+2. Entity Type Selector (Domain) ✅
+3. Aggregate Root cez `agregationStatus` (Domain) ✅
+4. Step Rationale / Comment (Algorithm) ✅
+5. Error Handler per Operation (Algorithm) ✅
+6. Data Output Assignment (Algorithm) ✅
+7. Retry Configuration cez behavior.errorEvents (Algorithm) ✅
+8. Emitted Events vo funkcii cez behavior/errorEvents (Domain/Function) ✅
+9. Audit/Security cez behavior poznámky a pravidlá (Domain/Function) ✅
+10. Actors na úrovni funkcií cez behavior.actors ✅
+11. Compensation Step cez behavior.errorEvents (Algorithm) ✅
 
 ---
 
@@ -277,53 +199,48 @@ npm run build:webview     # Build React webview UI
 1. ✅ **DONE** - Multiline preconditions/postconditions v funkcii (DOMAIN)
 2. ✅ **DONE** - Multiline preconditions/postconditions v algoritme
 3. ✅ **DONE** - Add Behavior button premmiestnený do action buttons
-4. ⚠️ **PARTIAL** - Actors tab v doméne - OK ale chýba prispanie do funkcií
+4. ✅ **DONE** - Actors tab v doméne vrátane mapovania na funkcie cez behavior
 5. ✅ **DONE** - ActorRefsEditor styling (zjednotený so zvyškom formu)
+6. ⚠️ **PARTIAL** - Wait Event timeout má UI polia, ale chýba tvrdšia validačná logika
 
 ---
 
 ## 3. Prioritizácia Implementácie
 
-### PHASE 1 (HIGH PRIORITY - Analyticky potrebné): ✅ DONE
-1. Step Rationale / Comment (Algorithm) ✅
-2. Business Rules (Domain) ✅
-3. Error Handler per Operation (Algorithm) ✅
+### PHASE 1 (MEDIUM PRIORITY - Kľúčové otvorené položky)
+1. State Transition validation a UX (Domain)
+2. Wait Event timeout stratégia + validačné pravidlá (Algorithm)
 
-### PHASE 2 (MEDIUM PRIORITY - Lepšia vyjadriteľnosť):
-1. State Transition Rules (Domain)
-4. Wait Event timeout stratégia (Algorithm)
-5. Compensation Step (Algorithm)
+### PHASE 2 (LOW PRIORITY - Rozšírenie modelu a UI)
+1. Relationship Semantics Typing (Domain)
+2. Performance SLA (Algorithm)
+3. Parallel Execution (Algorithm)
+4. Data Lineage (Algorithm)
 
-### PHASE 3 (LOW PRIORITY - Nice to Have):
-1. Performance SLA (Algorithm)
-2. Retry Configuration (Algorithm)
-3. Emitted Events (Domain)
-4. Audit/Security Settings (Domain)
-5. Parallel Execution (Algorithm)
-6. Data Lineage (Algorithm)
+### PHASE 3 (VOLITEĽNÉ - Stabilizácia a export)
+1. Konsolidácia validačných pravidiel pre nové polia
+2. Export-ready štruktúra pre architektonické návrhy (reporting/view model)
 
 ---
 
 ## 4. Súhrn - Klíčové Chýbajúce Koncepty
 
 ### Z pohľadu ANALYTIKA:
-- Business rules a constraints
-- Domain events & aggregates
-- State transitions s pravidlami
-- Error handling & compensation
-- Data flow & transformations
+- State transitions s explicitnými pravidlami prechodu a validáciou konzistencie
+- Wait-event timeout policy s jednoznačnou semantikou
+- Presnejšie hranice agregátov cez typizované vzťahy
+- Konzistentné mapovanie dátových transformácií (lineage)
 
 ### Z pohľadu UI:
-- Racionalizácia krokov
-- Error recovery
-- Output data assignment
-- Business rules management
-- Entity classification (aggregate/value object)
+- Editácia a validácia pravidiel prechodu stavov
+- Validované timeout scenáre pre wait-event
+- Podpora pre paralelný krok so synchronizačným bodom
+- Evidencia SLA a dátovej línie na úrovni kroku
 
 ### Z pohľadu MODELU:
-- BusinessRule interface
-- StateTransition s conditions
-- CompensationPath  
-- PerformanceSLA
-- DataLineage
+- `StateTransition` s podmienkami, triggerom, prioritou a validačnými pravidlami
+- `WaitEventPolicy` (timeout, fallback, retry)
+- Typizácia `Relationship` pre doménové boundary
+- `PerformanceSLA` pre algoritmus/krok
+- `DataLineage` pre sledovanie transformácií
 

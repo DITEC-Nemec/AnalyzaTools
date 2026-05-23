@@ -11,6 +11,7 @@ import yaml from 'js-yaml';
 
 const ROOT = process.cwd();
 const EXAMPLES_DIR = path.join(ROOT, 'Example');
+const GLOBAL_META_CANDIDATES = ['_global.meta.yaml', '_global.meta.yml'];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -31,52 +32,78 @@ function findYamlFiles(dir) {
 
 // ─── Format detection ───────────────────────────────────────────────────────
 
-function detectFormat(parsed) {
+function detectFormat(parsed, filePath) {
   if (!isPlainObject(parsed)) return 'unknown';
 
-  const isUnifiedDomain = isPlainObject(parsed.meta) && isPlainObject(parsed.domain);
-  const isUnifiedAlgorithm = isPlainObject(parsed.meta) && isPlainObject(parsed.algorithm) &&
-    Array.isArray(parsed.algorithm.definitions);
-  if (isUnifiedDomain || isUnifiedAlgorithm) return 'unified';
+  if (filePath.endsWith('.model.yaml') || filePath.endsWith('.model.yml')) {
+    if (isPlainObject(parsed.domain) || Array.isArray(parsed.entities)) {
+      return 'domain';
+    }
+    return 'unknown';
+  }
 
-  // legacy domain
-  if (parsed.entities || parsed.relationships || (isPlainObject(parsed.domain) && parsed.domain.name)) return 'legacy';
-  // legacy sqd
-  if (isPlainObject(parsed.algorithm) && Array.isArray(parsed.steps)) return 'legacy';
+  if (filePath.endsWith('.sqd.yaml') || filePath.endsWith('.sqd.yml')) {
+    const hasUnifiedAlgorithm = isPlainObject(parsed.algorithm) && Array.isArray(parsed.algorithm.definitions);
+    const hasFlatAlgorithm = isPlainObject(parsed.algorithm) && Array.isArray(parsed.steps);
+    if (hasUnifiedAlgorithm || hasFlatAlgorithm) {
+      return 'algorithm';
+    }
+    return 'unknown';
+  }
 
   return 'unknown';
 }
 
 // ─── Validators ─────────────────────────────────────────────────────────────
 
-function validateMeta(meta, errors) {
-  if (!isPlainObject(meta)) {
-    errors.push('meta is missing or not an object');
+function validateNamespaceCatalog(namespaceRef, errors, pathLabel) {
+  if (!Array.isArray(namespaceRef) || namespaceRef.length === 0) {
+    errors.push(`${pathLabel} must be a non-empty array`);
     return;
   }
-  if (!Array.isArray(meta.namespaceRef) || meta.namespaceRef.length === 0) {
-    errors.push('meta.namespaceRef must be a non-empty array');
-    return;
-  }
+
   const aliases = new Set();
-  for (const [i, ns] of meta.namespaceRef.entries()) {
-    if (!ns.alias) errors.push(`meta.namespaceRef[${i}] is missing alias`);
-    if (!ns.filePath) errors.push(`meta.namespaceRef[${i}] is missing filePath`);
+  for (const [i, ns] of namespaceRef.entries()) {
+    if (!ns.alias) errors.push(`${pathLabel}[${i}] is missing alias`);
+    if (!ns.filePath) errors.push(`${pathLabel}[${i}] is missing filePath`);
     if (!['current', 'model', 'sqd'].includes(ns.sourceType)) {
-      errors.push(`meta.namespaceRef[${i}] has invalid sourceType: ${ns.sourceType}`);
+      errors.push(`${pathLabel}[${i}] has invalid sourceType: ${ns.sourceType}`);
     }
-    if (aliases.has(ns.alias)) errors.push(`meta.namespaceRef has duplicate alias: ${ns.alias}`);
+    if (aliases.has(ns.alias)) errors.push(`${pathLabel} has duplicate alias: ${ns.alias}`);
     aliases.add(ns.alias);
   }
-  const hasLocal = meta.namespaceRef.some(ns => ns.alias === 'local' && ns.sourceType === 'current');
-  if (!hasLocal) errors.push('meta.namespaceRef must contain an entry with alias=local and sourceType=current');
+
   return aliases;
 }
 
-function validateDomainModel(parsed, errors) {
-  const availableAliases = validateMeta(parsed.meta, errors) ?? new Set();
+function loadGlobalAliases(errors) {
+  for (const candidate of GLOBAL_META_CANDIDATES) {
+    const fullPath = path.join(EXAMPLES_DIR, candidate);
+    if (!fs.existsSync(fullPath)) {
+      continue;
+    }
 
-  const domain = parsed.domain;
+    let parsed;
+    try {
+      parsed = yaml.load(fs.readFileSync(fullPath, 'utf-8'));
+    } catch (e) {
+      errors.push(`Failed to parse ${candidate}: ${e.message}`);
+      return new Set(['local']);
+    }
+
+    const namespaceRef = parsed?.meta?.namespaceRef;
+    const aliases = validateNamespaceCatalog(namespaceRef, errors, `${candidate}:meta.namespaceRef`) ?? new Set();
+    aliases.add('local');
+    return aliases;
+  }
+
+  errors.push('Missing global namespace catalog file (_global.meta.yaml or _global.meta.yml)');
+  return new Set(['local']);
+}
+
+function validateDomainModel(parsed, errors, availableAliases) {
+  const domain = isPlainObject(parsed.domain) ? parsed.domain : parsed;
+
   if (!isPlainObject(domain)) { errors.push('domain is missing'); return; }
 
   if (!Array.isArray(domain.imports) || domain.imports.length === 0) {
@@ -108,23 +135,31 @@ function validateDomainModel(parsed, errors) {
       if (!r) { errors.push(`Relationship missing ${role}`); continue; }
       if (!isPlainObject(r.entityRef)) { errors.push(`${role}.entityRef is missing`); continue; }
       if (!availableAliases.has(r.entityRef.namespaceAlias)) {
-        errors.push(`${role}.entityRef.namespaceAlias "${r.entityRef.namespaceAlias}" not in meta.namespaceRef`);
+        errors.push(`${role}.entityRef.namespaceAlias "${r.entityRef.namespaceAlias}" not in global namespaceRef`);
       }
     }
   }
 }
 
-function validateAlgorithm(parsed, errors) {
-  const availableAliases = validateMeta(parsed.meta, errors) ?? new Set();
-
+function validateAlgorithm(parsed, errors, availableAliases) {
   const alg = parsed.algorithm;
+
   if (!isPlainObject(alg)) { errors.push('algorithm is missing'); return; }
-  if (!Array.isArray(alg.definitions) || alg.definitions.length === 0) {
-    errors.push('algorithm.definitions must be a non-empty array');
+
+  const definitions = Array.isArray(alg.definitions)
+    ? alg.definitions
+    : [{
+        name: alg.name,
+        imports: parsed.imports,
+        steps: parsed.steps,
+      }];
+
+  if (!Array.isArray(definitions) || definitions.length === 0) {
+    errors.push('algorithm.definitions or flat algorithm shape must be present');
     return;
   }
 
-  for (const [i, def] of alg.definitions.entries()) {
+  for (const [i, def] of definitions.entries()) {
     const prefix = `algorithm.definitions[${i}]`;
     if (!def.name) errors.push(`${prefix} is missing name`);
 
@@ -171,7 +206,7 @@ function validateSteps(steps, prefix, errors) {
 
 // ─── Main ───────────────────────────────────────────────────────────────────
 
-function validateFile(filePath) {
+function validateFile(filePath, availableAliases, globalErrors) {
   const rel = path.relative(ROOT, filePath);
   let parsed;
   try {
@@ -180,19 +215,16 @@ function validateFile(filePath) {
     return { file: rel, errors: [`YAML parse error: ${e.message}`] };
   }
 
-  const format = detectFormat(parsed);
-  const errors = [];
+  const format = detectFormat(parsed, filePath);
+  const errors = [...globalErrors];
 
-  if (format === 'legacy') {
-    errors.push('File is in legacy format — run `npm run migrate` to convert to unified format');
-  } else if (format === 'unknown') {
+  if (format === 'unknown') {
     errors.push('Could not detect file format (neither unified nor legacy)');
   } else {
-    // unified — run full validation
-    if (filePath.endsWith('.model.yaml')) {
-      validateDomainModel(parsed, errors);
+    if (format === 'domain') {
+      validateDomainModel(parsed, errors, availableAliases);
     } else {
-      validateAlgorithm(parsed, errors);
+      validateAlgorithm(parsed, errors, availableAliases);
     }
   }
 
@@ -200,11 +232,13 @@ function validateFile(filePath) {
 }
 
 const files = findYamlFiles(EXAMPLES_DIR);
+const globalErrors = [];
+const globalAliases = loadGlobalAliases(globalErrors);
 console.log(`🔍 Validating ${files.length} YAML files in Example/\n`);
 
 let totalErrors = 0;
 for (const f of files) {
-  const { file, format, errors } = validateFile(f);
+  const { file, format, errors } = validateFile(f, globalAliases, globalErrors);
   if (errors.length === 0) {
     console.log(`  ✅ ${file}  (${format})`);
   } else {
